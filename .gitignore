@@ -1,1 +1,6 @@
 .DS_Store
+__pycache__/
+*.pyc
+.pytest_cache/
+tests/fixtures/wd390/e2e_*
+tests/fixtures/wd390/test_*

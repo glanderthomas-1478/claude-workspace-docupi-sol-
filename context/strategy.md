@@ -6,11 +6,12 @@ Prototyp fertigstellen und erste Feldtests im eigenen Arbeitsumfeld durchfuehren
 
 ## Strategische Prioritaeten
 
-### 1. RS232-Kommunikation knacken
+### 1. RS232-Kommunikation knacken — TEILWEISE ERLEDIGT
 
-- WD290-ECU Protokoll per Reverse Engineering entschluesseln
-- Win7-VM mit ECU Cadi + Serial Sniffer ist eingerichtet
-- Ziel: Sterilisator-Chargenprotokolle live mitlesen
+- WD390-Protokollformat entschluesselt (UTF-16LE Klartext ueber RS232)
+- Parser + PDF-Generator + Chart-Generator implementiert und getestet (42 Tests)
+- OFFEN: WD290-Vergleichsprotokoll aufzeichnen (Annahme: gleiches Format)
+- OFFEN: Live-RS232-Listener implementieren (Serial Stream buffern + Parser aufrufen)
 
 ### 2. Software stabilisieren
 

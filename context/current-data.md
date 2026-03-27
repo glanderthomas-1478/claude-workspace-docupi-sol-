@@ -7,8 +7,9 @@
 | Konzeptdokument | Fertig | — | Hardware, Software, Regulatorik, Roadmap |
 | Prototyp-Hardware | Komponenten bestellt | Getestet | Raspberry Pi + Sensoren |
 | S-Bus/UDP Software | Fertig | — | 9-Dateien-Paket (SQLite, FastAPI, Web-Dashboard) |
-| RS232-Protokoll | Reverse Engineering ausstehend | Entschluesselt | Win7-VM + Serial Sniffer bereit |
-| PDF-Generator | Funktionsfaehig | Produktionsreif | Mehrere Iterationen (v4-v9) |
+| RS232-Protokoll (WD) | Entschluesselt + Parser fertig | Produktionsreif | UTF-16LE Klartext, .ht + RS232 |
+| WD-PDF-Generator | Funktionsfaehig | Produktionsreif | Parser, Chart, PDF — 42 Tests gruen |
+| MST-PDF-Generator | Funktionsfaehig | Produktionsreif | Mehrere Iterationen (v4-v9) |
 | Erste Feldtests | Ausstehend | 1 Test | Im eigenen Arbeitsumfeld moeglich |
 
 ## Quellcode-Uebersicht

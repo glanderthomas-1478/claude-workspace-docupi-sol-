@@ -24,7 +24,7 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 ### Zwei Kommunikationswege
 
 1. **S-Bus/UDP** fuer SAIA PLCs — Software fertig (9-Dateien-Paket)
-2. **RS232** fuer WD290-ECU — Reverse Engineering ausstehend (Win7-VM mit ECU Cadi eingerichtet, Serial Sniffer bereit)
+2. **RS232** fuer WD/RDG-ECU — Protokollformat entschluesselt (UTF-16LE Klartext), Parser + PDF-Generator implementiert
 
 ---
 
@@ -36,8 +36,11 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 ├── .claude/commands/       # /prime, /create-plan, /implement, /shutdown
 ├── context/                # Projekt-Kontext
 ├── src/                    # Python-Quellcode
-│   ├── pdf_generator.py    # PDF-Generierung aus Protokollen
-│   ├── chart_generator.py  # Chart-Erstellung fuer Sterilisationsdaten
+│   ├── pdf_generator.py    # PDF-Generierung MST (Sterilisatoren)
+│   ├── chart_generator.py  # Chart-Erstellung MST
+│   ├── wd_protocol_parser.py  # WD/RDG-Protokoll-Parser (.ht + RS232)
+│   ├── wd_pdf_generator.py    # PDF-Generierung WD/RDG
+│   ├── wd_chart_generator.py  # Temperatur-Chart WD/RDG
 │   ├── print_manager.py    # Drucker-Management
 │   ├── watchdog_manager.py # Service-Ueberwachung
 │   ├── add_system_health.py # System-Health-Metriken
@@ -47,8 +50,10 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 │       ├── dashboard.html  # Haupt-Dashboard
 │       └── captive.html    # Captive Portal (Hotspot)
 ├── tests/                  # Test-Skripte
-│   ├── fixtures/           # Test-PDFs
-│   └── *.py                # Unit/Integration Tests
+│   ├── fixtures/           # Test-PDFs + WD390-Fixture
+│   ├── test_wd_parser.py   # WD-Parser Tests (34 Tests)
+│   ├── test_wd_e2e.py      # WD End-to-End Tests
+│   └── *.py                # Weitere Tests
 ├── reference/              # Dokumentation, Konzepte
 ├── plans/                  # Implementierungsplaene
 ├── outputs/                # Arbeitsergebnisse

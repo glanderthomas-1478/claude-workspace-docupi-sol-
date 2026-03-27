@@ -1,0 +1,9 @@
+# DocuPi 3000 - SAIA PCD2.M5 Test-Toolkit
+# =========================================
+# Installation: pip install -r requirements.txt
+#
+# macOS zusätzlich:  brew install snap7
+# Linux zusätzlich:  apt install libsnap7-dev
+
+pyserial>=3.5
+python-snap7>=1.3

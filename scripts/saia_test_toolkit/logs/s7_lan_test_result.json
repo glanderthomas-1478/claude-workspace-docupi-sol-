@@ -1,0 +1,204 @@
+{
+  "ip": "10.230.11.212",
+  "rack": 0,
+  "slot": 2,
+  "connected": true,
+  "cpu_info": {
+    "state": "S7CpuStatusRun"
+  },
+  "dbs": {
+    "4": {
+      "error": "b'CPU : Address out of range'"
+    },
+    "8": {
+      "raw_hex": "2828004100750066006800650069007a0065006e00200026002000560050005200200020002000200020000400000800000105460001054600000550000100000046004600460046004607080708070807080708054b053e019003e8000000000000000000000000000005500032054b053b055b0000055000010064003c0320000a003203e803e803e8000000410546003200640000",
+      "fields": {
+        "Programmname": {
+          "value": "\u0000A\u0000u\u0000f\u0000h\u0000e\u0000i\u0000z\u0000e\u0000n\u0000 \u0000&\u0000 \u0000V\u0000P\u0000R\u0000 \u0000 \u0000 \u0000 \u0000 ",
+          "description": "Programmname",
+          "unit": ""
+        },
+        "ProgNr": {
+          "value": 4,
+          "description": "Programmnummer",
+          "unit": ""
+        },
+        "MantelVorBe": {
+          "value": 0.0,
+          "description": "Manteltemp Vorbehandlung",
+          "unit": "\u00b0C"
+        },
+        "AnzEvakVorBe": {
+          "value": 2048,
+          "description": "Anz. Evakuierungen",
+          "unit": ""
+        },
+        "VorVa_1": {
+          "value": 1,
+          "description": "1. Vorvakuum",
+          "unit": "mbar"
+        },
+        "VorVa_2": {
+          "value": 1350,
+          "description": "2. Vorvakuum",
+          "unit": "mbar"
+        },
+        "VorVa_3": {
+          "value": 1,
+          "description": "3. Vorvakuum",
+          "unit": "mbar"
+        },
+        "VorVa_4": {
+          "value": 1350,
+          "description": "4. Vorvakuum",
+          "unit": "mbar"
+        },
+        "DruBegr_1": {
+          "value": 0,
+          "description": "1. Druckbegrenzung",
+          "unit": "mbar"
+        },
+        "BegSteri": {
+          "value": 7.0,
+          "description": "SOLL Beginn Sterilisation",
+          "unit": "\u00b0C"
+        },
+        "MantelSteri": {
+          "value": 7.0,
+          "description": "SOLL Manteltemp Steri",
+          "unit": "\u00b0C"
+        },
+        "Einwirkzeit": {
+          "value": 7.0,
+          "description": "SOLL Haltezeit",
+          "unit": "Min"
+        },
+        "ArbTempEinw": {
+          "value": 180.0,
+          "description": "SOLL Arbeitstemp Einwirken",
+          "unit": "\u00b0C"
+        },
+        "AlaTempMini": {
+          "value": 180.0,
+          "description": "Alarmtemp Minimum",
+          "unit": "\u00b0C"
+        },
+        "AlaTempMaxi": {
+          "value": 180.0,
+          "description": "Alarmtemp Maximum",
+          "unit": "\u00b0C"
+        }
+      }
+    },
+    "7": {
+      "raw_hex": "0001004e004e004e0021002100210001004e0021004e000000000000000000000020000000000000000000202b010600695d0122200007000000000000000000020204010303040101010103030303030301030304030304030302030101030304010101",
+      "fields": {
+        "AktStoerung": {
+          "value": 1,
+          "description": "Aktive St\u00f6rungsnr",
+          "unit": ""
+        },
+        "AnzStoerungen": {
+          "value": 78,
+          "description": "Anzahl St\u00f6rungen",
+          "unit": ""
+        }
+      }
+    },
+    "9": {
+      "raw_hex": "000100000400000105460002054600000550000900000050006400640064044c032003200320070807080543053e02bc03e8",
+      "fields": {
+        "Rezept1_ProgNr": {
+          "value": 1,
+          "description": "Rezept 1 Programmnr",
+          "unit": ""
+        },
+        "Rezept1_MantelVB": {
+          "value": 0.0,
+          "description": "Rezept 1 Manteltemp VB",
+          "unit": "\u00b0C"
+        }
+      }
+    }
+  },
+  "analog_inputs": {
+    "AE_P1": {
+      "address": 128,
+      "raw_value": 10971,
+      "description": "Drucksensor P1 (Kammer)"
+    },
+    "AE_P3": {
+      "address": 130,
+      "raw_value": 15974,
+      "description": "Drucksensor P3"
+    },
+    "AE_P4": {
+      "address": 132,
+      "raw_value": 19789,
+      "description": "Drucksensor P4"
+    },
+    "AE_T1": {
+      "address": 136,
+      "raw_value": 3117,
+      "description": "Temperatursensor T1 (Kammer)"
+    },
+    "AE_T3": {
+      "address": 138,
+      "raw_value": 3080,
+      "description": "Temperatursensor T3"
+    },
+    "AE_T4": {
+      "address": 140,
+      "raw_value": 2860,
+      "description": "Temperatursensor T4"
+    },
+    "AE_T5": {
+      "address": 142,
+      "raw_value": 3024,
+      "description": "Temperatursensor T5"
+    },
+    "AE_T6": {
+      "address": 172,
+      "raw_value": 0,
+      "description": "Temperatursensor T6"
+    }
+  },
+  "markers": {
+    "PROZ_Sta_Ende": {
+      "byte": 76,
+      "bit": 1,
+      "value": true,
+      "description": "Prozess Start/Ende"
+    },
+    "Programm_laeuft": {
+      "byte": 76,
+      "bit": 2,
+      "value": false,
+      "description": "Programm l\u00e4uft"
+    },
+    "Stoerung_aktiv": {
+      "byte": 51,
+      "bit": 0,
+      "value": true,
+      "description": "St\u00f6rung aktiv"
+    },
+    "Steri_Phase": {
+      "byte": 132,
+      "bit": 2,
+      "value": false,
+      "description": "Sterilisationsphase aktiv"
+    },
+    "Phasenwechsel": {
+      "byte": 133,
+      "bit": 0,
+      "value": false,
+      "description": "Phasenwechsel erkannt"
+    },
+    "Prozessabbruch": {
+      "byte": 211,
+      "bit": 0,
+      "value": false,
+      "description": "Prozessabbruch"
+    }
+  }
+}

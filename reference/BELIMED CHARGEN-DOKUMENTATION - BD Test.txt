@@ -1,0 +1,100 @@
+BELIMED CHARGEN-DOKUMENTATION
+Betreiber     : Helios Krefe
+Abteilung     : AEMP
+Maschinen-Typ : 9-6-18 HS2    Nr:27163
+Laufende Nr.  : 021693
+Benutzer      : User
+Programm      :  5: Bowie Dick Test
+Version       : PR: 07.03.2018 SW: 103
+
+Sollwerte     : Anz. Fraktionen         9
+                Sterilisierzeit    3.5min
+                Sterilisiertemp.  134.2▒C
+                Trocknungszeit     3.0min
+
+Programmstart : 23.03.2026 / 07:34
+
+ Zeit  Phase    Kammer       mbara  T2 ▒C
+  m:s           Luftnachweisg.      T3 ▒C
+-----------------------------------------
+  0:01 1. Vorvakuum           1011   38.2
+                                     31.1
+  2:31 1. Druck                 82   69.1
+                                     31.0
+  3:35 2. Vorvakuum            871   52.1
+                                     31.5
+  4:27 2. Druck                102   72.3
+                                     31.1
+  5:24 3. Vorvakuum            803   82.1
+                                     31.5
+  6:13 3. Druck                100   54.5
+                                     31.2
+  7:14 4. Vorvakuum            856   92.1
+                                     31.5
+  8:04 4. Druck                 99   66.7
+                                     31.3
+  9:20 Luftdruck erreicht     1016   97.8
+                                     98.7
+ 10:34 5. Vorvakuum           1823  116.2
+                                    116.2
+ 11:20 5. Druck               1080  107.4
+                                    103.1
+ 12:18 6. Vorvakuum           1810  116.4
+                                    116.6
+ 13:04 6. Druck               1085  105.1
+                                    104.1
+ 14:07 7. Vorvakuum           1869  117.1
+                                    117.1
+ 14:51 7. Druck               1111  109.0
+                                    104.8
+ 15:50 > Vorvakuum            1817  116.7
+                                    116.7
+ 16:35 > Druck                1086  110.3
+                                    104.9
+ 17:38 > Vorvakuum            1853  117.4
+                                    116.9
+ 18:24 Aufheizen              1080  110.2
+                                    105.2
+ 21:54 Sterilisation          3101  134.5
+                                    134.4
+ 22:53                        3094  135.2
+                                    134.9
+ 23:53                        3101  135.1
+                                    135.1
+ 24:53                        3111  135.1
+                                    135.2
+ 25:24 Nachvakuum             3110  135.1
+                                    135.1
+ 28:41 Trocknung               100   81.6
+                                     94.7
+ 31:42 Belueften                44   33.1
+                                     91.7
+ 33:29 Programm Ende           966   48.5
+                                     84.7
+
+Min. Sterilisiertemp.             134.8▒C
+Max. Sterilisiertemp.             135.6▒C
+Zeit ueber Sollwert Kammer        3:30m:s
+Zeit ueb. Sollt. Luftnachweisg.   3:30m:s
+F0-Wert                          116.0min
+
+PROGRAMM KORREKT BEENDET
+
+Freigabe: J / N         Datum:
+
+Unterschrift:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

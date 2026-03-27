@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}DocuPi-3000{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --docupi-blue: #1f4e79;
+            --docupi-light: #2e75b6;
+            --docupi-bg: #f4f6f9;
+        }
+        body { background: var(--docupi-bg); font-family: 'Segoe UI', system-ui, sans-serif; }
+        .navbar { background: var(--docupi-blue) !important; }
+        .navbar-brand { font-weight: 700; letter-spacing: 1px; }
+        .navbar .nav-link { color: rgba(255,255,255,0.85) !important; }
+        .navbar .nav-link:hover, .navbar .nav-link.active { color: #fff !important; }
+        .card { border: none; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-radius: 10px; }
+        .card-header { background: var(--docupi-blue); color: #fff; border-radius: 10px 10px 0 0 !important; font-weight: 600; }
+        .status-badge { display: inline-flex; align-items: center; gap: 5px; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+        .status-dot.online { background: #28a745; box-shadow: 0 0 6px #28a745; }
+        .status-dot.offline { background: #dc3545; }
+        .stat-card { text-align: center; padding: 20px; }
+        .stat-card .stat-value { font-size: 2rem; font-weight: 700; color: var(--docupi-blue); }
+        .stat-card .stat-label { font-size: 0.85rem; color: #6c757d; }
+        .stat-card .bi { font-size: 1.5rem; color: var(--docupi-light); }
+        footer { margin-top: 40px; padding: 20px; text-align: center; color: #adb5bd; font-size: 0.8rem; }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-printer"></i> DocuPi-3000
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="nav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="/">
+                            <i class="bi bi-speedometer2"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'files' %}active{% endif %}" href="/files">
+                            <i class="bi bi-folder2-open"></i> Dateien
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'settings' %}active{% endif %}" href="/settings">
+                            <i class="bi bi-gear"></i> Einstellungen
+                        </a>
+                    </li>
+                </ul>
+                <span class="navbar-text">
+                    <span class="status-badge">
+                        <span class="status-dot {% if status.connected|default(false) %}online{% else %}offline{% endif %}" id="statusDot"></span>
+                        <span id="statusText">{{ 'Verbunden' if status.connected|default(false) else 'Getrennt' }}</span>
+                    </span>
+                </span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4 px-4">
+        {% block content %}{% endblock %}
+    </div>
+
+    <footer>DocuPi-3000 &copy; {{ now().year if now is defined else '2026' }} | Raspberry Pi Serial Data Logger</footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.7.2/dist/socket.io.min.js"></script>
+    <script>
+        const socket = io();
+        socket.on('connect', () => {
+            console.log('WebSocket verbunden');
+        });
+        // Auto-Status-Update alle 10s
+        setInterval(() => {
+            fetch('/api/status').then(r => r.json()).then(data => {
+                const dot = document.getElementById('statusDot');
+                const txt = document.getElementById('statusText');
+                if (data.serial.connected) {
+                    dot.className = 'status-dot online';
+                    txt.textContent = 'Verbunden';
+                } else {
+                    dot.className = 'status-dot offline';
+                    txt.textContent = 'Getrennt';
+                }
+            }).catch(() => {});
+        }, 10000);
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

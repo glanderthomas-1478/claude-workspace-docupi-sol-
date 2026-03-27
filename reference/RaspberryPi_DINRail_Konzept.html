@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Raspberry Pi Serial Logger – DIN-Schienen-Montage</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #1a1a2e; font-family: 'Segoe UI', Arial, sans-serif; color: #e0e0e0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 30px; }
+h1 { font-size: 22px; color: #4fc3f7; margin-bottom: 5px; }
+.subtitle { font-size: 13px; color: #90a4ae; margin-bottom: 30px; }
+
+.container { display: flex; gap: 50px; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
+
+.panel { background: #16213e; border-radius: 12px; padding: 25px; border: 1px solid #2a3a5c; }
+.panel h2 { font-size: 16px; color: #4fc3f7; margin-bottom: 15px; text-align: center; }
+
+/* === VERTICAL BOX DETAIL VIEW === */
+.box-detail { width: 320px; }
+.box-container { position: relative; margin: 0 auto; width: 100px; }
+
+.din-rail-v {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  width: 42px; height: 420px; top: 0;
+  background: linear-gradient(90deg, #8a8a8a, #c0c0c0, #a0a0a0);
+  border-radius: 2px; z-index: 0;
+  box-shadow: 2px 2px 8px rgba(0,0,0,0.5);
+}
+.din-rail-v::before, .din-rail-v::after {
+  content: ''; position: absolute; width: 42px; height: 6px;
+  background: linear-gradient(90deg, #707070, #999, #808080);
+  border-radius: 1px;
+}
+.din-rail-v::before { top: 4px; }
+.din-rail-v::after { bottom: 4px; }
+
+.enclosure {
+  position: relative; z-index: 1;
+  width: 90px; height: 160px; margin: 30px auto 0;
+  background: linear-gradient(135deg, #3a3a3a, #4a4a4a, #3a3a3a);
+  border: 2px solid #555;
+  border-radius: 4px;
+  box-shadow: 3px 3px 12px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1);
+  display: flex; flex-direction: column; align-items: center; padding: 6px;
+}
+
+.vent-slots { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; }
+.vent-slot { width: 50px; height: 2px; background: #2a2a2a; border-radius: 1px; }
+
+.label-area {
+  background: #2a2a2a; border: 1px solid #555; border-radius: 2px;
+  width: 70px; height: 30px; margin-top: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 7px; color: #4fc3f7; text-align: center; line-height: 1.2;
+}
+
+.led-row { display: flex; gap: 6px; margin-top: 6px; }
+.led { width: 5px; height: 5px; border-radius: 50%; }
+.led-green { background: #00e676; box-shadow: 0 0 6px #00e676; }
+.led-yellow { background: #ffd600; box-shadow: 0 0 6px #ffd600; }
+.led-red { background: #ff1744; box-shadow: 0 0 4px #ff174466; opacity: 0.3; }
+
+.port-area {
+  margin-top: auto; width: 100%;
+  display: flex; flex-direction: column; gap: 3px; align-items: center;
+}
+
+.port {
+  width: 60px; height: 10px; background: #222;
+  border: 1px solid #555; border-radius: 2px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 5px; color: #999;
+}
+.port-usb { width: 14px; height: 6px; background: #222; border: 1px solid #555; border-radius: 1px; }
+.port-rj45 { width: 16px; height: 12px; background: #222; border: 1px solid #555; border-radius: 1px; }
+
+.bottom-ports {
+  display: flex; gap: 4px; margin-top: 2px; align-items: flex-end;
+}
+
+/* Connector labels */
+.connector-label {
+  position: absolute; font-size: 9px; color: #90a4ae;
+  white-space: nowrap;
+}
+
+.enclosure-wrapper { position: relative; width: 260px; height: 420px; margin: 0 auto; }
+
+.conn-left { left: -5px; transform: translateX(-100%); }
+.conn-right { right: -5px; transform: translateX(100%); }
+
+.conn-line {
+  position: absolute; height: 1px; background: #4fc3f7; opacity: 0.5;
+}
+
+/* Arrow annotations */
+.annotation {
+  position: absolute; font-size: 9px; color: #ffb74d;
+  display: flex; align-items: center; gap: 4px;
+}
+.arrow-line { width: 30px; height: 1px; background: #ffb74d; }
+
+/* Dimensions */
+.dim-v, .dim-h {
+  position: absolute; font-size: 10px; color: #ef5350;
+  display: flex; align-items: center;
+}
+.dim-line-v { width: 1px; background: #ef5350; opacity: 0.6; }
+.dim-line-h { height: 1px; background: #ef5350; opacity: 0.6; }
+
+/* === CABINET VIEW === */
+.cabinet-view { width: 520px; }
+.cabinet-img-container {
+  position: relative; width: 480px; height: 320px;
+  background: url('data:image/svg+xml,') #2a2a2a;
+  border: 2px solid #444; border-radius: 6px; overflow: hidden;
+}
+
+/* Simplified cabinet drawing */
+.cabinet-svg { width: 100%; height: 100%; }
+
+/* Specs table */
+.specs { margin-top: 15px; width: 100%; }
+.specs table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.specs th { text-align: left; padding: 6px 8px; background: #1a2744; color: #4fc3f7; border-bottom: 1px solid #2a3a5c; }
+.specs td { padding: 5px 8px; border-bottom: 1px solid #1e2d4a; }
+.specs td:first-child { color: #90a4ae; width: 45%; }
+
+.legend { margin-top: 15px; display: flex; flex-wrap: wrap; gap: 12px; font-size: 11px; }
+.legend-item { display: flex; align-items: center; gap: 5px; }
+.legend-color { width: 14px; height: 14px; border-radius: 2px; border: 1px solid #555; }
+
+.note { margin-top: 15px; font-size: 11px; color: #ffb74d; background: #2a2200; padding: 10px; border-radius: 6px; border-left: 3px solid #ffb74d; }
+
+/* Bottom section */
+.exploded-view { margin-top: 30px; width: 100%; max-width: 900px; }
+</style>
+</head>
+<body>
+
+<h1>Serial Data Logger Box – Montagekonzept</h1>
+<p class="subtitle">Raspberry Pi 5 + RS232 HAT + RTC Watchdog HAT · Hochkant-DIN-Schienenmontage</p>
+
+<div class="container">
+
+<!-- LEFT: Detailed vertical box -->
+<div class="panel box-detail">
+  <h2>Gehäuse-Detailansicht (Hochkant)</h2>
+
+  <svg width="300" height="440" viewBox="0 0 300 440" style="display:block; margin:0 auto;">
+    <!-- DIN Rail vertical -->
+    <defs>
+      <linearGradient id="railGrad" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#707070"/>
+        <stop offset="50%" stop-color="#b0b0b0"/>
+        <stop offset="100%" stop-color="#808080"/>
+      </linearGradient>
+      <linearGradient id="caseGrad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#505050"/>
+        <stop offset="50%" stop-color="#606060"/>
+        <stop offset="100%" stop-color="#454545"/>
+      </linearGradient>
+      <linearGradient id="caseTop" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#686868"/>
+        <stop offset="100%" stop-color="#505050"/>
+      </linearGradient>
+      <filter id="shadow">
+        <feDropShadow dx="3" dy="3" stdDeviation="4" flood-opacity="0.5"/>
+      </filter>
+    </defs>
+
+    <!-- DIN Rail -->
+    <rect x="137" y="10" width="36" height="420" rx="2" fill="url(#railGrad)" opacity="0.7"/>
+    <rect x="137" y="14" width="36" height="5" rx="1" fill="#666"/>
+    <rect x="137" y="421" width="36" height="5" rx="1" fill="#666"/>
+    <!-- Rail holes -->
+    <ellipse cx="155" cy="40" rx="4" ry="6" fill="#444"/>
+    <ellipse cx="155" cy="400" rx="4" ry="6" fill="#444"/>
+
+    <!-- Enclosure body -->
+    <rect x="110" y="60" width="90" height="180" rx="4" fill="url(#caseGrad)" filter="url(#shadow)" stroke="#666" stroke-width="1.5"/>
+    <!-- Top highlight -->
+    <rect x="112" y="62" width="86" height="3" rx="1" fill="url(#caseTop)" opacity="0.6"/>
+
+    <!-- Vent slots top -->
+    <rect x="130" y="72" width="50" height="2" rx="1" fill="#383838"/>
+    <rect x="130" y="76" width="50" height="2" rx="1" fill="#383838"/>
+    <rect x="130" y="80" width="50" height="2" rx="1" fill="#383838"/>
+
+    <!-- Status LEDs -->
+    <circle cx="132" cy="92" r="3" fill="#00e676" opacity="0.9"/>
+    <circle cx="132" cy="92" r="5" fill="#00e676" opacity="0.2"/>
+    <circle cx="142" cy="92" r="3" fill="#ffd600" opacity="0.9"/>
+    <circle cx="142" cy="92" r="5" fill="#ffd600" opacity="0.15"/>
+    <circle cx="152" cy="92" r="3" fill="#ff1744" opacity="0.25"/>
+    <text x="164" y="95" font-size="7" fill="#888">PWR | ACT | ERR</text>
+
+    <!-- Label area -->
+    <rect x="120" y="102" width="70" height="35" rx="2" fill="#2a2a2a" stroke="#555"/>
+    <text x="155" y="115" text-anchor="middle" font-size="8" fill="#4fc3f7" font-weight="bold">SERIAL DATA</text>
+    <text x="155" y="125" text-anchor="middle" font-size="8" fill="#4fc3f7" font-weight="bold">LOGGER</text>
+    <text x="155" y="133" text-anchor="middle" font-size="6" fill="#777">RPi5 + RS232</text>
+
+    <!-- Vent slots middle -->
+    <rect x="130" y="145" width="50" height="2" rx="1" fill="#383838"/>
+    <rect x="130" y="149" width="50" height="2" rx="1" fill="#383838"/>
+
+    <!-- DIN Rail clip indicators -->
+    <rect x="113" y="130" width="6" height="20" rx="1" fill="#555" stroke="#666"/>
+    <rect x="191" y="130" width="6" height="20" rx="1" fill="#555" stroke="#666"/>
+
+    <!-- Bottom connectors -->
+    <!-- RS232 Port 1 (DB9) -->
+    <rect x="117" y="160" width="30" height="12" rx="2" fill="#1a1a4a" stroke="#4444aa"/>
+    <text x="132" y="169" text-anchor="middle" font-size="5" fill="#8888ff">RS232-1</text>
+    <!-- Small pin dots -->
+    <circle cx="122" cy="164" r="0.8" fill="#aaa"/>
+    <circle cx="126" cy="164" r="0.8" fill="#aaa"/>
+    <circle cx="130" cy="164" r="0.8" fill="#aaa"/>
+    <circle cx="134" cy="164" r="0.8" fill="#aaa"/>
+    <circle cx="138" cy="164" r="0.8" fill="#aaa"/>
+
+    <!-- RS232 Port 2 (DB9) -->
+    <rect x="117" y="175" width="30" height="12" rx="2" fill="#1a1a4a" stroke="#4444aa"/>
+    <text x="132" y="184" text-anchor="middle" font-size="5" fill="#8888ff">RS232-2</text>
+    <circle cx="122" cy="179" r="0.8" fill="#aaa"/>
+    <circle cx="126" cy="179" r="0.8" fill="#aaa"/>
+    <circle cx="130" cy="179" r="0.8" fill="#aaa"/>
+    <circle cx="134" cy="179" r="0.8" fill="#aaa"/>
+    <circle cx="138" cy="179" r="0.8" fill="#aaa"/>
+
+    <!-- USB ports -->
+    <rect x="153" y="160" width="14" height="8" rx="1" fill="#222" stroke="#4caf50"/>
+    <text x="160" y="166" text-anchor="middle" font-size="4" fill="#4caf50">USB</text>
+
+    <rect x="153" y="171" width="14" height="8" rx="1" fill="#222" stroke="#4caf50"/>
+    <text x="160" y="177" text-anchor="middle" font-size="4" fill="#4caf50">USB</text>
+
+    <!-- Ethernet -->
+    <rect x="170" y="160" width="16" height="14" rx="1" fill="#222" stroke="#ff9800"/>
+    <text x="178" y="170" text-anchor="middle" font-size="4" fill="#ff9800">ETH</text>
+
+    <!-- USB-C Power -->
+    <rect x="153" y="183" width="14" height="6" rx="1" fill="#222" stroke="#f44336"/>
+    <text x="160" y="188" text-anchor="middle" font-size="4" fill="#f44336">PWR</text>
+
+    <!-- Vent slots bottom -->
+    <rect x="130" y="196" width="50" height="2" rx="1" fill="#383838"/>
+    <rect x="130" y="200" width="50" height="2" rx="1" fill="#383838"/>
+
+    <!-- Dimension arrows -->
+    <!-- Height -->
+    <line x1="85" y1="60" x2="85" y2="240" stroke="#ef5350" stroke-width="0.8" stroke-dasharray="3,2"/>
+    <line x1="80" y1="60" x2="90" y2="60" stroke="#ef5350" stroke-width="0.8"/>
+    <line x1="80" y1="240" x2="90" y2="240" stroke="#ef5350" stroke-width="0.8"/>
+    <text x="82" y="155" text-anchor="middle" font-size="9" fill="#ef5350" transform="rotate(-90,82,155)">~106 mm</text>
+
+    <!-- Width -->
+    <line x1="110" y1="250" x2="200" y2="250" stroke="#ef5350" stroke-width="0.8" stroke-dasharray="3,2"/>
+    <line x1="110" y1="246" x2="110" y2="254" stroke="#ef5350" stroke-width="0.8"/>
+    <line x1="200" y1="246" x2="200" y2="254" stroke="#ef5350" stroke-width="0.8"/>
+    <text x="155" y="262" text-anchor="middle" font-size="9" fill="#ef5350">~90 mm</text>
+
+    <!-- Annotations -->
+    <!-- RS232 arrow -->
+    <line x1="117" y1="166" x2="65" y2="166" stroke="#ffb74d" stroke-width="0.8"/>
+    <polygon points="65,164 65,168 58,166" fill="#ffb74d"/>
+    <text x="55" y="160" text-anchor="end" font-size="8" fill="#ffb74d">Zum Gerät</text>
+    <text x="55" y="169" text-anchor="end" font-size="7" fill="#999">(Sterilisator/RDG)</text>
+
+    <!-- USB Stick arrow -->
+    <line x1="167" y1="164" x2="230" y2="145" stroke="#ffb74d" stroke-width="0.8"/>
+    <polygon points="230,143 230,147 237,145" fill="#ffb74d"/>
+    <text x="240" y="142" font-size="8" fill="#ffb74d">USB-Stick</text>
+    <text x="240" y="151" font-size="7" fill="#999">(PDF-Ablage)</text>
+
+    <!-- Ethernet arrow -->
+    <line x1="186" y1="167" x2="230" y2="175" stroke="#ffb74d" stroke-width="0.8"/>
+    <polygon points="230,173 230,177 237,175" fill="#ffb74d"/>
+    <text x="240" y="172" font-size="8" fill="#ffb74d">Netzwerk</text>
+    <text x="240" y="181" font-size="7" fill="#999">(Web-Interface)</text>
+
+    <!-- Power arrow -->
+    <line x1="167" y1="186" x2="230" y2="205" stroke="#ffb74d" stroke-width="0.8"/>
+    <polygon points="230,203 230,207 237,205" fill="#ffb74d"/>
+    <text x="240" y="202" font-size="8" fill="#ffb74d">5V USB-C</text>
+    <text x="240" y="211" font-size="7" fill="#999">(oder Hutschienen-NT)</text>
+
+    <!-- Internal stack label -->
+    <rect x="105" y="280" width="200" height="90" rx="6" fill="#1a2744" stroke="#2a3a5c"/>
+    <text x="205" y="296" text-anchor="middle" font-size="9" fill="#4fc3f7" font-weight="bold">Interner Aufbau (gestapelt):</text>
+
+    <!-- Stack visualization -->
+    <rect x="135" y="305" width="60" height="14" rx="2" fill="#1b5e20" stroke="#4caf50" opacity="0.8"/>
+    <text x="165" y="315" text-anchor="middle" font-size="7" fill="#c8e6c9">Raspberry Pi 5</text>
+
+    <rect x="135" y="322" width="60" height="14" rx="2" fill="#0d47a1" stroke="#42a5f5" opacity="0.8"/>
+    <text x="165" y="332" text-anchor="middle" font-size="7" fill="#bbdefb">RTC Watchdog HAT</text>
+
+    <rect x="135" y="339" width="60" height="14" rx="2" fill="#4a148c" stroke="#ab47bc" opacity="0.8"/>
+    <text x="165" y="349" text-anchor="middle" font-size="7" fill="#e1bee7">RS232 HAT</text>
+
+    <!-- Stacking arrows -->
+    <line x1="200" y1="312" x2="200" y2="318" stroke="#888" stroke-width="0.8"/>
+    <polygon points="198,318 202,318 200,322" fill="#888"/>
+    <line x1="200" y1="329" x2="200" y2="335" stroke="#888" stroke-width="0.8"/>
+    <polygon points="198,335 202,335 200,339" fill="#888"/>
+
+    <text x="215" y="320" font-size="6" fill="#888">40-Pin GPIO</text>
+    <text x="215" y="340" font-size="6" fill="#888">Stacking Header</text>
+
+  </svg>
+</div>
+
+<!-- RIGHT: Cabinet placement -->
+<div class="panel cabinet-view">
+  <h2>Einbauposition im Schaltschrank</h2>
+
+  <svg width="480" height="320" viewBox="0 0 480 320" style="display:block; margin:0 auto;">
+    <!-- Cabinet outline -->
+    <rect x="5" y="5" width="470" height="310" rx="4" fill="#3a3a3a" stroke="#666" stroke-width="2"/>
+
+    <!-- Cabinet interior background -->
+    <rect x="10" y="10" width="460" height="300" fill="#4a4a4a"/>
+
+    <!-- DIN Rails (horizontal) -->
+    <rect x="15" y="30" width="450" height="8" rx="1" fill="url(#railGrad)" opacity="0.5"/>
+    <rect x="15" y="130" width="450" height="8" rx="1" fill="url(#railGrad)" opacity="0.5"/>
+    <rect x="15" y="230" width="450" height="8" rx="1" fill="url(#railGrad)" opacity="0.5"/>
+
+    <!-- TOP ROW: PLC and IO modules -->
+    <!-- PLC area (left) -->
+    <rect x="20" y="15" width="120" height="100" rx="2" fill="#2a5a2a" stroke="#4a8a4a" opacity="0.7"/>
+    <text x="80" y="50" text-anchor="middle" font-size="9" fill="#8ac88a">SPS / PLC</text>
+    <text x="80" y="62" text-anchor="middle" font-size="7" fill="#6a9a6a">Saia PCD</text>
+
+    <!-- IO modules -->
+    <rect x="145" y="15" width="25" height="100" rx="1" fill="#cc6600" stroke="#ff8800" opacity="0.6"/>
+    <rect x="173" y="15" width="25" height="100" rx="1" fill="#cc6600" stroke="#ff8800" opacity="0.6"/>
+    <rect x="201" y="15" width="25" height="100" rx="1" fill="#cc6600" stroke="#ff8800" opacity="0.6"/>
+    <rect x="229" y="15" width="25" height="100" rx="1" fill="#cc6600" stroke="#ff8800" opacity="0.6"/>
+    <text x="213" y="70" text-anchor="middle" font-size="7" fill="#ffaa44">I/O Module</text>
+
+    <!-- Terminal blocks top row -->
+    <rect x="260" y="15" width="200" height="100" rx="2" fill="#3a4a5a" stroke="#556" opacity="0.5"/>
+    <text x="360" y="55" text-anchor="middle" font-size="8" fill="#8a9aaa">Klemmenleisten</text>
+    <text x="360" y="67" text-anchor="middle" font-size="7" fill="#6a7a8a">& Verdrahtung</text>
+
+    <!-- MIDDLE ROW -->
+    <!-- Klemmen -->
+    <rect x="20" y="120" width="200" height="95" rx="2" fill="#3a4a5a" stroke="#556" opacity="0.5"/>
+    <text x="120" y="170" text-anchor="middle" font-size="8" fill="#8a9aaa">Klemmenleisten</text>
+
+    <!-- Power supply -->
+    <rect x="230" y="120" width="65" height="95" rx="2" fill="#00338a" stroke="#1565c0" opacity="0.7"/>
+    <text x="262" y="155" text-anchor="middle" font-size="7" fill="#64b5f6">TDK-Lambda</text>
+    <text x="262" y="167" text-anchor="middle" font-size="7" fill="#64b5f6">DPP100-24</text>
+    <text x="262" y="179" text-anchor="middle" font-size="6" fill="#42a5f5">24V PSU</text>
+
+    <!-- Safety relays / breakers -->
+    <rect x="300" y="120" width="70" height="95" rx="2" fill="#5a4a3a" stroke="#8a7a6a" opacity="0.6"/>
+    <text x="335" y="165" text-anchor="middle" font-size="7" fill="#baa88a">Sicherungen</text>
+    <text x="335" y="177" text-anchor="middle" font-size="7" fill="#baa88a">& Relais</text>
+
+    <!-- ========= RASPBERRY PI BOX - highlighted ========= -->
+    <rect x="378" y="118" width="48" height="100" rx="3" fill="#505050" stroke="#4fc3f7" stroke-width="2.5"/>
+    <!-- Glow effect -->
+    <rect x="376" y="116" width="52" height="104" rx="4" fill="none" stroke="#4fc3f7" stroke-width="1" opacity="0.3"/>
+
+    <!-- Box details -->
+    <rect x="385" y="126" width="34" height="2" rx="0.5" fill="#383838"/>
+    <rect x="385" y="130" width="34" height="2" rx="0.5" fill="#383838"/>
+    <!-- LEDs -->
+    <circle cx="389" cy="138" r="2" fill="#00e676" opacity="0.9"/>
+    <circle cx="395" cy="138" r="2" fill="#ffd600" opacity="0.8"/>
+    <circle cx="401" cy="138" r="2" fill="#ff1744" opacity="0.2"/>
+    <!-- Label -->
+    <rect x="385" y="143" width="34" height="18" rx="1" fill="#2a2a2a" stroke="#444"/>
+    <text x="402" y="152" text-anchor="middle" font-size="5" fill="#4fc3f7" font-weight="bold">SERIAL</text>
+    <text x="402" y="158" text-anchor="middle" font-size="5" fill="#4fc3f7" font-weight="bold">LOGGER</text>
+    <!-- Ports bottom -->
+    <rect x="385" y="165" width="15" height="6" rx="1" fill="#1a1a4a" stroke="#4444aa" stroke-width="0.5"/>
+    <rect x="385" y="174" width="15" height="6" rx="1" fill="#1a1a4a" stroke="#4444aa" stroke-width="0.5"/>
+    <rect x="404" y="165" width="8" height="5" rx="0.5" fill="#222" stroke="#4caf50" stroke-width="0.5"/>
+    <rect x="404" y="174" width="10" height="8" rx="0.5" fill="#222" stroke="#ff9800" stroke-width="0.5"/>
+    <!-- USB stick -->
+    <rect x="388" y="186" width="12" height="5" rx="1" fill="#1565c0" stroke="#42a5f5" stroke-width="0.5"/>
+    <rect x="385" y="187" width="4" height="3" rx="0.5" fill="#0d47a1"/>
+    <text x="402" y="193" font-size="4" fill="#64b5f6">USB</text>
+
+    <rect x="385" y="196" width="34" height="2" rx="0.5" fill="#383838"/>
+    <rect x="385" y="200" width="34" height="2" rx="0.5" fill="#383838"/>
+
+    <!-- Pointer/callout -->
+    <line x1="402" y1="110" x2="402" y2="90" stroke="#4fc3f7" stroke-width="1.5" stroke-dasharray="4,2"/>
+    <rect x="352" y="70" width="100" height="22" rx="4" fill="#0d47a1" stroke="#4fc3f7"/>
+    <text x="402" y="83" text-anchor="middle" font-size="9" fill="#fff" font-weight="bold">RPi Serial Logger</text>
+    <polygon points="397,92 407,92 402,98" fill="#0d47a1" stroke="#4fc3f7" stroke-width="1"/>
+
+    <!-- Cable annotations -->
+    <!-- Serial cable going left -->
+    <line x1="385" y1="168" x2="340" y2="168" stroke="#8888ff" stroke-width="1" stroke-dasharray="3,2"/>
+    <text x="345" y="166" text-anchor="end" font-size="6" fill="#8888ff">RS232 →</text>
+
+    <!-- Ethernet cable -->
+    <line x1="414" y1="178" x2="450" y2="178" stroke="#ff9800" stroke-width="1" stroke-dasharray="3,2"/>
+    <text x="453" y="181" font-size="6" fill="#ff9800">LAN</text>
+
+    <!-- BOTTOM ROW -->
+    <rect x="20" y="225" width="440" height="80" rx="2" fill="#3a4a5a" stroke="#556" opacity="0.4"/>
+    <text x="240" y="268" text-anchor="middle" font-size="8" fill="#7a8a9a">Leistungselektronik / Schütze / Sicherungen</text>
+
+  </svg>
+
+  <div class="note">
+    <strong>Platzbedarf:</strong> Das Gehäuse ist nur ca. 50 × 106 mm (B × H) – passt problemlos neben die vorhandenen Komponenten oben rechts auf die DIN-Schiene. Die Tiefe beträgt ca. 85 mm (inkl. HAT-Stack).
+  </div>
+
+  <div class="specs">
+    <table>
+      <tr><th colspan="2">Technische Daten Gehäuse</th></tr>
+      <tr><td>Abmessungen (B × H × T)</td><td>~50 × 106 × 85 mm</td></tr>
+      <tr><td>Montage</td><td>DIN-Schiene (35 mm), hochkant</td></tr>
+      <tr><td>Material</td><td>Aluminium oder ABS-Kunststoff</td></tr>
+      <tr><td>Anschlüsse (Unterseite)</td><td>2× DB9 RS232, 2× USB 3.0, 1× RJ45, 1× USB-C</td></tr>
+      <tr><td>Kühlung</td><td>Passiv (Metallgehäuse als Kühlkörper)</td></tr>
+      <tr><td>Stromversorgung</td><td>5V/5A via USB-C oder Hutschienen-NT</td></tr>
+      <tr><td>Interner Aufbau</td><td>Pi 5 + RTC Watchdog HAT + RS232 HAT (gestapelt)</td></tr>
+    </table>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-color" style="background:#2a5a2a; border-color:#4a8a4a;"></div>SPS / PLC</div>
+    <div class="legend-item"><div class="legend-color" style="background:#cc6600; border-color:#ff8800;"></div>I/O Module</div>
+    <div class="legend-item"><div class="legend-color" style="background:#00338a; border-color:#1565c0;"></div>Netzteil</div>
+    <div class="legend-item"><div class="legend-color" style="background:#505050; border-color:#4fc3f7;"></div>Serial Logger (NEU)</div>
+  </div>
+</div>
+
+</div>
+
+</body>
+</html>

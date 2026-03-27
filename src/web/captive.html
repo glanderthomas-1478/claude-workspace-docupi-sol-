@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<title>DocuPi-3000</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,'Segoe UI',system-ui,sans-serif;
+background:linear-gradient(135deg,#1f4e79 0%,#2e75b6 100%);
+min-height:100vh;display:flex;align-items:center;justify-content:center;
+color:#fff;padding:20px}
+.card{background:rgba(255,255,255,.12);backdrop-filter:blur(10px);
+border-radius:20px;padding:35px 25px;text-align:center;
+max-width:380px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,.3)}
+.icon{font-size:56px;margin-bottom:10px}
+h1{font-size:1.7rem;font-weight:700;margin-bottom:3px;letter-spacing:1px}
+.subtitle{font-size:.85rem;opacity:.7;margin-bottom:20px}
+.status{display:flex;justify-content:center;gap:20px;margin-bottom:20px}
+.status-item{text-align:center}
+.status-item .val{font-size:1.3rem;font-weight:700}
+.status-item .lbl{font-size:.65rem;opacity:.7;text-transform:uppercase}
+
+.ip-box{background:rgba(255,255,255,.18);border-radius:12px;padding:14px;
+margin-bottom:12px;cursor:pointer;transition:background .2s;position:relative}
+.ip-box:active{background:rgba(255,255,255,.3)}
+.ip-box .ip{font-family:'SF Mono',monospace;font-size:1.5rem;font-weight:700;letter-spacing:2px}
+.ip-box .copy-hint{font-size:.7rem;opacity:.6;margin-top:4px}
+.ip-box .copied{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+background:rgba(39,124,72,.95);color:#fff;padding:8px 20px;border-radius:8px;
+font-weight:700;font-size:.9rem;display:none;z-index:2}
+.ip-box.flash .copied{display:block;animation:fadeOut 1.5s ease .3s forwards}
+@keyframes fadeOut{to{opacity:0}}
+
+.divider{border:none;border-top:1px solid rgba(255,255,255,.15);margin:16px 0}
+
+.hint-box{background:rgba(255,193,7,.15);border:1px solid rgba(255,193,7,.3);
+border-radius:10px;padding:12px;margin-bottom:16px;text-align:left}
+.hint-box .title{font-size:.8rem;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.hint-box .steps{font-size:.75rem;line-height:1.6;opacity:.9}
+.hint-box .steps b{color:#ffd54f}
+
+.btn-open{display:block;background:#fff;color:#1f4e79;cursor:pointer;
+border:none;font-weight:700;font-size:1rem;width:100%;
+padding:14px;border-radius:12px;margin-bottom:10px;
+box-shadow:0 4px 15px rgba(0,0,0,.2);transition:transform .1s}
+.btn-open:active{transform:scale(.97)}
+
+.footer{margin-top:15px;font-size:.65rem;opacity:.4}
+</style>
+</head>
+<body>
+<div class="card">
+<div class="icon">&#x1F5A8;</div>
+<h1>DocuPi-3000</h1>
+<p class="subtitle">Serial Data Logger &amp; Protocol Printer</p>
+
+<div class="status">
+<div class="status-item">
+<div class="val" id="serStatus">&#x2713;</div>
+<div class="lbl">Seriell</div>
+</div>
+<div class="status-item">
+<div class="val" id="todayCount">0</div>
+<div class="lbl">Heute</div>
+</div>
+<div class="status-item">
+<div class="val" id="totalCount">0</div>
+<div class="lbl">Gesamt</div>
+</div>
+</div>
+
+<!-- IP zum Kopieren -->
+<div class="ip-box" id="ipBox" onclick="copyIP()">
+<div class="ip">10.3.141.1</div>
+<div class="copy-hint">&#x1F4CB; Antippen zum Kopieren</div>
+<div class="copied" id="copiedMsg">&#x2705; Kopiert!</div>
+</div>
+
+<hr class="divider">
+
+<!-- Anleitung -->
+<div class="hint-box">
+<div class="title">&#x26A0;&#xFE0F; So gehts:</div>
+<div class="steps">
+1. IP oben <b>antippen</b> (kopiert automatisch)<br>
+2. Dieses Fenster <b>schliessen</b> (X oben rechts)<br>
+3. Bei der Abfrage <b>&laquo;Ohne Internet verwenden&raquo;</b> tippen<br>
+4. <b>Safari</b> &ouml;ffnen &rarr; IP einfuegen oder beliebige Seite aufrufen
+</div>
+</div>
+
+<!-- Direkt oeffnen Button (fuer Android/Desktop) -->
+<button class="btn-open" onclick="openDirect()">
+Web-Interface &ouml;ffnen &#x2197;
+</button>
+
+<p class="footer">
+WLAN: DocuPi-3000 &bull; Passwort: DocuPi2026
+</p>
+</div>
+
+<script>
+fetch('/api/status')
+.then(function(r){return r.json()}).then(function(d){
+  document.getElementById('serStatus').textContent=d.serial&&d.serial.connected?'\u2713':'\u2717';
+  document.getElementById('todayCount').textContent=d.today_count||'0';
+  document.getElementById('totalCount').textContent=d.total_count||'0';
+}).catch(function(){});
+
+// Cookie setzen damit iOS CNA sich schliesst
+fetch('/captive-auth',{method:'POST',credentials:'same-origin'}).catch(function(){});
+
+function copyIP(){
+  var ip='10.3.141.1';
+  var box=document.getElementById('ipBox');
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(ip).then(function(){flash()}).catch(function(){fallback(ip)});
+  }else{fallback(ip)}
+}
+function fallback(text){
+  var ta=document.createElement('textarea');
+  ta.value=text;ta.style.cssText='position:fixed;opacity:0';
+  document.body.appendChild(ta);ta.select();
+  try{document.execCommand('copy');flash()}catch(e){}
+  document.body.removeChild(ta);
+}
+function flash(){
+  var box=document.getElementById('ipBox');
+  box.classList.remove('flash');
+  void box.offsetWidth;
+  box.classList.add('flash');
+}
+function openDirect(){
+  window.location.href='http://10.3.141.1:5000/';
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,149 @@
+{% extends "base.html" %}{% block title %}DocuPi-3000 - Dashboard{% endblock %}
+{% block extra_css %}<style>
+.stat-cards .card{transition:transform .2s}
+.stat-cards .card:hover{transform:translateY(-2px)}
+#terminal{background:#1e1e1e;color:#00ff41;font-family:'Courier New',monospace;font-size:13px;padding:15px;border-radius:0 0 8px 8px;height:55vh;overflow-y:auto;white-space:pre-wrap;word-wrap:break-word;border:2px solid #333;border-top:none}
+#terminal .ff{color:#ff6600;font-weight:bold}
+.th{background:#2d2d2d;color:#ccc;padding:8px 15px;border-radius:8px 8px 0 0;font-size:.85rem;display:flex;justify-content:space-between;align-items:center;border:2px solid #333;border-bottom:none}
+.blink{animation:blink 1s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+.quick-stat{display:flex;align-items:center;gap:12px}
+.quick-stat .icon-box{width:48px;height:48px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem}
+.quick-stat .icon-box.serial{background:rgba(31,78,121,.1);color:var(--docupi-blue)}
+.quick-stat .icon-box.pdf{background:rgba(40,167,69,.1);color:#28a745}
+.quick-stat .icon-box.total{background:rgba(46,117,182,.1);color:var(--docupi-light)}
+.quick-stat .icon-box.usb{background:rgba(255,193,7,.1);color:#e6a800}
+.quick-stat .icon-box.temp{background:rgba(220,53,69,.1);color:#dc3545}
+.quick-stat .info .val{font-size:1.4rem;font-weight:700;line-height:1.2}
+.quick-stat .info .lbl{font-size:.75rem;color:#6c757d}
+.last-pdf{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 15px;display:none;align-items:center;gap:10px}
+.last-pdf.show{display:flex}
+.last-pdf .icon{color:#28a745;font-size:1.2rem}
+</style>{% endblock %}
+{% block content %}
+
+<!-- Status Cards -->
+<div class="row g-3 mb-3 stat-cards">
+  <div class="col">
+    <div class="card p-3">
+      <div class="quick-stat">
+        <div class="icon-box serial"><i class="bi bi-plug"></i></div>
+        <div class="info">
+          <div class="val" id="serialStatus">{% if status.connected %}<span class="text-success">Online</span>{% else %}<span class="text-danger">Offline</span>{% endif %}</div>
+          <div class="lbl">{{ config.serial.port }} @ {{ config.serial.baudrate }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="card p-3">
+      <div class="quick-stat">
+        <div class="icon-box pdf"><i class="bi bi-file-earmark-pdf"></i></div>
+        <div class="info">
+          <div class="val" id="todayCount">{{ today_count }}</div>
+          <div class="lbl">Protokolle heute</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="card p-3">
+      <div class="quick-stat">
+        <div class="icon-box total"><i class="bi bi-collection"></i></div>
+        <div class="info">
+          <div class="val" id="totalCount">{{ total_count }}</div>
+          <div class="lbl">Protokolle gesamt</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="card p-3">
+      <div class="quick-stat">
+        <div class="icon-box usb"><i class="bi bi-usb-drive"></i></div>
+        <div class="info">
+          <div class="val" id="usbStat">{% if usb_mounted %}<span class="text-success">{{ usb_free }} GB</span>{% else %}<span class="text-warning">---</span>{% endif %}</div>
+          <div class="lbl">USB {% if usb_mounted %}({{ usb_percent }}% belegt){% else %}nicht verbunden{% endif %}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="card p-3">
+      <div class="quick-stat">
+        <div class="icon-box temp"><i class="bi bi-thermometer-half"></i></div>
+        <div class="info">
+          <div class="val"><span id="cpuTemp">{{ cpu_temp }}</span> °C</div>
+          <div class="lbl">CPU-Temperatur</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Last PDF notification -->
+<div class="last-pdf mb-3" id="lastPdf">
+  <span class="icon"><i class="bi bi-check-circle-fill"></i></span>
+  <span id="lastPdfText">--</span>
+</div>
+
+<!-- Live Monitor Terminal -->
+<div class="d-flex justify-content-between align-items-center mb-2">
+  <h6 class="mb-0"><i class="bi bi-terminal"></i> Serieller Live-Monitor</h6>
+  <div class="d-flex gap-2 align-items-center">
+    <span class="badge bg-secondary font-monospace"><i class="bi bi-download"></i> <span id="bc">0</span> Bytes</span>
+    <div class="form-check form-switch mb-0"><input class="form-check-input" type="checkbox" id="as" checked><label class="form-check-label small" for="as">Auto-Scroll</label></div>
+    <button class="btn btn-sm btn-outline-danger" onclick="cl()"><i class="bi bi-trash"></i></button>
+  </div>
+</div>
+<div class="th">
+  <span><i class="bi bi-plug"></i> {{ config.serial.port }} @ {{ config.serial.baudrate }} baud | {{ config.serial.bytesize }}{{ config.serial.parity }}{{ config.serial.stopbits }}</span>
+  <span><span class="blink" id="rx" style="color:#00ff41;visibility:hidden;">&#9679;</span> RX</span>
+</div>
+<div id="terminal"></div>
+
+{% endblock %}
+{% block extra_js %}<script>
+// --- Terminal ---
+const t=document.getElementById('terminal'),asc=document.getElementById('as'),rx=document.getElementById('rx'),bc=document.getElementById('bc');
+let tb=0;
+function ap(x){
+  rx.style.visibility='visible';setTimeout(()=>rx.style.visibility='hidden',200);
+  const s=document.createElement('span');
+  s.innerHTML=x.replace(/\x0c/g,'\n<span class="ff">--- SEITENVORSCHUB ---</span>\n');
+  t.appendChild(s);tb+=x.length;bc.textContent=tb.toLocaleString('de-DE');
+  if(asc.checked)t.scrollTop=t.scrollHeight;
+  if(t.textContent.length>100000)while(t.childNodes.length>100)t.removeChild(t.firstChild);
+}
+function cl(){t.innerHTML='';tb=0;bc.textContent='0'}
+socket.on('serial_data',d=>ap(d.data));
+
+// --- New Protocol ---
+socket.on('new_protocol',d=>{
+  const v=document.createElement('div');
+  v.style.cssText='color:#00bcd4;font-weight:bold;margin:5px 0';
+  v.textContent='>>> PDF: '+d.filename+' ('+d.size+' B)';
+  t.appendChild(v);
+  if(asc.checked)t.scrollTop=t.scrollHeight;
+  // Update last PDF bar
+  const lp=document.getElementById('lastPdf');
+  document.getElementById('lastPdfText').innerHTML='<strong>Neues Protokoll:</strong> '+d.filename;
+  lp.classList.add('show');
+  // Update counters
+  fetch('/api/status').then(r=>r.json()).then(s=>{
+    document.getElementById('todayCount').textContent=s.today_count;
+    document.getElementById('totalCount').textContent=s.total_count;
+  });
+});
+
+// --- Auto-refresh status ---
+setInterval(()=>{
+  fetch('/api/status').then(r=>r.json()).then(d=>{
+    document.getElementById('cpuTemp').textContent=d.cpu_temp;
+    document.getElementById('todayCount').textContent=d.today_count;
+    document.getElementById('totalCount').textContent=d.total_count;
+    const ss=document.getElementById('serialStatus');
+    ss.innerHTML=d.serial.connected?'<span class="text-success">Online</span>':'<span class="text-danger">Offline</span>';
+  }).catch(()=>{});
+},15000);
+</script>{% endblock %}

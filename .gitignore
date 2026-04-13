@@ -4,3 +4,4 @@ __pycache__/
 .pytest_cache/
 tests/fixtures/wd390/e2e_*
 tests/fixtures/wd390/test_*
+backups/

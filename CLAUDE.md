@@ -57,6 +57,8 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 ├── reference/              # Dokumentation, Konzepte
 ├── plans/                  # Implementierungsplaene
 ├── outputs/                # Arbeitsergebnisse
+├── backups/                # Pi-Backups (komplette Snapshots)
+│   └── pi-backup-2026-04-13/  # Code, DB, PDFs, Logs, System-Configs
 └── scripts/                # Hilfsskripte (fix_ssh.sh, etc.)
 ```
 
@@ -76,7 +78,7 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 - Hardware: Raspberry Pi (SSH: belimed@192.168.178.83)
 - Langfristiges Ziel: CE-zertifizierte Linux-Controller (Unipi Neuron / RevPi Connect)
 - Geschaeftsmodell: Softwarelizenz + Sensor-Kit
-- Komponenten bestellt, Lieferung ausstehend
+- Erster Feldtest abgeschlossen: 3 Wochen, 140 Chargen, Helios Krefeld (Belimed 9-6-18 HS2)
 - Konzeptdokument mit Hardware, Sensoren, Softwarearchitektur, Regulatorik und Roadmap existiert
 
 ---

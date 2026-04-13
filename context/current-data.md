@@ -5,12 +5,12 @@
 | Metrik | Aktueller Wert | Zielwert | Notizen |
 | ------ | -------------- | -------- | ------- |
 | Konzeptdokument | Fertig | — | Hardware, Software, Regulatorik, Roadmap |
-| Prototyp-Hardware | Komponenten bestellt | Getestet | Raspberry Pi + Sensoren |
+| Prototyp-Hardware | Raspberry Pi 5 im Feld getestet | Sensoren pending | 3 Wochen Dauerbetrieb, stabil |
 | S-Bus/UDP Software | Fertig | — | 9-Dateien-Paket (SQLite, FastAPI, Web-Dashboard) |
-| RS232-Protokoll (WD) | Entschluesselt + Parser fertig | Produktionsreif | UTF-16LE Klartext, .ht + RS232 |
-| WD-PDF-Generator | Funktionsfaehig | Produktionsreif | Parser, Chart, PDF — 42 Tests gruen |
-| MST-PDF-Generator | Funktionsfaehig | Produktionsreif | Mehrere Iterationen (v4-v9) |
-| Erste Feldtests | Ausstehend | 1 Test | Im eigenen Arbeitsumfeld moeglich |
+| RS232-Protokoll (MST) | Produktiv im Feld | Produktionsreif | 140 Chargen lueckenlos, Fixes deployed |
+| RS232-Protokoll (WD) | Parser fertig | Feldtest pending | UTF-16LE Klartext, .ht + RS232, 42 Tests |
+| MST-PDF-Generator | Produktiv | Produktionsreif | v4, Feldtest-Fixes (VPR, Abbruch, Amber) |
+| Erster Feldtest | ABGESCHLOSSEN | Weitere geplant | Helios Krefeld, 25.03.-13.04.2026, 327 Protokolle |
 
 ## Quellcode-Uebersicht
 
@@ -24,5 +24,16 @@
 
 ## Hardware
 
-- Raspberry Pi (SSH: belimed@192.168.178.83)
+- Raspberry Pi 5, 8GB RAM, Debian Trixie (aarch64)
+- SSH: belimed@192.168.178.83 (Passwort: sb261)
+- Hostname: DocuPi-3000, Service: docupi.service
+- Hotspot: SSID DocuPi-3000, PW DocuPi2026
 - Ziel-Hardware: Unipi Neuron / RevPi Connect (CE-zertifiziert)
+
+## Feldtest-Daten (Helios Krefeld)
+
+- Maschine: Belimed 9-6-18 HS2, Nr. 27163
+- Zeitraum: 25.03. - 13.04.2026
+- Chargen: CH021714 - CH021853 (140 lueckenlos)
+- Programme: Instrumente 134°C (103x), Bowie Dick (18x), VPR (19x)
+- Backup: backups/pi-backup-2026-04-13/ (52 MB)

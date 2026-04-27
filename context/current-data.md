@@ -11,6 +11,7 @@
 | RS232-Protokoll (WD) | Parser fertig | Feldtest pending | UTF-16LE Klartext, .ht + RS232, 42 Tests |
 | MST-PDF-Generator | Produktiv | Produktionsreif | v4, Feldtest-Fixes (VPR, Abbruch, Amber) |
 | Erster Feldtest | ABGESCHLOSSEN | Weitere geplant | Helios Krefeld, 25.03.-13.04.2026, 327 Protokolle |
+| Erster Kunden-Deal | In Anbahnung | Abschluss | Vertrieb ueber externen Partner, Ethernet-Print-Abgriff, Konzeptpapier in outputs/ |
 
 ## Quellcode-Uebersicht
 

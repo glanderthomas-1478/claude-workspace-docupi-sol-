@@ -56,10 +56,14 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 │   └── *.py                # Weitere Tests
 ├── reference/              # Dokumentation, Konzepte
 ├── plans/                  # Implementierungsplaene
-├── outputs/                # Arbeitsergebnisse
-├── backups/                # Pi-Backups (komplette Snapshots)
+├── outputs/                # Arbeitsergebnisse (Konzeptpapiere, generierte PDFs)
+│   └── docupi-3000_konzept_getmatic.{md,pdf}  # Vertriebs-Konzept fuer getmatic
+├── backups/                # Pi-Backups (komplette Snapshots, gitignored)
 │   └── pi-backup-2026-04-13/  # Code, DB, PDFs, Logs, System-Configs
-└── scripts/                # Hilfsskripte (fix_ssh.sh, etc.)
+└── scripts/                # Hilfsskripte
+    ├── fix_ssh.sh
+    ├── render_konzept_pdf.py  # Markdown -> PDF (WeasyPrint) fuer outputs/
+    └── saia_test_toolkit/
 ```
 
 ---
@@ -80,6 +84,7 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 - Geschaeftsmodell: Softwarelizenz + Sensor-Kit
 - Erster Feldtest abgeschlossen: 3 Wochen, 140 Chargen, Helios Krefeld (Belimed 9-6-18 HS2)
 - Konzeptdokument mit Hardware, Sensoren, Softwarearchitektur, Regulatorik und Roadmap existiert
+- Erster Kunden-Deal in Anbahnung ueber externen Vertriebspartner — Ethernet-Print-Abgriff statt RS232 (Box-Replacement zwischen HMI und Drucker)
 
 ---
 

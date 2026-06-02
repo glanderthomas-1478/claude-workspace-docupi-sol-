@@ -79,12 +79,19 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 
 ## Wichtiger Kontext
 
-- Hardware: Raspberry Pi (SSH: belimed@192.168.178.83)
+- Hardware: Raspberry Pi (SSH: belimed@192.168.178.83 zu Hause)
 - Langfristiges Ziel: CE-zertifizierte Linux-Controller (Unipi Neuron / RevPi Connect)
 - Geschaeftsmodell: Softwarelizenz + Sensor-Kit
 - Erster Feldtest abgeschlossen: 3 Wochen, 140 Chargen, Helios Krefeld (Belimed 9-6-18 HS2)
 - Konzeptdokument mit Hardware, Sensoren, Softwarearchitektur, Regulatorik und Roadmap existiert
-- Erster Kunden-Deal in Anbahnung ueber externen Vertriebspartner — Ethernet-Print-Abgriff statt RS232 (Box-Replacement zwischen HMI und Drucker)
+- Erster Kunden-Deal in Umsetzung ueber externen Vertriebspartner getmatic — Ethernet-Print-Abgriff statt RS232 (Box-Replacement zwischen HMI und Drucker)
+
+## DocuControl (zweite Hardware-Linie)
+
+Parallel zum DocuPi-3000 entsteht **DocuControl** — vermutlich der Whitelabel-Name fuer die Kunden-Hardware ueber getmatic.
+- Erster Einsatz geplant: **Tierlabor Uni Essen** (Maschinentyp tbd)
+- Neuer Pi 5 bei getmatic aufgebaut (mit RTC-Modul), aktueller Stand siehe context/current-data.md
+- Setup-Session 2026-06-02 begonnen, noch nicht abgeschlossen — naechste Schritte: RTC-Overlay setzen, OS-Update, WLAN deaktivieren, DocuPi-Code rueberbringen
 
 ---
 

@@ -36,19 +36,25 @@ Prototyp fertigstellen und erste Feldtests im eigenen Arbeitsumfeld durchfuehren
 - Migration auf Unipi Neuron oder RevPi Connect
 - Regulatorik klaeren (kein eigenes Medizinprodukt, nur Diagnosetool)
 
-### 5. Erster Kunden-Deal — IN ANBAHNUNG
+### 5. Erster Kunden-Deal (DocuControl, Tierlabor Uni Essen) — IN UMSETZUNG
 
-- Vertrieb laeuft ueber externen Partner (Whitelabel-Vertrag denkbar)
-- Maschine: Sterilisator mit Ethernet-Drucker-Anbindung (HMI -> LAN-Printserver-Box -> Drucker)
-- Ansatz: Pi ersetzt die Printserver-Box, uebernimmt deren IP, fangt Druckaufjraege auf TCP/9100 ab
+- Vertrieb laeuft verdeckt ueber getmatic / Thomas Glander (Whitelabel)
+- Zielmaschine: Geraet im Tierlabor Uni Essen (Typ tbd)
+- Ansatz: Pi ersetzt die Printserver-Box, uebernimmt deren IP, fangt Druckauftraege auf TCP/9100 ab
 - Zwei Netzwerk-Interfaces: eth0 Maschinen-LAN, USB-Eth Klinik-LAN, WLAN deaktiviert
 - Drei Betriebsmodi: Integriert (Klinik-LAN), Hotspot, USB-Export
 - Konzeptpapier erstellt (outputs/docupi-3000_konzept_getmatic.{md,pdf})
-- OFFEN: Sample-Druckauftrag analysieren, Pi-Klon vom Krefeld-Geraet, ggf. WebIF-Auth + HTTPS implementieren
+- **2026-06-02 bei getmatic im Buero (192.168.0.0/24)**:
+  - Neuer Pi 5 mit RTC-Modul aufgebaut, OS Debian 13 (Bookworm-Successor)
+  - SSH eingerichtet (user docucontrol, key-based)
+  - Hostname gesetzt: DocuControl (war DCUETL aus Klon-Image)
+  - I2C aktiviert, RTC auf 0x68 erkannt (Chip-Typ Felix-bestaetigung pending — DS3231 vermutet)
+  - OFFEN: RTC-dtoverlay setzen, OS-Update, WLAN deaktivieren, DocuPi-Code rueberbringen
+- OFFEN allgemein: Sample-Druckauftrag analysieren, ggf. WebIF-Auth + HTTPS implementieren
 
 ## Wie Erfolg aussieht
 
 - ~~Funktionierender Prototyp, der im Feld einsetzbar ist~~ ERREICHT
 - ~~RS232-Protokoll entschluesselt und implementiert~~ ERREICHT (MST)
 - ~~Erste Feldtests erfolgreich durchgefuehrt~~ ERREICHT (Helios Krefeld)
-- Naechster Meilenstein: Sensoren anschliessen, WD/RDG-Feldtest, Patch-Konsolidierung, ersten Kunden-Deal abschliessen
+- Naechster Meilenstein: DocuControl-Pi fertig konfigurieren, Sample-Druckauftrag analysieren, Installation im Tierlabor Uni Essen, Sensoren anschliessen, WD/RDG-Feldtest, Patch-Konsolidierung

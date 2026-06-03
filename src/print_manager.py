@@ -21,7 +21,7 @@ _default_printer = ""
 _print_copies = 1
 _print_all_pages = True
 
-PRINT_CONFIG_FILE = "/home/belimed/docupi/data/print_config.json"
+PRINT_CONFIG_FILE = "/home/docucontrol/docupi/data/print_config.json"
 
 DEFAULT_PRINT_CONFIG = {
     "auto_print": False,

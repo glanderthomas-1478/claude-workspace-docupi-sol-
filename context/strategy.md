@@ -36,21 +36,19 @@ Prototyp fertigstellen und erste Feldtests im eigenen Arbeitsumfeld durchfuehren
 - Migration auf Unipi Neuron oder RevPi Connect
 - Regulatorik klaeren (kein eigenes Medizinprodukt, nur Diagnosetool)
 
-### 5. Erster Kunden-Deal (DocuControl, Tierlabor Uni Essen) — IN UMSETZUNG
+### 5. Erster Kunden-Deal (DocuControl, Tierlabor Uni Essen) — WEB-INTERFACE FERTIG
 
 - Vertrieb laeuft verdeckt ueber getmatic / Thomas Glander (Whitelabel)
 - Zielmaschine: Geraet im Tierlabor Uni Essen (Typ tbd)
-- Ansatz: Pi ersetzt die Printserver-Box, uebernimmt deren IP, fangt Druckauftraege auf TCP/9100 ab
-- Zwei Netzwerk-Interfaces: eth0 Maschinen-LAN, USB-Eth Klinik-LAN, WLAN deaktiviert
-- Drei Betriebsmodi: Integriert (Klinik-LAN), Hotspot, USB-Export
-- Konzeptpapier erstellt (outputs/docupi-3000_konzept_getmatic.{md,pdf})
-- **2026-06-02 bei getmatic im Buero (192.168.0.0/24)**:
-  - Neuer Pi 5 mit RTC-Modul aufgebaut, OS Debian 13 (Bookworm-Successor)
-  - SSH eingerichtet (user docucontrol, key-based)
-  - Hostname gesetzt: DocuControl (war DCUETL aus Klon-Image)
-  - I2C aktiviert, RTC auf 0x68 erkannt (Chip-Typ Felix-bestaetigung pending — DS3231 vermutet)
-  - ERLEDIGT (2026-06-02): Kernel 6.18.33, RTC DS3231, WLAN off, Code deployed, Service aktiv, TCP/9100-Capture implementiert und getestet
-- OFFEN allgemein: Sample-Druckauftrag analysieren, ggf. WebIF-Auth + HTTPS implementieren
+- **ERLEDIGT 2026-06-02**: Pi 5 aufgebaut, Service aktiv, TCP/9100-Pipeline produktiv
+- **ERLEDIGT 2026-06-03**: Vollstaendiges Web-Interface deployed und validiert:
+  - GeTmatic-Design (dunkel, "DocuControl by GeTmatic", 3-Tab-Nav)
+  - Dashboard: Protokoll-Tabelle mit Charge-Nr., Filter, Druck-Button + Toast
+  - Einstellungen: 3 Sub-Tabs (Geraete & Netzwerk mit LAN-Config, System-Health, Live-Monitor)
+  - Datei-Manager: PDF-Liste aus DB, Loeschen, USB-Sync
+  - Drucker: Epson XP-4150 via CUPS IPP Everywhere eingerichtet, Testdruck OK
+  - Service-Stabilitaet: SIGTERM-Fix (47ms Restart statt 15s SIGKILL)
+- OFFEN: Sample-Druckauftrag vom Tierlabor-Geraet analysieren, Installation vor Ort, Maschinentyp klaeren
 
 ## Wie Erfolg aussieht
 

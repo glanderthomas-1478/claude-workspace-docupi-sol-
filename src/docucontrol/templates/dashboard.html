@@ -1,0 +1,474 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes slideInToast { from { transform: translateX(120%); opacity:0; } to { transform: translateX(0); opacity:1; } }
+@keyframes fadeOutToast { to { transform: translateX(120%); opacity:0; } }
+
+.print-toast {
+    display: none;
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    z-index: 1000;
+    background: var(--primary);
+    color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 4px 18px rgba(31,78,121,.28);
+    padding: 14px 18px 14px 16px;
+    align-items: center;
+    gap: 13px;
+    min-width: 280px;
+    max-width: 360px;
+}
+.print-toast.error { background: var(--danger); }
+.print-toast .pt-icon { font-size: 22px; flex-shrink: 0; }
+.print-toast .pt-body { flex: 1; }
+.print-toast .pt-text { font-weight: 600; font-size: 14px; }
+.print-toast .pt-sub  { font-size: 12px; opacity: .8; margin-top: 2px; }
+.print-toast .pt-close { cursor: pointer; opacity: .7; font-size: 16px; flex-shrink: 0; }
+.print-toast .pt-close:hover { opacity: 1; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div class="over">Übersicht</div>
+    <h1>Dashboard</h1>
+</div>
+
+<!-- Stat-Karten -->
+<div class="stat-row" id="statRow" style="grid-template-columns: repeat(2, 1fr); max-width: 680px;">
+    <div class="stat">
+        <div class="icon-tile blue"><i class="bi bi-file-earmark-pdf"></i></div>
+        <div class="label">Protokolle heute</div>
+        <div class="big" id="todayCount">—</div>
+        <div class="sub" id="todaySub">wird geladen …</div>
+    </div>
+    <div class="stat">
+        <div class="icon-tile blue"><i class="bi bi-collection"></i></div>
+        <div class="label">Protokolle gesamt</div>
+        <div class="big" id="totalCount">—</div>
+        <div class="sub" id="totalSub">Seit Inbetriebnahme</div>
+    </div>
+</div>
+
+<!-- Filterleiste -->
+<div class="filterbar" id="filterBar">
+    <div class="fld">
+        <label>Status</label>
+        <select class="ctrl" id="fStatus">
+            <option value="">Alle</option>
+            <option value="Bestanden">Bestanden</option>
+            <option value="Fehlgeschlagen">Fehlgeschlagen</option>
+        </select>
+    </div>
+    <div class="fld">
+        <label>Programm</label>
+        <select class="ctrl" id="fProg">
+            <option value="">Alle</option>
+        </select>
+    </div>
+    <div class="fld">
+        <label>Datum</label>
+        <div class="range-pair">
+            <input type="date" class="ctrl date" id="fDateFrom">
+            <span class="sep">bis</span>
+            <input type="date" class="ctrl date" id="fDateTo">
+        </div>
+    </div>
+    <div class="fld">
+        <label>Charge-Nr.</label>
+        <div class="range-pair">
+            <input type="number" class="ctrl num" id="fChargeFrom" placeholder="von">
+            <span class="sep">bis</span>
+            <input type="number" class="ctrl num" id="fChargeTo" placeholder="bis">
+        </div>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn btn-primary" id="btnFilter"><i class="bi bi-funnel"></i> Filter anwenden</button>
+    <button class="btn btn-outline" id="btnReset"><i class="bi bi-arrow-counterclockwise"></i> Zurücksetzen</button>
+</div>
+
+<!-- Protokoll-Tabelle -->
+<div class="card">
+    <div class="table-wrap">
+        <table class="data">
+            <thead>
+                <tr>
+                    <th data-sort="charge_nr" id="thCharge">Charge-Nr. <i class="bi bi-chevron-expand sort"></i></th>
+                    <th data-sort="timestamp" id="thDate" class="sorted">Datum &amp; Uhrzeit <i class="bi bi-arrow-down sort"></i></th>
+                    <th>Programm</th>
+                    <th>Status</th>
+                    <th class="right">Aktionen</th>
+                </tr>
+            </thead>
+            <tbody id="protocolBody">
+                <tr><td colspan="5" style="text-align:center;padding:32px;color:var(--muted)">
+                    <i class="bi bi-hourglass-split"></i> Daten werden geladen …
+                </td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="table-foot">
+        <span id="countInfo">0 Protokolle</span>
+        <div class="pager" id="pager"></div>
+    </div>
+</div>
+
+<!-- Print-Status Toast -->
+<div class="print-toast" id="printToast">
+    <span class="pt-icon"><i class="bi bi-printer-fill"></i></span>
+    <div class="pt-body">
+        <div class="pt-text">Druckauftrag gesendet</div>
+        <div class="pt-sub"></div>
+    </div>
+    <span class="pt-close" id="printToastClose"><i class="bi bi-x-lg"></i></span>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    var currentPage = 1;
+    var sortBy = 'timestamp';
+    var sortDir = 'desc';
+    var printerReady = false;
+
+    // ── Stat-Karten ───────────────────────────────────────────────────────
+
+    function loadStats() {
+        // Protokolle heute
+        var today = new Date().toISOString().split('T')[0];
+        fetch('/api/protocols?per_page=1&date_from=' + today + '&date_to=' + today)
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                document.getElementById('todayCount').textContent = d.total;
+                if (d.protocols && d.protocols.length > 0) {
+                    var ts_clean = (d.protocols[0].timestamp || '').replace('T', ' ').split('.')[0];
+                    var time = ts_clean.split(' ')[1] ? ts_clean.split(' ')[1].slice(0, 5) + ' Uhr' : '';
+                    document.getElementById('todaySub').textContent = time ? 'Letztes um ' + time : 'Keines heute';
+                } else {
+                    document.getElementById('todaySub').textContent = 'Noch keines heute';
+                }
+            }).catch(function() {});
+
+        // Gesamt
+        fetch('/api/protocols?per_page=1&sort_by=timestamp&sort_dir=asc')
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                document.getElementById('totalCount').textContent = d.total.toLocaleString('de-DE');
+                if (d.protocols && d.protocols.length > 0) {
+                    var firstTs = (d.protocols[0].timestamp || '').replace('T', ' ').split('.')[0];
+                    var firstDate = firstTs.split(' ')[0] || '';
+                    if (firstDate) {
+                        var parts = firstDate.split('-');
+                        if (parts.length === 3) firstDate = parts[2] + '.' + parts[1] + '.' + parts[0];
+                    }
+                    document.getElementById('totalSub').textContent = firstDate ? 'Seit ' + firstDate : 'Seit Inbetriebnahme';
+                }
+            }).catch(function() {});
+    }
+
+    // ── Drucker-Status ────────────────────────────────────────────────────
+
+    function loadPrinterStatus() {
+        fetch('/api/printer/ready')
+            .then(function(r) { return r.json(); })
+            .then(function(d) { printerReady = d.ready; })
+            .catch(function() { printerReady = false; });
+    }
+
+    // ── Programmfilter befüllen ───────────────────────────────────────────
+
+    function loadPrograms() {
+        fetch('/api/protocols/programs')
+            .then(function(r) { return r.json(); })
+            .then(function(progs) {
+                var sel = document.getElementById('fProg');
+                progs.forEach(function(p) {
+                    var opt = document.createElement('option');
+                    opt.value = p;
+                    opt.textContent = p;
+                    sel.appendChild(opt);
+                });
+            }).catch(function() {});
+    }
+
+    // ── Tabelle laden ─────────────────────────────────────────────────────
+
+    function buildParams() {
+        var p = new URLSearchParams({
+            page: currentPage,
+            per_page: 20,
+            sort_by: sortBy,
+            sort_dir: sortDir,
+        });
+        var st = document.getElementById('fStatus').value;
+        var pr = document.getElementById('fProg').value;
+        var df = document.getElementById('fDateFrom').value;
+        var dt = document.getElementById('fDateTo').value;
+        var cf = document.getElementById('fChargeFrom').value;
+        var ct = document.getElementById('fChargeTo').value;
+        if (st) p.set('status', st);
+        if (pr) p.set('program', pr);
+        if (df) p.set('date_from', df);
+        if (dt) p.set('date_to', dt);
+        if (cf) p.set('charge_from', cf);
+        if (ct) p.set('charge_to', ct);
+        return p;
+    }
+
+    function loadProtocols(page) {
+        currentPage = page || 1;
+        fetch('/api/protocols?' + buildParams())
+            .then(function(r) { return r.json(); })
+            .then(function(d) { renderTable(d); })
+            .catch(function() {
+                document.getElementById('protocolBody').innerHTML =
+                    '<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--danger)">Fehler beim Laden der Protokolle</td></tr>';
+            });
+    }
+
+    function escHtml(s) {
+        return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function formatTs(ts) {
+        if (!ts) return { date: '—', time: '' };
+        var clean = ts.replace('T', ' ').split('.')[0];
+        var parts = clean.split(' ');
+        var d = parts[0] || '';
+        var t = parts[1] ? parts[1].slice(0, 5) + ' Uhr' : '';
+        if (d) {
+            var dp = d.split('-');
+            if (dp.length === 3) d = dp[2] + '.' + dp[1] + '.' + dp[0];
+        }
+        return { date: d, time: t };
+    }
+
+    function renderTable(data) {
+        var tbody = document.getElementById('protocolBody');
+        if (!data.protocols || data.protocols.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--muted)"><i class="bi bi-inbox"></i> Keine Protokolle gefunden</td></tr>';
+            document.getElementById('countInfo').textContent = '0 Protokolle';
+            document.getElementById('pager').innerHTML = '';
+            return;
+        }
+
+        var rows = data.protocols.map(function(p) {
+            var ts = formatTs(p.timestamp);
+            var isOk = p.status === 'Bestanden';
+            var badge = isOk
+                ? '<span class="badge ok"><span class="bdot"></span> Bestanden</span>'
+                : '<span class="badge fail"><span class="bdot"></span> Fehlgeschlagen</span>';
+            var actions = '<div class="act">';
+            if (p.pdf_filename) {
+                actions += '<button class="icon-btn" title="PDF herunterladen" onclick="dlPdf(' + p.id + ')"><i class="bi bi-file-earmark-pdf"></i></button>';
+                if (printerReady) {
+                    actions += '<button class="icon-btn" title="Drucken" onclick="printPdf(this,' + p.id + ')"><i class="bi bi-printer"></i></button>';
+                }
+            } else {
+                actions += '<button class="icon-btn" disabled title="Kein PDF"><i class="bi bi-file-earmark"></i></button>';
+            }
+            actions += '</div>';
+            return '<tr>'
+                + '<td><span class="charge">' + escHtml(p.charge_nr) + '</span></td>'
+                + '<td><div class="dt-main">' + escHtml(ts.date) + '</div><div class="dt-sub">' + escHtml(ts.time) + '</div></td>'
+                + '<td>' + escHtml(p.program) + '</td>'
+                + '<td>' + badge + '</td>'
+                + '<td class="right">' + actions + '</td>'
+                + '</tr>';
+        });
+        tbody.innerHTML = rows.join('');
+
+        // Zählerzeile
+        var from = (data.page - 1) * data.per_page + 1;
+        var to = Math.min(data.page * data.per_page, data.total);
+        document.getElementById('countInfo').textContent = from + '–' + to + ' von ' + data.total.toLocaleString('de-DE') + ' Protokollen';
+
+        // Pager
+        renderPager(data.page, data.pages);
+
+        // Sortier-Header aktualisieren
+        document.querySelectorAll('th[data-sort]').forEach(function(th) {
+            th.classList.remove('sorted');
+            var icon = th.querySelector('.sort');
+            if (icon) icon.className = 'bi bi-chevron-expand sort';
+        });
+        var activeTh = document.querySelector('th[data-sort="' + sortBy + '"]');
+        if (activeTh) {
+            activeTh.classList.add('sorted');
+            var icon = activeTh.querySelector('.sort');
+            if (icon) icon.className = 'bi bi-arrow-' + (sortDir === 'desc' ? 'down' : 'up') + ' sort';
+        }
+    }
+
+    function renderPager(page, pages) {
+        var pager = document.getElementById('pager');
+        if (pages <= 1) { pager.innerHTML = ''; return; }
+
+        var html = '';
+
+        // Zurück
+        if (page <= 1) {
+            html += '<span class="pg disabled"><i class="bi bi-chevron-left"></i></span>';
+        } else {
+            html += '<span class="pg" onclick="goPage(' + (page - 1) + ')"><i class="bi bi-chevron-left"></i></span>';
+        }
+
+        // Seitenzahlen (max 5 sichtbar)
+        var start = Math.max(1, page - 2);
+        var end = Math.min(pages, start + 4);
+        start = Math.max(1, end - 4);
+
+        if (start > 1) {
+            html += '<span class="pg" onclick="goPage(1)">1</span>';
+            if (start > 2) html += '<span class="pg disabled">…</span>';
+        }
+        for (var i = start; i <= end; i++) {
+            html += '<span class="pg' + (i === page ? ' active' : '') + '" onclick="goPage(' + i + ')">' + i + '</span>';
+        }
+        if (end < pages) {
+            if (end < pages - 1) html += '<span class="pg disabled">…</span>';
+            html += '<span class="pg" onclick="goPage(' + pages + ')">' + pages + '</span>';
+        }
+
+        // Vor
+        if (page >= pages) {
+            html += '<span class="pg disabled"><i class="bi bi-chevron-right"></i></span>';
+        } else {
+            html += '<span class="pg" onclick="goPage(' + (page + 1) + ')"><i class="bi bi-chevron-right"></i></span>';
+        }
+
+        pager.innerHTML = html;
+    }
+
+    // ── Globale Hilfsfunktionen ───────────────────────────────────────────
+
+    window.goPage = function(p) { loadProtocols(p); };
+
+    window.dlPdf = function(id) {
+        window.location.href = '/download/' + id;
+    };
+
+    window.printPdf = function(btn, id) {
+        if (btn.disabled) return;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split" style="animation:spin .8s linear infinite"></i>';
+
+        fetch('/api/print/' + id, { method: 'POST' })
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (d.success) {
+                    btn.innerHTML = '<i class="bi bi-check-lg" style="color:var(--success)"></i>';
+                    showPrintToast(d.job_id, d.message || '');
+                    setTimeout(function() {
+                        btn.innerHTML = '<i class="bi bi-printer"></i>';
+                        btn.disabled = false;
+                    }, 3000);
+                } else {
+                    btn.innerHTML = '<i class="bi bi-x-lg" style="color:var(--danger)"></i>';
+                    showPrintToast(null, d.error || 'Druckfehler', true);
+                    setTimeout(function() {
+                        btn.innerHTML = '<i class="bi bi-printer"></i>';
+                        btn.disabled = false;
+                    }, 3000);
+                }
+            }).catch(function() {
+                btn.innerHTML = '<i class="bi bi-x-lg" style="color:var(--danger)"></i>';
+                showPrintToast(null, 'Verbindungsfehler', true);
+                setTimeout(function() {
+                    btn.innerHTML = '<i class="bi bi-printer"></i>';
+                    btn.disabled = false;
+                }, 3000);
+            });
+    };
+
+    // ── Print-Toast ───────────────────────────────────────────────────────
+
+    var printToastTimer = null;
+
+    function showPrintToast(jobId, message, isError) {
+        var toast = document.getElementById('printToast');
+        if (!toast) return;
+        var icon = toast.querySelector('.pt-icon');
+        var text = toast.querySelector('.pt-text');
+        var sub  = toast.querySelector('.pt-sub');
+
+        if (isError) {
+            toast.className = 'print-toast error';
+            icon.innerHTML = '<i class="bi bi-x-circle-fill"></i>';
+            text.textContent = 'Druckfehler';
+            sub.textContent = message;
+        } else {
+            toast.className = 'print-toast';
+            icon.innerHTML = '<i class="bi bi-printer-fill"></i>';
+            text.textContent = jobId ? 'Druckauftrag #' + jobId + ' gesendet' : 'Druckauftrag gesendet';
+            sub.textContent = message;
+        }
+
+        toast.style.display = 'flex';
+        toast.style.animation = 'slideInToast .25s ease';
+
+        if (printToastTimer) clearTimeout(printToastTimer);
+        printToastTimer = setTimeout(function() {
+            toast.style.animation = 'fadeOutToast .3s ease forwards';
+            setTimeout(function() { toast.style.display = 'none'; }, 300);
+        }, 6000);
+    }
+
+    document.getElementById('printToastClose').addEventListener('click', function() {
+        var toast = document.getElementById('printToast');
+        toast.style.display = 'none';
+        if (printToastTimer) clearTimeout(printToastTimer);
+    });
+
+    // ── Sortierung ────────────────────────────────────────────────────────
+
+    document.querySelectorAll('th[data-sort]').forEach(function(th) {
+        th.addEventListener('click', function() {
+            var col = th.getAttribute('data-sort');
+            if (sortBy === col) {
+                sortDir = sortDir === 'desc' ? 'asc' : 'desc';
+            } else {
+                sortBy = col;
+                sortDir = 'desc';
+            }
+            loadProtocols(1);
+        });
+    });
+
+    // ── Filter ────────────────────────────────────────────────────────────
+
+    document.getElementById('btnFilter').addEventListener('click', function() {
+        loadProtocols(1);
+    });
+
+    document.getElementById('btnReset').addEventListener('click', function() {
+        document.getElementById('fStatus').value = '';
+        document.getElementById('fProg').value = '';
+        document.getElementById('fDateFrom').value = '';
+        document.getElementById('fDateTo').value = '';
+        document.getElementById('fChargeFrom').value = '';
+        document.getElementById('fChargeTo').value = '';
+        loadProtocols(1);
+    });
+
+    // ── Init + Auto-Refresh ───────────────────────────────────────────────
+
+    loadStats();
+    loadPrograms();
+    loadPrinterStatus();
+    loadProtocols(1);
+
+    setInterval(function() {
+        loadStats();
+        loadPrinterStatus();
+        loadProtocols(currentPage);
+    }, 30000);
+})();
+</script>
+{% endblock %}

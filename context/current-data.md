@@ -12,8 +12,8 @@
 | MST-PDF-Generator | Produktiv | Produktionsreif | v4, Feldtest-Fixes (VPR, Abbruch, Amber) |
 | Erster Feldtest | ABGESCHLOSSEN | Weitere geplant | Helios Krefeld, 25.03.-13.04.2026, 327 Protokolle |
 | Erster Kunden-Deal | In Umsetzung | Abschluss | DocuControl fuer Tierlabor Uni Essen, getmatic-Vertrieb, Pi 5 betriebsbereit seit 2026-06-02 |
-| DocuControl Pi 5 | Pipeline produktiv | Design-Umbau ausstehend | Kernel 6.18.33, RTC DS3231 (/dev/rtc1), WLAN off, TCP/9100-Capture → Parse → PDF → DB vollautomatisch, 3 Test-Protokolle in DB |
-| DocuControl Web-Interface | Funktional (altes Design) | GeTmatic-Design | Design-Handoff-Paket in reference/design_handoff_docucontrol/, Plan: plans/2026-06-03-docucontrol-design-system.md |
+| DocuControl Pi 5 | Produktiv + stabil | Tierlabor-Deployment | Kernel 6.18.33, RTC DS3231, WLAN off, Service <1s Restart (os._exit Fix), 3 Test-Protokolle in DB |
+| DocuControl Web-Interface | **DEPLOYED + VALIDIERT** | Sample-Druckauftrag ausstehend | GeTmatic-Design live, Dashboard+Einstellungen+Dateien funktional, Drucker Epson XP-4150 (DocuPrinter) eingerichtet |
 
 ## Quellcode-Uebersicht
 
@@ -33,19 +33,19 @@
 - Hostname: DocuPi-3000, Service: docupi.service
 - Hotspot: SSID DocuPi-3000, PW DocuPi2026
 
-### DocuControl (bei getmatic, betriebsbereit)
+### DocuControl (bei getmatic, Web-Interface produktiv — 2026-06-03)
 - Raspberry Pi 5 mit DS3231 RTC (I2C 0x68, /dev/rtc1, dtoverlay=i2c-rtc,ds3231)
 - OS: Debian Trixie (aarch64), Kernel 6.18.33, WLAN hardware-deaktiviert (dtoverlay=disable-wifi)
-- User: docucontrol (Passwort: Xtend1478), SSH: docucontrol@192.168.0.171
-- Hostname: DocuControl, Service: docucontrol.service (active+enabled)
+- User: docucontrol (Passwort: Xtend1478), SSH: `ssh docucontrol` (Key: ~/.ssh/docucontrol_id)
+- Hostname: DocuControl, Service: docucontrol.service (active+enabled, Restart < 1s via os._exit Fix)
 - Code: /home/docucontrol/docupi/, venv: /home/docucontrol/docupi/venv
-- Architektur: TCP/9100-Capture -> parse_serial_protocol -> generate_pdf -> save_protocol (automatisch)
-- Templates: base.html, dashboard.html, filemanager.html, settings.html, monitor.html, network.html
-- DB: /home/docucontrol/docupi/data/docucontrol.db (protocols-Tabelle, 3 Test-Eintraege)
-- PDFs: /home/docucontrol/docupi/data/pdfs/
-- Config: /home/docucontrol/docupi/data/capture_config.json
+- Architektur: TCP/9100-Capture -> parse -> PDF -> DB (automatisch)
+- DB: /home/docucontrol/docupi/data/docupi.db (protocols-Tabelle, 3 Eintraege)
+- PDFs: /home/docucontrol/docupi/data/pdfs/ (4 PDFs)
 - Port-Redirect: nftables /etc/nftables-docucontrol.conf (80 -> 5000)
-- Naechster Schritt: Design-System-Umbau (GeTmatic-Handoff), Plan bereit
+- Drucker: Epson XP-4150 als "DocuPrinter" via CUPS IPP Everywhere
+- Web: Dashboard (2 Stat-Karten, Tabelle+Filter+Druck), Einstellungen (3 Tabs), Dateien
+- Naechster Schritt: Sample-Druckauftrag Tierlabor analysieren, Installation vor Ort
 - Geplanter Einsatz: Tierlabor Uni Essen (Maschinentyp noch unbekannt)
 
 ### Ziel-Hardware (langfristig)

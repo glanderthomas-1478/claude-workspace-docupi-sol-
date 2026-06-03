@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+{% block title %}Dateien{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div class="over">Speicher</div>
+    <h1>Dateien</h1>
+</div>
+
+<div class="two-col">
+
+    <!-- Interner Speicher -->
+    <div class="card">
+        <div class="card-head">
+            <span><i class="bi bi-hdd"></i> Interner Speicher</span>
+        </div>
+        <div class="card-body">
+            <div class="storagebar">
+                <div class="top">
+                    <span>Belegt</span>
+                    <span class="used" id="intUsed">— / —</span>
+                </div>
+                <div class="meter"><div class="fill" id="intFill" style="width:0%"></div></div>
+            </div>
+            <table class="filelist" id="intFileList">
+                <thead>
+                    <tr>
+                        <th>Dateiname</th>
+                        <th>Datum</th>
+                        <th>Größe</th>
+                        <th class="right">Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody id="intFileBody">
+                    <tr><td colspan="4" style="text-align:center;padding:20px;color:var(--muted)">
+                        <i class="bi bi-hourglass-split"></i> Wird geladen …
+                    </td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- USB / Externer Speicher -->
+    <div class="card">
+        <div class="card-head">
+            <span><i class="bi bi-usb-drive"></i> USB / Externer Speicher</span>
+            <span class="usb-status absent" id="usbStatus">
+                <span class="dot"></span>
+                <span id="usbStatusText">Nicht verbunden</span>
+            </span>
+        </div>
+        <div class="card-body">
+            <div class="storagebar">
+                <div class="top">
+                    <span>Belegt</span>
+                    <span class="used" id="usbUsed">—</span>
+                </div>
+                <div class="meter"><div class="fill" id="usbFill" style="width:0%"></div></div>
+            </div>
+            <table class="filelist">
+                <thead>
+                    <tr>
+                        <th>Dateiname</th>
+                        <th>Datum</th>
+                        <th>Größe</th>
+                        <th class="right">Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody id="usbFileBody">
+                    <tr><td colspan="4" style="text-align:center;padding:20px;color:var(--muted)">
+                        — kein USB-Speicher verbunden —
+                    </td></tr>
+                </tbody>
+            </table>
+            <div class="sync-row" id="syncRow">
+                <span class="lbl">Synchronisation</span>
+                <span id="syncStatus" class="ok" style="display:none">
+                    <i class="bi bi-check-circle-fill"></i> Aktuell
+                </span>
+                <span class="spacer"></span>
+                <button class="btn btn-outline" onclick="syncUsb()" id="btnSync" disabled>
+                    <i class="bi bi-arrow-repeat"></i> Jetzt sync.
+                </button>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+
+    function escHtml(s) {
+        return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function formatBytes(n) {
+        if (n === undefined || n === null) return '—';
+        if (n < 1024) return n + ' B';
+        if (n < 1048576) return (n / 1024).toFixed(1) + ' KB';
+        if (n < 1073741824) return (n / 1048576).toFixed(1) + ' MB';
+        return (n / 1073741824).toFixed(2) + ' GB';
+    }
+
+    function formatDate(ts) {
+        if (!ts) return '—';
+        var clean = ts.replace('T', ' ').split('.')[0];
+        var d = clean.split(' ')[0] || '';
+        if (d) {
+            var dp = d.split('-');
+            if (dp.length === 3) d = dp[2] + '.' + dp[1] + '.' + dp[0];
+        }
+        return d;
+    }
+
+    // ── Interner Speicher ─────────────────────────────────────────────────
+
+    function renderFileRow(f, isInternal) {
+        var fn = f.filename || f.pdf_filename || '';
+        var date = formatDate(f.timestamp || f.date || '');
+        var size = formatBytes(f.file_size || f.size);
+        var id = f.id || '';
+        return '<tr>'
+            + '<td><div class="fn"><i class="bi bi-file-earmark-pdf-fill"></i>' + escHtml(fn) + '</div></td>'
+            + '<td class="muted">' + escHtml(date) + '</td>'
+            + '<td class="muted">' + escHtml(size) + '</td>'
+            + '<td class="right"><div class="act">'
+            + (id ? '<button class="icon-btn" title="Herunterladen" onclick="dlFile(' + id + ')"><i class="bi bi-download"></i></button>' : '')
+            + (isInternal && id ? '<button class="icon-btn danger" title="Löschen" onclick="delFile(' + id + ')"><i class="bi bi-trash"></i></button>' : '')
+            + '</div></td>'
+            + '</tr>';
+    }
+
+    function loadInternalFiles() {
+        fetch('/api/protocols?per_page=200&sort_by=timestamp&sort_dir=desc')
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                var files = d.protocols || [];
+                var body = document.getElementById('intFileBody');
+                if (files.length === 0) {
+                    body.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--muted)"><i class="bi bi-inbox"></i> Keine PDFs gespeichert</td></tr>';
+                } else {
+                    body.innerHTML = files.map(function(f) {
+                        return renderFileRow({
+                            id: f.id,
+                            filename: f.pdf_filename,
+                            timestamp: f.timestamp,
+                            file_size: f.file_size || 0
+                        }, true);
+                    }).join('');
+                }
+            }).catch(function() {
+                document.getElementById('intFileBody').innerHTML =
+                    '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--danger)">Fehler beim Laden</td></tr>';
+            });
+
+        fetch('/api/storage/stats')
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                var sd = d.sd || {};
+                if (sd.total_gb !== undefined) {
+                    var usedGb = (sd.total_gb * (sd.used_percent || 0) / 100).toFixed(1);
+                    document.getElementById('intUsed').textContent = usedGb + ' GB / ' + sd.total_gb.toFixed(0) + ' GB';
+                    document.getElementById('intFill').style.width = Math.min(100, sd.used_percent || 0) + '%';
+                }
+            }).catch(function() {});
+    }
+
+    // ── USB-Speicher ──────────────────────────────────────────────────────
+
+    function loadUsbFiles() {
+        fetch('/api/storage/stats')
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                var usb = d.usb || {};
+                var connected = usb.detected || false;
+                var statusEl = document.getElementById('usbStatus');
+                var statusText = document.getElementById('usbStatusText');
+                var syncStatus = document.getElementById('syncStatus');
+                var btnSync = document.getElementById('btnSync');
+
+                statusEl.className = 'usb-status' + (connected ? '' : ' absent');
+                statusText.textContent = connected ? 'Verbunden' : 'Nicht verbunden';
+                btnSync.disabled = !connected;
+
+                if (connected && usb.total_gb) {
+                    var usedGb = (usb.total_gb * (usb.used_percent || 0) / 100).toFixed(1);
+                    document.getElementById('usbUsed').textContent = usedGb + ' GB / ' + (usb.total_gb || 0).toFixed(0) + ' GB';
+                    document.getElementById('usbFill').style.width = Math.min(100, usb.used_percent || 0) + '%';
+                    document.getElementById('usbFileBody').innerHTML =
+                        '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--muted)"><i class="bi bi-usb-drive"></i> USB verbunden — PDFs via Sync</td></tr>';
+                    syncStatus.style.display = 'inline-flex';
+                } else {
+                    document.getElementById('usbUsed').textContent = '—';
+                    document.getElementById('usbFill').style.width = '0%';
+                    document.getElementById('usbFileBody').innerHTML =
+                        '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--muted)">— kein USB-Speicher verbunden —</td></tr>';
+                    syncStatus.style.display = 'none';
+                }
+            }).catch(function() {});
+    }
+
+    // ── Aktionen ──────────────────────────────────────────────────────────
+
+    window.dlFile = function(id) {
+        window.location.href = '/download/' + id;
+    };
+
+    window.delFile = function(id) {
+        if (!confirm('Protokoll #' + id + ' wirklich löschen?')) return;
+        fetch('/api/protocols/' + id, { method: 'DELETE' })
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (d.success) loadInternalFiles();
+                else alert('Fehler: ' + (d.error || 'Unbekannt'));
+            }).catch(function() {});
+    };
+
+    window.syncUsb = function() {
+        var btn = document.getElementById('btnSync');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Synchronisiere …';
+        fetch('/api/storage/sync/now', { method: 'POST' })
+            .then(function(r) { return r.json(); })
+            .then(function() {
+                loadUsbFiles();
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Jetzt sync.';
+            }).catch(function() {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Jetzt sync.';
+            });
+    };
+
+    // ── Init ──────────────────────────────────────────────────────────────
+
+    loadInternalFiles();
+    loadUsbFiles();
+    setInterval(function() { loadInternalFiles(); loadUsbFiles(); }, 30000);
+})();
+</script>
+{% endblock %}

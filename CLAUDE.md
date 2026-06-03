@@ -55,6 +55,7 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 │   ├── test_wd_e2e.py      # WD End-to-End Tests
 │   └── *.py                # Weitere Tests
 ├── reference/              # Dokumentation, Konzepte
+│   ├── design_handoff_docucontrol/  # hifi Design-Handoff (GeTmatic) — React-Mockup + CSS-Tokens
 ├── plans/                  # Implementierungsplaene
 ├── outputs/                # Arbeitsergebnisse (Konzeptpapiere, generierte PDFs)
 │   └── docupi-3000_konzept_getmatic.{md,pdf}  # Vertriebs-Konzept fuer getmatic
@@ -79,7 +80,7 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 
 ## Wichtiger Kontext
 
-- Hardware: Raspberry Pi (SSH: belimed@192.168.178.83 zu Hause)
+- Hardware: Raspberry Pi — DocuPi-3000 (SSH: belimed@192.168.178.83, zu Hause) | DocuControl (SSH: docucontrol@192.168.0.171, bei getmatic)
 - Langfristiges Ziel: CE-zertifizierte Linux-Controller (Unipi Neuron / RevPi Connect)
 - Geschaeftsmodell: Softwarelizenz + Sensor-Kit
 - Erster Feldtest abgeschlossen: 3 Wochen, 140 Chargen, Helios Krefeld (Belimed 9-6-18 HS2)
@@ -88,10 +89,13 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 
 ## DocuControl (zweite Hardware-Linie)
 
-Parallel zum DocuPi-3000 entsteht **DocuControl** — vermutlich der Whitelabel-Name fuer die Kunden-Hardware ueber getmatic.
-- Erster Einsatz geplant: **Tierlabor Uni Essen** (Maschinentyp tbd)
-- Neuer Pi 5 bei getmatic aufgebaut (mit RTC-Modul), aktueller Stand siehe context/current-data.md
-- Setup-Session 2026-06-02 begonnen, noch nicht abgeschlossen — naechste Schritte: RTC-Overlay setzen, OS-Update, WLAN deaktivieren, DocuPi-Code rueberbringen
+Parallel zum DocuPi-3000 entsteht **DocuControl** — Whitelabel-Name fuer die Kunden-Hardware ueber getmatic.
+- Erster Einsatz geplant: **Tierlabor Uni Essen** (Maschinentyp tbd, echter Druckauftrag noch ausstehend)
+- Pi 5 bei getmatic vollstaendig eingerichtet (2026-06-02): Kernel 6.18.33, RTC DS3231 (/dev/rtc1), WLAN hardware-deaktiviert, Service docucontrol.service aktiv
+- Architektur: TCP/9100-Capture statt RS232, USB-Drucker (CUPS), Flask-App auf Port 5000
+- Pipeline vollstaendig: TCP-Empfang -> Parse -> PDF -> DB-Eintrag (automatisch)
+- SSH: docucontrol@192.168.0.171 (bei getmatic), User: docucontrol, Passwort: Xtend1478
+- Naechster Schritt: **Design-System-Umbau** (Plan fertig: `plans/2026-06-03-docucontrol-design-system.md`)
 
 ---
 

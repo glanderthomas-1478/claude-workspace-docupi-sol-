@@ -49,7 +49,7 @@ Prototyp fertigstellen und erste Feldtests im eigenen Arbeitsumfeld durchfuehren
   - SSH eingerichtet (user docucontrol, key-based)
   - Hostname gesetzt: DocuControl (war DCUETL aus Klon-Image)
   - I2C aktiviert, RTC auf 0x68 erkannt (Chip-Typ Felix-bestaetigung pending — DS3231 vermutet)
-  - OFFEN: RTC-dtoverlay setzen, OS-Update, WLAN deaktivieren, DocuPi-Code rueberbringen
+  - ERLEDIGT (2026-06-02): Kernel 6.18.33, RTC DS3231, WLAN off, Code deployed, Service aktiv, TCP/9100-Capture implementiert und getestet
 - OFFEN allgemein: Sample-Druckauftrag analysieren, ggf. WebIF-Auth + HTTPS implementieren
 
 ## Wie Erfolg aussieht

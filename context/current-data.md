@@ -11,8 +11,9 @@
 | RS232-Protokoll (WD) | Parser fertig | Feldtest pending | UTF-16LE Klartext, .ht + RS232, 42 Tests |
 | MST-PDF-Generator | Produktiv | Produktionsreif | v4, Feldtest-Fixes (VPR, Abbruch, Amber) |
 | Erster Feldtest | ABGESCHLOSSEN | Weitere geplant | Helios Krefeld, 25.03.-13.04.2026, 327 Protokolle |
-| Erster Kunden-Deal | In Umsetzung | Abschluss | DocuControl fuer Tierlabor Uni Essen, getmatic-Vertrieb, Pi 5 in Aufbau (2026-06-02) |
-| DocuControl Pi 5 | Setup begonnen | Produktiv | Hostname gesetzt, SSH-Key, I2C aktiv; RTC-Overlay/OS-Update/WLAN-Off pending |
+| Erster Kunden-Deal | In Umsetzung | Abschluss | DocuControl fuer Tierlabor Uni Essen, getmatic-Vertrieb, Pi 5 betriebsbereit seit 2026-06-02 |
+| DocuControl Pi 5 | Pipeline produktiv | Design-Umbau ausstehend | Kernel 6.18.33, RTC DS3231 (/dev/rtc1), WLAN off, TCP/9100-Capture → Parse → PDF → DB vollautomatisch, 3 Test-Protokolle in DB |
+| DocuControl Web-Interface | Funktional (altes Design) | GeTmatic-Design | Design-Handoff-Paket in reference/design_handoff_docucontrol/, Plan: plans/2026-06-03-docucontrol-design-system.md |
 
 ## Quellcode-Uebersicht
 
@@ -32,13 +33,20 @@
 - Hostname: DocuPi-3000, Service: docupi.service
 - Hotspot: SSID DocuPi-3000, PW DocuPi2026
 
-### DocuControl (neu, bei getmatic im Aufbau)
-- Raspberry Pi 5 mit externer RTC (Modul-Typ tbd, vermutlich DS3231 auf I2C 0x68)
-- OS: Debian 13 (trixie / Bookworm-Successor), Kernel 6.12.75+rpt-rpi-2712, aarch64
-- User: docucontrol (Passwort: Xtend1478), SSH-Key vom Workspace-Host installiert
-- Hostname: DocuControl (geaendert von DCUETL am 2026-06-02)
-- Setup-Status: Hostname OK, I2C aktiv (dtparam=i2c_arm=on), RTC-Overlay/OS-Update/WLAN-Off offen
-- Geplanter Einsatz: Tierlabor Uni Essen
+### DocuControl (bei getmatic, betriebsbereit)
+- Raspberry Pi 5 mit DS3231 RTC (I2C 0x68, /dev/rtc1, dtoverlay=i2c-rtc,ds3231)
+- OS: Debian Trixie (aarch64), Kernel 6.18.33, WLAN hardware-deaktiviert (dtoverlay=disable-wifi)
+- User: docucontrol (Passwort: Xtend1478), SSH: docucontrol@192.168.0.171
+- Hostname: DocuControl, Service: docucontrol.service (active+enabled)
+- Code: /home/docucontrol/docupi/, venv: /home/docucontrol/docupi/venv
+- Architektur: TCP/9100-Capture -> parse_serial_protocol -> generate_pdf -> save_protocol (automatisch)
+- Templates: base.html, dashboard.html, filemanager.html, settings.html, monitor.html, network.html
+- DB: /home/docucontrol/docupi/data/docucontrol.db (protocols-Tabelle, 3 Test-Eintraege)
+- PDFs: /home/docucontrol/docupi/data/pdfs/
+- Config: /home/docucontrol/docupi/data/capture_config.json
+- Port-Redirect: nftables /etc/nftables-docucontrol.conf (80 -> 5000)
+- Naechster Schritt: Design-System-Umbau (GeTmatic-Handoff), Plan bereit
+- Geplanter Einsatz: Tierlabor Uni Essen (Maschinentyp noch unbekannt)
 
 ### Ziel-Hardware (langfristig)
 - Unipi Neuron / RevPi Connect (CE-zertifiziert)

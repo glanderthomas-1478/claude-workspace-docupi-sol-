@@ -129,6 +129,39 @@
             </div>
         </div>
 
+        <!-- USB-Synchronisation -->
+        <div class="card">
+            <div class="card-head"><span><i class="bi bi-usb-drive"></i> USB-Synchronisation</span></div>
+            <div class="card-body">
+                <div class="set-row">
+                    <div class="info">
+                        <div class="name">Automatisch synchronisieren</div>
+                        <div class="desc">PDFs beim Einstecken sofort auf USB kopieren</div>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="autoSyncToggle" onchange="toggleAutoSync(this.checked)">
+                        <span class="track"></span>
+                    </label>
+                </div>
+                <div class="set-row">
+                    <div class="info">
+                        <div class="name">Letzter Sync</div>
+                        <div class="desc">Zeitpunkt und Anzahl synchronisierter Dateien</div>
+                    </div>
+                    <span class="value" id="lastSyncInfo" style="font-size:12.5px;color:var(--muted)">—</span>
+                </div>
+                <div class="set-row">
+                    <div class="info">
+                        <div class="name">Jetzt synchronisieren</div>
+                        <div class="desc">Alle PDFs sofort auf USB kopieren</div>
+                    </div>
+                    <button class="btn btn-outline" id="btnSyncNow" onclick="syncNow()">
+                        <i class="bi bi-arrow-repeat"></i> Jetzt sync.
+                    </button>
+                </div>
+            </div>
+        </div>
+
     </div>
 </div>
 
@@ -346,6 +379,9 @@
                 }
             }).catch(function() {});
 
+        // USB Sync
+        loadSyncSettings();
+
         // LAN
         fetch('/api/network/lan/status')
             .then(function(r) { return r.json(); })
@@ -384,6 +420,45 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ enabled: checked })
         }).catch(function() {});
+    };
+
+    function loadSyncSettings() {
+        fetch('/api/storage/sync/config')
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                document.getElementById('autoSyncToggle').checked = d.auto_sync_enabled || false;
+                var info = '—';
+                if (d.last_sync) {
+                    info = d.last_sync + ' · ' + (d.last_sync_count || 0) + ' Dateien';
+                }
+                document.getElementById('lastSyncInfo').textContent = info;
+            }).catch(function() {});
+    }
+
+    window.toggleAutoSync = function(checked) {
+        fetch('/api/storage/sync/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ auto_sync_enabled: checked })
+        }).then(function(r) { return r.json(); })
+          .then(function() { loadSyncSettings(); })
+          .catch(function() {});
+    };
+
+    window.syncNow = function() {
+        var btn = document.getElementById('btnSyncNow');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Synchronisiere ...';
+        fetch('/api/storage/sync/now', { method: 'POST' })
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Jetzt sync.';
+                loadSyncSettings();
+            }).catch(function() {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Jetzt sync.';
+            });
     };
 
     window.toggleTcp = function(checked) {
@@ -511,7 +586,7 @@
         fetch('/api/tcp_capture/last_text')
             .then(function(r) { return r.json(); })
             .then(function(d) {
-                var text = d.text || '';
+                var text = d.content || d.text || '';
                 if (text && text !== lastText) {
                     lastText = text;
                     rxBytes += text.length;

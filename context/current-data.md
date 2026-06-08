@@ -12,8 +12,11 @@
 | MST-PDF-Generator | Produktiv | Produktionsreif | v4, Feldtest-Fixes (VPR, Abbruch, Amber) |
 | Erster Feldtest | ABGESCHLOSSEN | Weitere geplant | Helios Krefeld, 25.03.-13.04.2026, 327 Protokolle |
 | Erster Kunden-Deal | In Umsetzung | Abschluss | DocuControl fuer Tierlabor Uni Essen, getmatic-Vertrieb, Pi 5 betriebsbereit seit 2026-06-02 |
-| DocuControl Pi 5 | Produktiv + stabil | Tierlabor-Deployment | Kernel 6.18.33, RTC DS3231, WLAN off, Service <1s Restart (os._exit Fix), 3 Test-Protokolle in DB |
-| DocuControl Web-Interface | **DEPLOYED + VALIDIERT** | Sample-Druckauftrag ausstehend | GeTmatic-Design live, Dashboard+Einstellungen+Dateien funktional, Drucker Epson XP-4150 (DocuPrinter) eingerichtet |
+| DocuControl Pi 5 | Produktiv + stabil | Tierlabor-Deployment | Kernel 6.18.33, RTC DS3231, WLAN off, Service <1s Restart, 13 Test-Protokolle in DB (Betreiber: Uniklinik Essen Tierlabor) |
+| DocuControl Web-Interface | **DEPLOYED + VALIDIERT** | Sample-Druckauftrag ausstehend | GeTmatic-Design live, Dashboard+Einstellungen+Dateien+Live-Monitor funktional, USB Auto-Sync aktiv |
+| USB Auto-Sync | **IMPLEMENTIERT** | Feldtest ausstehend | udev-Trigger, sofort + Intervall-Sync, Toggle in Einstellungen, Dateiliste im Datei-Manager |
+| Live-Monitor | **GEFIXT** | — | Bug d.text→d.content behoben, Terminal zeigt jetzt empfangene Rohdaten |
+| Backup DocuControl | Erstellt 2026-06-08 | — | backups/pi-backup-2026-06-08: DB, 11 PDFs, 18 Captures, Code, System-Configs |
 
 ## Quellcode-Uebersicht
 
@@ -40,11 +43,12 @@
 - Hostname: DocuControl, Service: docucontrol.service (active+enabled, Restart < 1s via os._exit Fix)
 - Code: /home/docucontrol/docupi/, venv: /home/docucontrol/docupi/venv
 - Architektur: TCP/9100-Capture -> parse -> PDF -> DB (automatisch)
-- DB: /home/docucontrol/docupi/data/docupi.db (protocols-Tabelle, 3 Eintraege)
-- PDFs: /home/docucontrol/docupi/data/pdfs/ (4 PDFs)
+- DB: /home/docucontrol/docupi/data/docupi.db (protocols-Tabelle, 13 Eintraege)
+- PDFs: /home/docucontrol/docupi/data/pdfs/ (11 PDFs, Ordnerstruktur 2026/2026-06/)
 - Port-Redirect: nftables /etc/nftables-docucontrol.conf (80 -> 5000)
 - Drucker: Epson XP-4150 als "DocuPrinter" via CUPS IPP Everywhere
 - Web: Dashboard (2 Stat-Karten, Tabelle+Filter+Druck), Einstellungen (3 Tabs), Dateien
+- USB: Auto-Sync via udev + storage_manager.py, Mount: /media/usbstick, Trigger: /var/lib/docucontrol/usb.trigger
 - Naechster Schritt: Sample-Druckauftrag Tierlabor analysieren, Installation vor Ort
 - Geplanter Einsatz: Tierlabor Uni Essen (Maschinentyp noch unbekannt)
 

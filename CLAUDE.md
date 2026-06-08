@@ -55,9 +55,10 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 │       ├── templates/
 │       │   ├── base.html          # Topbar "DocuControl by GeTmatic", 3-Tab-Nav, Footer
 │       │   ├── dashboard.html     # 2 Stat-Karten + Filter + Protokoll-Tabelle + Print-Toast
-│       │   ├── settings.html      # 3 Sub-Tabs: Geraete & Netzwerk / System / Live-Monitor
-│       │   └── filemanager.html   # Dual-Pane intern (aus DB) + USB
-│       └── app_additions.py       # Context Processor + /api/protocols (bereits in app.py integriert)
+│       │   ├── settings.html      # 3 Sub-Tabs: Geraete & Netzwerk / System / Live-Monitor + USB-Sync-Toggle
+│       │   └── filemanager.html   # Dual-Pane intern (aus DB) + USB (Dateiliste rekursiv)
+│       ├── app_additions.py       # Context Processor + /api/protocols (bereits in app.py integriert)
+│       └── storage_manager.py     # USB-Erkennung, Mount, Auto-Sync, udev-Trigger (/var/lib/docucontrol/usb.trigger)
 ├── tests/                  # Test-Skripte
 │   ├── fixtures/           # Test-PDFs + WD390-Fixture
 │   ├── test_wd_parser.py   # WD-Parser Tests (34 Tests)
@@ -70,7 +71,8 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 ├── outputs/                # Arbeitsergebnisse (Konzeptpapiere, generierte PDFs)
 │   └── docupi-3000_konzept_getmatic.{md,pdf}  # Vertriebs-Konzept fuer getmatic
 ├── backups/                # Pi-Backups (komplette Snapshots, gitignored)
-│   └── pi-backup-2026-04-13/  # Code, DB, PDFs, Logs, System-Configs
+│   ├── pi-backup-2026-04-13/  # DocuPi-3000 nach Feldtest Helios Krefeld
+│   └── pi-backup-2026-06-08/  # DocuControl — 13 Protokolle, 11 PDFs, Storage-Manager, Templates
 └── scripts/                # Hilfsskripte
     ├── fix_ssh.sh
     ├── render_konzept_pdf.py     # Markdown -> PDF (WeasyPrint) fuer outputs/
@@ -126,6 +128,18 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 - `os._exit(0)` in graceful_shutdown: Restart-Dauer 15s SIGKILL -> **47ms sauber**
 - `request.get_json(silent=True)` in allen POST-Routen
 - `d.tcp_enabled` statt `d.enabled` ueberall konsistent
+
+**USB Auto-Sync (2026-06-08 implementiert):**
+- udev-Rule `/etc/udev/rules.d/99-docucontrol-usb.rules` + Trigger-Script `/usr/local/bin/docucontrol-usb-trigger.sh`
+- Trigger-Datei: `/var/lib/docucontrol/usb.trigger` (wegen PrivateTmp=yes im Service)
+- Sofort-Sync beim Einstecken + Intervall-Sync alle 15 min
+- Auto-Sync-Toggle in Einstellungen (Geraete & Netzwerk)
+- USB-Dateiliste im Datei-Manager (rekursiv, mit Download-Link)
+- Sudoers: `/etc/sudoers.d/docucontrol-storage` (mount, umount, blkid, dosfsck ohne Passwort)
+
+**Live-Monitor Fix (2026-06-08):**
+- `updateTerminal()` las `d.text` statt korrektem `d.content` — Terminal war immer leer
+- Fix: `d.content || d.text` in settings.html
 
 **Naechster Schritt:** Sample-Druckauftrag vom Tierlabor-Geraet analysieren, Installation vor Ort
 

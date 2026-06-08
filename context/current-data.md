@@ -17,6 +17,8 @@
 | USB Auto-Sync | **IMPLEMENTIERT** | Feldtest ausstehend | udev-Trigger, sofort + Intervall-Sync, Toggle in Einstellungen, Dateiliste im Datei-Manager |
 | Live-Monitor | **GEFIXT** | — | Bug d.text→d.content behoben, Terminal zeigt jetzt empfangene Rohdaten |
 | Backup DocuControl | Erstellt 2026-06-08 | — | backups/pi-backup-2026-06-08: DB, 11 PDFs, 18 Captures, Code, System-Configs |
+| Netzwerk-Management | **IMPLEMENTIERT** | — | IP-Bug gefixt (sudoers), DHCP aktiv, Router-MAC-Binding gibt .171, Multi-Interface UI, Hostname, NTP/RTC, VLAN-Feld |
+| IP Live-Anzeige | **IMPLEMENTIERT** | — | pollCurrentIPs() alle 5s, aktualisiert current_ip/badge ohne Input-Felder zu überschreiben |
 
 ## Quellcode-Uebersicht
 
@@ -39,13 +41,13 @@
 ### DocuControl (bei getmatic, Web-Interface produktiv — 2026-06-03)
 - Raspberry Pi 5 mit DS3231 RTC (I2C 0x68, /dev/rtc1, dtoverlay=i2c-rtc,ds3231)
 - OS: Debian Trixie (aarch64), Kernel 6.18.33, WLAN hardware-deaktiviert (dtoverlay=disable-wifi)
-- User: docucontrol (Passwort: Xtend1478), SSH: `ssh docucontrol` (Key: ~/.ssh/docucontrol_id)
+- User: docucontrol (Passwort: Xtend1478), SSH: `ssh -i ~/.ssh/id_ed25519 docucontrol@192.168.0.171`
 - Hostname: DocuControl, Service: docucontrol.service (active+enabled, Restart < 1s via os._exit Fix)
 - Code: /home/docucontrol/docupi/, venv: /home/docucontrol/docupi/venv
 - Architektur: TCP/9100-Capture -> parse -> PDF -> DB (automatisch)
 - DB: /home/docucontrol/docupi/data/docupi.db (protocols-Tabelle, 13 Eintraege)
 - PDFs: /home/docucontrol/docupi/data/pdfs/ (11 PDFs, Ordnerstruktur 2026/2026-06/)
-- Port-Redirect: nftables /etc/nftables-docucontrol.conf (80 -> 5000)
+- Port-Redirect: nftables /etc/nftables-docucontrol.conf (80 -> 5000, Regel: iif eth0, DHCP-kompatibel)
 - Drucker: Epson XP-4150 als "DocuPrinter" via CUPS IPP Everywhere
 - Web: Dashboard (2 Stat-Karten, Tabelle+Filter+Druck), Einstellungen (3 Tabs), Dateien
 - USB: Auto-Sync via udev + storage_manager.py, Mount: /media/usbstick, Trigger: /var/lib/docucontrol/usb.trigger

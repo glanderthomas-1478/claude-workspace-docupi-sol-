@@ -62,17 +62,10 @@
             </div>
         </div>
 
-        <!-- Netzwerk & TCP -->
+        <!-- TCP-Empfang -->
         <div class="card">
-            <div class="card-head"><span><i class="bi bi-hdd-network"></i> Netzwerk &amp; TCP</span></div>
+            <div class="card-head"><span><i class="bi bi-reception-4"></i> TCP-Empfang</span></div>
             <div class="card-body">
-                <div class="set-row">
-                    <div class="info">
-                        <div class="name">IP-Adresse</div>
-                        <div class="desc">Aktuelle Adresse im Netzwerk (eth0)</div>
-                    </div>
-                    <span class="mono-ip" id="ipAddress">—</span>
-                </div>
                 <div class="set-row">
                     <div class="info">
                         <div class="name">TCP-Empfang Port 9100</div>
@@ -97,33 +90,218 @@
                     </div>
                     <span class="value" id="lastCapture" style="font-size:12.5px;color:var(--muted)">—</span>
                 </div>
+            </div>
+        </div>
+
+        <!-- Schnittstelle 1 (Primär) -->
+        <div class="card">
+            <div class="card-head">
+                <span><i class="bi bi-hdd-network"></i> Schnittstelle 1 — Primär</span>
+                <span class="badge" id="iface1StatusBadge" style="font-size:11px;padding:2px 8px;border-radius:4px;background:var(--muted);color:#fff">—</span>
+            </div>
+            <div class="card-body">
+                <div class="set-row">
+                    <div class="info"><div class="name">Adapter</div><div class="desc">Ethernet-Interface</div></div>
+                    <select class="ctrl" id="iface1Select" style="width:120px" onchange="loadIface(1)">
+                        <option value="eth0">eth0</option>
+                    </select>
+                </div>
+                <div class="set-row">
+                    <div class="info"><div class="name">Aktuelle IP</div><div class="desc">Zugewiesene Adresse</div></div>
+                    <span class="mono-ip" id="iface1CurrentIp">—</span>
+                </div>
+                <div class="set-row">
+                    <div class="info"><div class="name">MAC / Speed</div></div>
+                    <span class="value" id="iface1Mac" style="font-size:12px;color:var(--muted)">—</span>
+                </div>
                 <hr style="margin:12px 0;border:none;border-top:1px solid var(--border)">
                 <div class="set-row">
-                    <div class="info">
-                        <div class="name">IP-Modus</div>
-                        <div class="desc">DHCP (automatisch) oder statische IP</div>
-                    </div>
-                    <select class="ctrl" id="ipMode" onchange="toggleIpForm(this.value)" style="width:120px">
+                    <div class="info"><div class="name">IP-Modus</div><div class="desc">DHCP oder statisch</div></div>
+                    <select class="ctrl" id="iface1Mode" onchange="toggleIfaceForm(1, this.value, true)" style="width:120px">
                         <option value="dhcp">DHCP</option>
                         <option value="static">Statisch</option>
                     </select>
                 </div>
-                <div id="staticIpForm" style="display:none;margin-top:8px">
+                <!-- DHCP-Aktion: sichtbar wenn Modus = DHCP -->
+                <div id="iface1DhcpAction" style="display:none;justify-content:flex-end;margin-top:10px">
+                    <button class="btn btn-primary" onclick="saveIfaceDhcp(1)">
+                        <i class="bi bi-arrow-counterclockwise"></i> DHCP übernehmen
+                    </button>
+                </div>
+                <!-- Statisch-Formular: sichtbar wenn Modus = Statisch -->
+                <div id="iface1StaticForm" style="display:none;margin-top:8px">
                     <div class="set-row" style="margin-bottom:6px">
-                        <div class="info"><div class="name">IP-Adresse / Prefix</div></div>
-                        <input type="text" class="ctrl" id="cfgIp" placeholder="192.168.0.171/24" style="width:185px">
+                        <div class="info"><div class="name">IP-Adresse</div></div>
+                        <div style="display:flex;gap:4px;align-items:center">
+                            <input type="text" class="ctrl" id="iface1Ip" placeholder="192.168.0.180" style="width:148px">
+                            <span style="color:var(--muted)">/</span>
+                            <input type="text" class="ctrl" id="iface1Prefix" placeholder="24" style="width:44px">
+                        </div>
                     </div>
                     <div class="set-row" style="margin-bottom:6px">
                         <div class="info"><div class="name">Gateway</div></div>
-                        <input type="text" class="ctrl" id="cfgGw" placeholder="192.168.0.1" style="width:185px">
+                        <input type="text" class="ctrl" id="iface1Gw" placeholder="192.168.0.1" style="width:185px">
                     </div>
                     <div class="set-row" style="margin-bottom:6px">
-                        <div class="info"><div class="name">DNS</div></div>
-                        <input type="text" class="ctrl" id="cfgDns" placeholder="192.168.0.1" style="width:185px">
+                        <div class="info"><div class="name">DNS 1</div></div>
+                        <input type="text" class="ctrl" id="iface1Dns" placeholder="192.168.0.1" style="width:185px">
+                    </div>
+                    <div class="set-row" style="margin-bottom:6px">
+                        <div class="info"><div class="name">DNS 2 (optional)</div></div>
+                        <input type="text" class="ctrl" id="iface1Dns2" placeholder="8.8.8.8" style="width:185px">
+                    </div>
+                    <div class="set-row" style="margin-bottom:6px">
+                        <div class="info"><div class="name">VLAN-ID</div><div class="desc">802.1Q Tagging (0 = aus)</div></div>
+                        <input type="number" class="ctrl" id="iface1Vlan" placeholder="0" min="0" max="4094" style="width:80px">
                     </div>
                     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
-                        <button class="btn btn-outline" onclick="saveDhcp()"><i class="bi bi-arrow-counterclockwise"></i> DHCP</button>
-                        <button class="btn btn-primary" onclick="saveStaticIp()"><i class="bi bi-save"></i> Speichern</button>
+                        <button class="btn btn-primary" onclick="saveIfaceStatic(1)">
+                            <i class="bi bi-save"></i> Speichern
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Schnittstelle 2 (Optional / USB-Ethernet) -->
+        <div class="card" id="iface2Card">
+            <div class="card-head">
+                <span><i class="bi bi-hdd-network"></i> Schnittstelle 2 — Optional (USB-Ethernet)</span>
+                <label class="switch" style="margin-left:auto">
+                    <input type="checkbox" id="iface2Enabled" onchange="toggleIface2(this.checked)">
+                    <span class="track"></span>
+                </label>
+            </div>
+            <div class="card-body" id="iface2Body" style="opacity:0.45;pointer-events:none">
+                <div class="set-row">
+                    <div class="info"><div class="name">Adapter</div><div class="desc">Erkannte USB-Ethernet-Adapter</div></div>
+                    <select class="ctrl" id="iface2Select" style="width:160px" onchange="loadIface(2)">
+                        <option value="">— kein weiterer erkannt —</option>
+                    </select>
+                </div>
+                <div class="set-row">
+                    <div class="info"><div class="name">Aktuelle IP</div></div>
+                    <span class="mono-ip" id="iface2CurrentIp">—</span>
+                </div>
+                <div class="set-row">
+                    <div class="info"><div class="name">MAC / Speed</div></div>
+                    <span class="value" id="iface2Mac" style="font-size:12px;color:var(--muted)">—</span>
+                </div>
+                <hr style="margin:12px 0;border:none;border-top:1px solid var(--border)">
+                <div class="set-row">
+                    <div class="info"><div class="name">IP-Modus</div></div>
+                    <select class="ctrl" id="iface2Mode" onchange="toggleIfaceForm(2, this.value, true)" style="width:120px">
+                        <option value="dhcp">DHCP</option>
+                        <option value="static">Statisch</option>
+                    </select>
+                </div>
+                <div id="iface2DhcpAction" style="display:none;justify-content:flex-end;margin-top:10px">
+                    <button class="btn btn-primary" onclick="saveIfaceDhcp(2)">
+                        <i class="bi bi-arrow-counterclockwise"></i> DHCP übernehmen
+                    </button>
+                </div>
+                <div id="iface2StaticForm" style="display:none;margin-top:8px">
+                    <div class="set-row" style="margin-bottom:6px">
+                        <div class="info"><div class="name">IP-Adresse</div></div>
+                        <div style="display:flex;gap:4px;align-items:center">
+                            <input type="text" class="ctrl" id="iface2Ip" placeholder="10.0.0.1" style="width:148px">
+                            <span style="color:var(--muted)">/</span>
+                            <input type="text" class="ctrl" id="iface2Prefix" placeholder="24" style="width:44px">
+                        </div>
+                    </div>
+                    <div class="set-row" style="margin-bottom:6px">
+                        <div class="info"><div class="name">Gateway</div></div>
+                        <input type="text" class="ctrl" id="iface2Gw" placeholder="10.0.0.254" style="width:185px">
+                    </div>
+                    <div class="set-row" style="margin-bottom:6px">
+                        <div class="info"><div class="name">DNS 1</div></div>
+                        <input type="text" class="ctrl" id="iface2Dns" placeholder="10.0.0.1" style="width:185px">
+                    </div>
+                    <div class="set-row" style="margin-bottom:6px">
+                        <div class="info"><div class="name">DNS 2 (optional)</div></div>
+                        <input type="text" class="ctrl" id="iface2Dns2" placeholder="8.8.8.8" style="width:185px">
+                    </div>
+                    <div class="set-row" style="margin-bottom:6px">
+                        <div class="info"><div class="name">VLAN-ID</div><div class="desc">802.1Q Tagging (0 = aus)</div></div>
+                        <input type="number" class="ctrl" id="iface2Vlan" placeholder="0" min="0" max="4094" style="width:80px">
+                    </div>
+                    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+                        <button class="btn btn-primary" onclick="saveIfaceStatic(2)">
+                            <i class="bi bi-save"></i> Speichern
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gerätename im Netzwerk -->
+        <div class="card">
+            <div class="card-head"><span><i class="bi bi-pc-display"></i> Gerätename im Netzwerk</span></div>
+            <div class="card-body">
+                <div class="set-row">
+                    <div class="info"><div class="name">Aktueller Hostname</div><div class="desc">DNS-Name im Kliniknetz</div></div>
+                    <span class="mono-ip" id="currentHostname">—</span>
+                </div>
+                <div class="set-row">
+                    <div class="info"><div class="name">Hostname ändern</div><div class="desc">Nur Buchstaben, Ziffern, Bindestrich</div></div>
+                    <div style="display:flex;gap:6px;align-items:center">
+                        <input type="text" class="ctrl" id="newHostname" placeholder="docucontrol" maxlength="63" style="width:155px">
+                        <button class="btn btn-outline" onclick="saveHostname()"><i class="bi bi-check-lg"></i> Setzen</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Zeit & Uhr (RTC + NTP) -->
+        <div class="card">
+            <div class="card-head"><span><i class="bi bi-clock"></i> Zeit &amp; Uhr</span></div>
+            <div class="card-body">
+                <div class="set-row">
+                    <div class="info"><div class="name">Systemzeit</div><div class="desc">Aktuelle Uhrzeit (aus RTC DS3231)</div></div>
+                    <span class="value" id="sysTimeClock" style="font-family:var(--mono);font-weight:600">—</span>
+                </div>
+                <div class="set-row">
+                    <div class="info"><div class="name">RTC-Hardware-Uhr</div><div class="desc">DS3231 (/dev/rtc1)</div></div>
+                    <span class="value" id="rtcTime" style="font-family:var(--mono);font-size:12.5px;color:var(--muted)">—</span>
+                </div>
+                <hr style="margin:12px 0;border:none;border-top:1px solid var(--border)">
+                <!-- Manuelle Zeitstellung (nur wenn NTP aus) -->
+                <div id="manualTimeRow" class="set-row">
+                    <div class="info">
+                        <div class="name">Zeit manuell setzen</div>
+                        <div class="desc">Datum und Uhrzeit direkt eingeben (RTC wird ebenfalls aktualisiert)</div>
+                    </div>
+                    <div style="display:flex;gap:6px;align-items:center">
+                        <input type="datetime-local" class="ctrl" id="manualTime" style="width:185px">
+                        <button class="btn btn-outline" onclick="saveManualTime()"><i class="bi bi-check-lg"></i> Setzen</button>
+                    </div>
+                </div>
+                <hr style="margin:12px 0;border:none;border-top:1px solid var(--border)">
+                <div class="set-row">
+                    <div class="info">
+                        <div class="name">NTP-Synchronisation</div>
+                        <div class="desc">Automatische Zeitsynchronisation über Netzwerk (optional)</div>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="ntpEnabled" onchange="toggleNtpUI(this.checked)">
+                        <span class="track"></span>
+                    </label>
+                </div>
+                <!-- NTP-Details: nur sichtbar wenn NTP aktiv -->
+                <div id="ntpServerRow" style="display:none">
+                    <div class="set-row" style="margin-top:8px">
+                        <div class="info">
+                            <div class="name">NTP-Server</div>
+                            <div class="desc">Zeitserver des Kliniknetzes oder pool.ntp.org</div>
+                        </div>
+                        <div style="display:flex;gap:6px;align-items:center">
+                            <input type="text" class="ctrl" id="ntpServer" placeholder="pool.ntp.org" style="width:185px">
+                            <button class="btn btn-outline" onclick="saveNtp()"><i class="bi bi-check-lg"></i> Setzen</button>
+                        </div>
+                    </div>
+                    <div class="set-row">
+                        <div class="info"><div class="name">Sync-Status</div></div>
+                        <span class="value" id="ntpSyncStatus" style="font-size:12.5px;color:var(--muted)">—</span>
                     </div>
                 </div>
             </div>
@@ -320,6 +498,8 @@
     var lastText = '';
     var monitorInterval = null;
     var systemInterval = null;
+    var clockInterval = null;
+    var ipPollInterval = null;
 
     // ── Tab-Wechsel ───────────────────────────────────────────────────────
 
@@ -344,6 +524,12 @@
             if (!systemInterval) systemInterval = setInterval(loadSystemStatus, 10000);
         } else {
             if (systemInterval) { clearInterval(systemInterval); systemInterval = null; }
+        }
+
+        if (tab === 'devices') {
+            if (!ipPollInterval) ipPollInterval = setInterval(pollCurrentIPs, 5000);
+        } else {
+            if (ipPollInterval) { clearInterval(ipPollInterval); ipPollInterval = null; }
         }
     };
 
@@ -372,8 +558,7 @@
                 document.getElementById('captureCount').textContent = count.toLocaleString('de-DE');
                 var lc = d.last_job_ts || d.last_capture || '';
                 if (lc) {
-                    var ts = lc.replace('T', ' ').split('.')[0];
-                    document.getElementById('lastCapture').textContent = ts + ' Uhr';
+                    document.getElementById('lastCapture').textContent = lc.replace('T', ' ').split('.')[0] + ' Uhr';
                 } else {
                     document.getElementById('lastCapture').textContent = '—';
                 }
@@ -382,24 +567,302 @@
         // USB Sync
         loadSyncSettings();
 
-        // LAN
-        fetch('/api/network/lan/status')
+        // Laufende Uhr
+        if (!clockInterval) {
+            clockInterval = setInterval(function() {
+                document.getElementById('sysTimeClock').textContent = new Date().toLocaleTimeString('de-DE');
+            }, 1000);
+            document.getElementById('sysTimeClock').textContent = new Date().toLocaleTimeString('de-DE');
+        }
+    }
+
+    // Einmalig beim Seitenaufruf: Interface-Konfiguration, Hostname, Zeit laden
+    // (NICHT im 30s-Interval — würde laufende Änderungen überschreiben)
+    function loadStaticSettings() {
+        loadInterfaces();
+        loadHostname();
+        loadTimeStatus();
+    }
+
+    // ── Interfaces ────────────────────────────────────────────────────────
+
+    function loadInterfaces() {
+        fetch('/api/network/interfaces')
             .then(function(r) { return r.json(); })
-            .then(function(d) {
-                document.getElementById('ipAddress').textContent = d.current_ip || d.ip || '—';
-                var mode = d.mode === 'static' ? 'static' : 'dhcp';
-                document.getElementById('ipMode').value = mode;
-                if (mode === 'static') {
-                    document.getElementById('staticIpForm').style.display = '';
-                    document.getElementById('cfgIp').value = (d.config_ip || '') + '/' + (d.config_netmask || '24');
-                    document.getElementById('cfgGw').value = d.config_gateway || '';
-                    document.getElementById('cfgDns').value = d.config_dns || '';
+            .then(function(ifaces) {
+                var iface1 = document.getElementById('iface1Select').value || 'eth0';
+                var others = ifaces.filter(function(i) { return i.iface !== iface1; });
+
+                // Iface 1 Dropdown befüllen
+                var sel1 = document.getElementById('iface1Select');
+                sel1.innerHTML = '';
+                ifaces.forEach(function(i) {
+                    var o = document.createElement('option');
+                    o.value = i.iface;
+                    o.textContent = i.iface;
+                    if (i.iface === iface1) o.selected = true;
+                    sel1.appendChild(o);
+                });
+                if (ifaces.length > 0) applyIfaceStatus(1, ifaces[0]);
+
+                // Iface 2 Dropdown (nur NICs != iface1)
+                var sel2 = document.getElementById('iface2Select');
+                sel2.innerHTML = '';
+                if (others.length === 0) {
+                    var o = document.createElement('option');
+                    o.value = '';
+                    o.textContent = '— kein weiterer erkannt —';
+                    sel2.appendChild(o);
+                    sel2.disabled = true;
+                } else {
+                    sel2.disabled = false;
+                    others.forEach(function(i) {
+                        var o = document.createElement('option');
+                        o.value = i.iface;
+                        o.textContent = i.iface;
+                        sel2.appendChild(o);
+                    });
+                    applyIfaceStatus(2, others[0]);
                 }
             }).catch(function() {});
     }
 
+    window.loadIface = function(num) {
+        var dev = document.getElementById('iface' + num + 'Select').value;
+        if (!dev) return;
+        fetch('/api/network/iface/' + dev + '/status')
+            .then(function(r) { return r.json(); })
+            .then(function(d) { applyIfaceStatus(num, d); })
+            .catch(function() {});
+    };
+
+    function pollCurrentIPs() {
+        fetch('/api/network/interfaces')
+            .then(function(r) { return r.json(); })
+            .then(function(ifaces) {
+                ifaces.forEach(function(d) {
+                    var sel1 = document.getElementById('iface1Select');
+                    var sel2 = document.getElementById('iface2Select');
+                    var num = (sel1 && sel1.value === d.iface) ? 1 :
+                              (sel2 && sel2.value === d.iface) ? 2 : 0;
+                    if (!num) return;
+                    var ipEl = document.getElementById('iface' + num + 'CurrentIp');
+                    if (ipEl) ipEl.textContent = d.current_ip || '—';
+                    var macEl = document.getElementById('iface' + num + 'Mac');
+                    if (macEl) macEl.textContent = (d.mac || '—') + (d.speed ? ' · ' + d.speed : '');
+                    var badge = document.getElementById('iface' + num + 'StatusBadge');
+                    if (badge) {
+                        badge.textContent = d.connected ? 'Verbunden' : 'Getrennt';
+                        badge.style.background = d.connected ? 'var(--success)' : 'var(--muted)';
+                    }
+                });
+            }).catch(function() {});
+    }
+
+    function applyIfaceStatus(num, d) {
+        var ipEl = document.getElementById('iface' + num + 'CurrentIp');
+        if (ipEl) ipEl.textContent = d.current_ip || '—';
+
+        var macEl = document.getElementById('iface' + num + 'Mac');
+        if (macEl) macEl.textContent = (d.mac || '—') + (d.speed ? ' · ' + d.speed : '');
+
+        var modeEl = document.getElementById('iface' + num + 'Mode');
+        if (modeEl) {
+            modeEl.value = d.mode || 'dhcp';
+            toggleIfaceForm(num, d.mode || 'dhcp');
+        }
+
+        if (d.mode === 'static') {
+            var ipInput = document.getElementById('iface' + num + 'Ip');
+            var pfxInput = document.getElementById('iface' + num + 'Prefix');
+            var gwInput = document.getElementById('iface' + num + 'Gw');
+            var dnsInput = document.getElementById('iface' + num + 'Dns');
+            var dns2Input = document.getElementById('iface' + num + 'Dns2');
+            var vlanInput = document.getElementById('iface' + num + 'Vlan');
+            if (ipInput) ipInput.value = d.config_ip || '';
+            if (pfxInput) pfxInput.value = d.config_netmask || '24';
+            if (gwInput) gwInput.value = d.config_gateway || '';
+            if (dnsInput) dnsInput.value = d.config_dns || '';
+            if (dns2Input) dns2Input.value = d.config_dns2 || '';
+            if (vlanInput) vlanInput.value = d.config_vlan || 0;
+        }
+
+        // Status-Badge (nur Iface 1)
+        var badge = document.getElementById('iface' + num + 'StatusBadge');
+        if (badge) {
+            badge.textContent = d.connected ? 'Verbunden' : 'Getrennt';
+            badge.style.background = d.connected ? 'var(--success)' : 'var(--muted)';
+        }
+    }
+
+    // userChange=true: User hat Dropdown manuell geändert → Button zeigen
+    // userChange=false: Status wird vom Server geladen → Button nicht zeigen
+    window.toggleIfaceForm = function(num, mode, userChange) {
+        var form = document.getElementById('iface' + num + 'StaticForm');
+        var dhcpBtn = document.getElementById('iface' + num + 'DhcpAction');
+        if (form) form.style.display = mode === 'static' ? '' : 'none';
+        if (dhcpBtn) dhcpBtn.style.display = (mode === 'dhcp' && userChange) ? 'flex' : 'none';
+    };
+
+    window.toggleIface2 = function(enabled) {
+        var body = document.getElementById('iface2Body');
+        body.style.opacity = enabled ? '1' : '0.45';
+        body.style.pointerEvents = enabled ? '' : 'none';
+    };
+
+    window.saveIfaceStatic = function(num) {
+        var dev = document.getElementById('iface' + num + 'Select').value;
+        if (!dev) { alert('Kein Interface ausgewählt'); return; }
+        var ip   = document.getElementById('iface' + num + 'Ip').value.trim();
+        var pfx  = document.getElementById('iface' + num + 'Prefix').value.trim() || '24';
+        var gw   = document.getElementById('iface' + num + 'Gw').value.trim();
+        var dns  = document.getElementById('iface' + num + 'Dns').value.trim();
+        var dns2 = document.getElementById('iface' + num + 'Dns2').value.trim();
+        var vlan = parseInt(document.getElementById('iface' + num + 'Vlan').value) || 0;
+        if (!ip || !gw) { alert('IP und Gateway sind Pflichtfelder'); return; }
+        if (!confirm('IP auf ' + ip + '/' + pfx + ' setzen?\nVerbindung trennt kurz — Seite lädt neu unter neuer IP.')) return;
+
+        var btn = document.querySelector('#iface' + num + 'StaticForm button.btn-primary');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Wird gesetzt …'; }
+
+        // Timeout erwartet (IP wechselt = Verbindung trennt)
+        fetch('/api/network/iface/' + dev + '/static', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ip: ip, netmask: pfx, gateway: gw, dns: dns, dns2: dns2, vlan: vlan})
+        }).then(function(r) { return r.json(); })
+          .then(function(d) {
+              if (d.success) {
+                  setTimeout(function() { window.location.href = 'http://' + ip + '/settings'; }, 2000);
+              } else {
+                  alert('Fehler: ' + d.message);
+                  if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-save"></i> Speichern'; }
+              }
+          }).catch(function() {
+              // Verbindung getrennt = IP-Wechsel hat funktioniert → zur neuen IP navigieren
+              setTimeout(function() { window.location.href = 'http://' + ip + '/settings'; }, 3000);
+          });
+    };
+
+    window.saveIfaceDhcp = function(num) {
+        var dev = document.getElementById('iface' + num + 'Select').value;
+        if (!dev) return;
+        if (!confirm('Auf DHCP wechseln?\nVerbindung trennt kurz — neue IP im Router nachsehen.')) return;
+
+        var btn = document.getElementById('iface' + num + 'DhcpAction').querySelector('button');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Wechsle …'; }
+
+        fetch('/api/network/iface/' + dev + '/dhcp', {method: 'POST'})
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (d.success) {
+                    // Button verstecken — DHCP ist jetzt aktiv, kein erneuter Klick nötig
+                    var dhcpAction = document.getElementById('iface' + num + 'DhcpAction');
+                    if (dhcpAction) dhcpAction.style.display = 'none';
+                    alert('DHCP aktiviert. Die neue IP wird vom Router vergeben.\nFalls diese Seite nicht mehr antwortet, neue IP im Router nachsehen.');
+                } else {
+                    alert('Fehler: ' + d.message);
+                    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i> DHCP übernehmen'; }
+                }
+                setTimeout(function() { loadIface(num); }, 2000);
+            }).catch(function() {
+                // Verbindung getrennt = IP hat sich geändert, DHCP vermutlich erfolgreich
+                var dhcpAction = document.getElementById('iface' + num + 'DhcpAction');
+                if (dhcpAction) dhcpAction.style.display = 'none';
+                alert('Verbindung getrennt — DHCP-Wechsel vermutlich erfolgreich.\nNeue IP im Router nachsehen.');
+            });
+    };
+
+    // ── Hostname ─────────────────────────────────────────────────────────
+
+    function loadHostname() {
+        fetch('/api/system/hostname')
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                document.getElementById('currentHostname').textContent = d.hostname || '—';
+                var input = document.getElementById('newHostname');
+                if (!input.value) input.placeholder = d.hostname || 'docucontrol';
+            }).catch(function() {});
+    }
+
+    window.saveHostname = function() {
+        var name = document.getElementById('newHostname').value.trim();
+        if (!name) return;
+        fetch('/api/system/hostname', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({hostname: name})
+        }).then(function(r) { return r.json(); })
+          .then(function(d) {
+              alert(d.message);
+              if (d.success) { document.getElementById('newHostname').value = ''; loadHostname(); }
+          }).catch(function() { alert('Fehler'); });
+    };
+
+    // ── Zeit / NTP / RTC ─────────────────────────────────────────────────
+
+    function loadTimeStatus() {
+        fetch('/api/system/ntp')
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                document.getElementById('ntpEnabled').checked = d.ntp_enabled || false;
+                document.getElementById('ntpServer').value = d.ntp_server || 'pool.ntp.org';
+                document.getElementById('ntpSyncStatus').textContent =
+                    d.ntp_synced ? 'Synchronisiert ✓' : 'Nicht synchronisiert';
+                document.getElementById('rtcTime').textContent = d.rtc_time || '—';
+                toggleNtpUI(d.ntp_enabled || false);
+            }).catch(function() {});
+    }
+
+    window.toggleNtpUI = function(enabled) {
+        document.getElementById('ntpServerRow').style.display = enabled ? '' : 'none';
+        document.getElementById('manualTimeRow').style.display = enabled ? 'none' : '';
+        if (enabled) {
+            // NTP direkt aktivieren (Toggle-Aktion)
+            var server = document.getElementById('ntpServer').value.trim() || 'pool.ntp.org';
+            fetch('/api/system/ntp', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({server: server, enabled: true})
+            }).catch(function() {});
+        } else {
+            fetch('/api/system/ntp', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({server: document.getElementById('ntpServer').value || 'pool.ntp.org', enabled: false})
+            }).catch(function() {});
+        }
+    };
+
+    window.saveNtp = function() {
+        var server = document.getElementById('ntpServer').value.trim();
+        var enabled = document.getElementById('ntpEnabled').checked;
+        if (!server) return;
+        fetch('/api/system/ntp', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({server: server, enabled: enabled})
+        }).then(function(r) { return r.json(); })
+          .then(function(d) { alert(d.message); loadTimeStatus(); })
+          .catch(function() { alert('Fehler'); });
+    };
+
+    window.saveManualTime = function() {
+        var val = document.getElementById('manualTime').value;
+        if (!val) { alert('Datum/Uhrzeit eingeben'); return; }
+        fetch('/api/system/time/manual', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({datetime: val})
+        }).then(function(r) { return r.json(); })
+          .then(function(d) { alert(d.message); loadTimeStatus(); })
+          .catch(function() { alert('Fehler'); });
+    };
+
+    // ── Drucker ─────────────────────────────────────────────────────────
+
     window.detectPrinter = function() {
-        fetch('/api/printer/detect', { method: 'POST' })
+        fetch('/api/printer/detect', {method: 'POST'})
             .then(function(r) { return r.json(); })
             .then(function(d) {
                 document.getElementById('printerName').textContent = d.printer || '(nicht erkannt)';
@@ -407,7 +870,7 @@
     };
 
     window.testPrint = function() {
-        fetch('/api/printer/test', { method: 'POST' })
+        fetch('/api/printer/test', {method: 'POST'})
             .then(function(r) { return r.json(); })
             .then(function(d) {
                 alert(d.success ? 'Testdruck gesendet: ' + (d.message || '') : 'Fehler: ' + (d.message || d.error || 'Unbekannt'));
@@ -417,10 +880,12 @@
     window.toggleAutoPrint = function(checked) {
         fetch('/api/printer/auto_print', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ enabled: checked })
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({enabled: checked})
         }).catch(function() {});
     };
+
+    // ── USB Sync ─────────────────────────────────────────────────────────
 
     function loadSyncSettings() {
         fetch('/api/storage/sync/config')
@@ -438,8 +903,8 @@
     window.toggleAutoSync = function(checked) {
         fetch('/api/storage/sync/config', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ auto_sync_enabled: checked })
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({auto_sync_enabled: checked})
         }).then(function(r) { return r.json(); })
           .then(function() { loadSyncSettings(); })
           .catch(function() {});
@@ -449,7 +914,7 @@
         var btn = document.getElementById('btnSyncNow');
         btn.disabled = true;
         btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Synchronisiere ...';
-        fetch('/api/storage/sync/now', { method: 'POST' })
+        fetch('/api/storage/sync/now', {method: 'POST'})
             .then(function(r) { return r.json(); })
             .then(function(d) {
                 btn.disabled = false;
@@ -463,42 +928,10 @@
 
     window.toggleTcp = function(checked) {
         var endpoint = checked ? '/api/tcp_capture/start' : '/api/tcp_capture/stop';
-        fetch(endpoint, { method: 'POST' })
+        fetch(endpoint, {method: 'POST'})
             .then(function(r) { return r.json(); })
             .then(function() { loadDeviceSettings(); })
             .catch(function() {});
-    };
-
-    window.toggleIpForm = function(mode) {
-        document.getElementById('staticIpForm').style.display = mode === 'static' ? '' : 'none';
-    };
-
-    window.saveStaticIp = function() {
-        var ip = document.getElementById('cfgIp').value.trim();
-        var gw = document.getElementById('cfgGw').value.trim();
-        var dns = document.getElementById('cfgDns').value.trim();
-        if (!ip || !gw) { alert('IP und Gateway sind Pflichtfelder'); return; }
-        var parts = ip.split('/');
-        if (!confirm('IP auf ' + ip + ' setzen?\nVerbindung trennt kurz.')) return;
-        fetch('/api/network/lan/static', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ip: parts[0], netmask: parts[1] || '24', gateway: gw, dns: dns || gw })
-        }).then(function(r) { return r.json(); })
-          .then(function(d) { alert(d.message || 'Gespeichert'); loadDeviceSettings(); })
-          .catch(function() { alert('Fehler beim Speichern'); });
-    };
-
-    window.saveDhcp = function() {
-        if (!confirm('Auf DHCP wechseln?')) return;
-        fetch('/api/network/lan/dhcp', { method: 'POST' })
-            .then(function(r) { return r.json(); })
-            .then(function(d) {
-                alert(d.message || 'DHCP aktiviert');
-                document.getElementById('ipMode').value = 'dhcp';
-                document.getElementById('staticIpForm').style.display = 'none';
-                loadDeviceSettings();
-            }).catch(function() { alert('Fehler'); });
     };
 
     // ── Tab: System ───────────────────────────────────────────────────────
@@ -535,7 +968,7 @@
         var btn = document.getElementById('rebootBtn');
         btn.disabled = true;
         btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Startet neu …';
-        fetch('/api/system/reboot', { method: 'POST' })
+        fetch('/api/system/reboot', {method: 'POST'})
             .then(function() {
                 setTimeout(function() { window.location.reload(); }, 35000);
             }).catch(function() {
@@ -612,8 +1045,10 @@
 
     // ── Init ─────────────────────────────────────────────────────────────
 
-    loadDeviceSettings();
+    loadDeviceSettings();        // Drucker, TCP, USB — auch alle 30s
+    loadStaticSettings();        // Interfaces, Hostname, Zeit — nur einmalig
     setInterval(loadDeviceSettings, 30000);
+    if (!ipPollInterval) ipPollInterval = setInterval(pollCurrentIPs, 5000);
 })();
 </script>
 {% endblock %}

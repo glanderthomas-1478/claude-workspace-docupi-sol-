@@ -95,7 +95,7 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 ## Wichtiger Kontext
 
 - Hardware: Raspberry Pi — DocuPi-3000 (SSH: belimed@192.168.178.83, zu Hause) | DocuControl (SSH: docucontrol@192.168.0.171, bei getmatic)
-- SSH-Key fuer DocuControl: `~/.ssh/docucontrol_id` (key-based, kein Passwort noetig), SSH-Config: Host docucontrol
+- SSH-Key fuer DocuControl: `~/.ssh/id_ed25519` (tatsaechlicher Key), Passwort: Xtend1478 (fuer sudo)
 - Langfristiges Ziel: CE-zertifizierte Linux-Controller (Unipi Neuron / RevPi Connect)
 - Geschaeftsmodell: Softwarelizenz + Sensor-Kit
 - Erster Feldtest abgeschlossen: 3 Wochen, 140 Chargen, Helios Krefeld (Belimed 9-6-18 HS2)
@@ -107,7 +107,7 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 - Erster Einsatz geplant: **Tierlabor Uni Essen** (Maschinentyp tbd, echter Druckauftrag noch ausstehend)
 - Pi 5 bei getmatic: Kernel 6.18.33, RTC DS3231, WLAN off, Service docucontrol.service aktiv
 - Architektur: TCP/9100-Capture -> Parse -> PDF -> DB (automatisch), USB-Drucker via CUPS
-- SSH: `ssh docucontrol` (Key in ~/.ssh/docucontrol_id), Passwort: Xtend1478 (fuer sudo)
+- SSH: `ssh -i ~/.ssh/id_ed25519 docucontrol@192.168.0.171`, Passwort: Xtend1478 (fuer sudo)
 
 ### DocuControl Web-Interface (2026-06-03 vollstaendig deployed)
 
@@ -137,9 +137,27 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 - USB-Dateiliste im Datei-Manager (rekursiv, mit Download-Link)
 - Sudoers: `/etc/sudoers.d/docucontrol-storage` (mount, umount, blkid, dosfsck ohne Passwort)
 
+**Netzwerk-Management (2026-06-08 implementiert):**
+- Root-Cause IP-Bug behoben: `/etc/sudoers.d/docucontrol-network` (nmcli, ip, hostnamectl, timedatectl, hwclock ohne Passwort)
+- **Aktuelle IP: 192.168.0.171** (DHCP, Router gibt immer dieselbe IP via MAC-Binding)
+- `network_manager.py` v3: Multi-Interface, Hostname, NTP/RTC, VLAN, korrekte Fehler-Propagierung
+- Neue API-Endpunkte:
+  - `GET /api/network/interfaces` — alle verfuegbaren NICs mit Status
+  - `GET/POST /api/network/iface/<dev>/status|static|dhcp` — Interface-Konfiguration
+  - `GET/POST /api/system/hostname` — Hostname lesen/setzen (hostnamectl)
+  - `GET/POST /api/system/ntp` — NTP-Server + RTC DS3231 Status
+  - `POST /api/system/time/manual` — manuelle Zeitstellung + hwclock --systohc
+- Settings-Tab "Geraete & Netzwerk" komplett neu: Schnittstelle 1 (DHCP/Statisch, DNS2, VLAN), Schnittstelle 2 (USB-Ethernet Dropdown), Hostname-Card, Zeit & Uhr (RTC + NTP optional)
+
 **Live-Monitor Fix (2026-06-08):**
 - `updateTerminal()` las `d.text` statt korrektem `d.content` — Terminal war immer leer
 - Fix: `d.content || d.text` in settings.html
+
+**IP-Anzeige Live-Poll (2026-06-08):**
+- `pollCurrentIPs()` in settings.html: alle 5s nur current_ip/mac/speed/badge aktualisieren (keine Input-Felder)
+- Poll laeuft nur wenn Tab "Geraete & Netzwerk" aktiv, stoppt bei Tab-Wechsel
+- nftables-Bug gefixt: `_write_nftables_conf()` wird jetzt VOR `nmcli con down/up` aufgerufen (verhindert Dashboard-Ausfall beim DHCP-Wechsel)
+- nftables-Regel auf Interface-basiert umgestellt: `iif eth0` statt `ip daddr <static-ip>` (DHCP-kompatibel)
 
 **Naechster Schritt:** Sample-Druckauftrag vom Tierlabor-Geraet analysieren, Installation vor Ort
 

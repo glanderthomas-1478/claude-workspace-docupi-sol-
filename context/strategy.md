@@ -50,7 +50,12 @@ Prototyp fertigstellen und erste Feldtests im eigenen Arbeitsumfeld durchfuehren
   - Liquid-Glass-CSS, Square-Font, Live-Uhr, pulsierender Aktiv-Badge
   - Neuer /api/dashboard/stats Endpunkt
 - OFFEN: Einstellungen + Datei-Manager auf v3 migrieren (separater Plan)
-- OFFEN: Sample-Druckauftrag vom Tierlabor-Geraet analysieren, Installation vor Ort
+- **ERLEDIGT 2026-06-09**: Settings + Drucker-Erkennung optimiert:
+  - Maschinenname + IP in Settings konfigurierbar, Ping-basierter Status in Machine-Bar
+  - Drucker-Erkennung via USB sysfs (physisch), Auto-Print Bug gefixt, Race-Condition Print-Button behoben
+  - Topbar-Badge entfernt, 5 Testchargen (CH021709-CH021713) erfolgreich verarbeitet und gedruckt
+- OFFEN: Echten Druckauftrag vom Tierlabor-Geraet empfangen, IP der PST 14-8-12 HS1 in Settings eintragen
+- OFFEN: Installation vor Ort Tierlabor Uni Essen
 
 ## Wie Erfolg aussieht
 

@@ -8,6 +8,8 @@ CUPS-basierter USB-Drucker-Support mit IPP Everywhere (driverless).
 
 import logging
 import os
+import re
+import subprocess
 import threading
 import time
 
@@ -17,6 +19,8 @@ logger = logging.getLogger("docupi.print")
 _cups_available = False
 _conn = None
 _auto_print_enabled = False
+_model_cache = {}  # {device_uri: (model_str, fetched_at_ts)}
+_MODEL_CACHE_TTL = 300  # 5 Minuten
 _default_printer = ""
 _print_copies = 1
 _print_all_pages = True
@@ -92,16 +96,25 @@ def get_printers():
         result = []
         default = conn.getDefault()
 
+        usb_connected = is_usb_printer_present()
+        usb_model = get_usb_printer_model() if usb_connected else ""
+
         for name, attrs in printers.items():
             state = attrs.get("printer-state", 0)
             state_map = {3: "bereit", 4: "druckt", 5: "gestoppt"}
             state_text = state_map.get(state, f"unbekannt ({state})")
 
+            device_uri = attrs.get("device-uri", "")
+            connected = usb_connected
+            model = (usb_model or attrs.get("printer-info", name)) if connected else ""
+
             result.append({
                 "name": name,
                 "info": attrs.get("printer-info", name),
+                "model": model,
+                "connected": connected,
                 "location": attrs.get("printer-location", ""),
-                "uri": attrs.get("device-uri", ""),
+                "uri": device_uri,
                 "state": state,
                 "state_text": state_text,
                 "is_default": name == default,
@@ -113,6 +126,70 @@ def get_printers():
     except Exception as e:
         logger.error(f"Drucker-Abfrage fehlgeschlagen: {e}")
         return []
+
+
+def get_real_printer_model(device_uri):
+    """Query the real printer model name directly via ipptool (cached, TTL 5 min)."""
+    now = time.time()
+    if device_uri in _model_cache:
+        model, ts = _model_cache[device_uri]
+        if now - ts < _MODEL_CACHE_TTL:
+            return model
+    try:
+        result = subprocess.run(
+            ['ipptool', '-tv', device_uri,
+             '/usr/share/cups/ipptool/get-printer-attributes.test'],
+            capture_output=True, text=True, timeout=4
+        )
+        match = re.search(r'printer-make-and-model \([^)]+\) = (.+)', result.stdout)
+        model = match.group(1).strip() if match else ''
+    except Exception:
+        model = ''
+    _model_cache[device_uri] = (model, now)
+    return model
+
+
+
+def is_usb_printer_present():
+    """Return True if any USB device with printer interface class (0x07) is physically connected."""
+    try:
+        base = '/sys/bus/usb/devices'
+        for dev in os.listdir(base):
+            dev_path = os.path.join(base, dev)
+            if not os.path.isdir(dev_path):
+                continue
+            for entry in os.listdir(dev_path):
+                iface_cls = os.path.join(dev_path, entry, 'bInterfaceClass')
+                if os.path.exists(iface_cls):
+                    with open(iface_cls) as f:
+                        if f.read().strip() == '07':
+                            return True
+        return False
+    except Exception:
+        return False
+
+
+def get_usb_printer_model():
+    """Read manufacturer + product name of first USB printer from sysfs device descriptors."""
+    try:
+        base = '/sys/bus/usb/devices'
+        for dev in sorted(os.listdir(base)):
+            dev_path = os.path.join(base, dev)
+            if not os.path.isdir(dev_path):
+                continue
+            for entry in os.listdir(dev_path):
+                iface_cls = os.path.join(dev_path, entry, 'bInterfaceClass')
+                if os.path.exists(iface_cls):
+                    with open(iface_cls) as f:
+                        if f.read().strip() == '07':
+                            mfr_f = os.path.join(dev_path, 'manufacturer')
+                            prod_f = os.path.join(dev_path, 'product')
+                            mfr = open(mfr_f).read().strip() if os.path.exists(mfr_f) else ''
+                            prod = open(prod_f).read().strip() if os.path.exists(prod_f) else ''
+                            return f'{mfr} {prod}'.strip() or 'USB Drucker'
+        return ''
+    except Exception:
+        return ''
 
 
 def get_default_printer():

@@ -213,15 +213,19 @@
     // ── Machine-Status ────────────────────────────────────────────────────
 
     function updateMachineStatus() {
-        fetch('/api/tcp_capture/status')
+        fetch('/api/machine/ping')
             .then(function(r) { return r.json(); })
             .then(function(d) {
                 var el   = document.getElementById('machineStatus');
                 var txt  = document.getElementById('machineStatusText');
                 var icon = document.getElementById('machineStatusIcon');
-                if (d.enabled) {
+                if (!d.configured) {
+                    el.className = 'mb-status offline';
+                    txt.textContent = 'IP nicht konfiguriert';
+                    icon.className = 'bi bi-hdd-network';
+                } else if (d.reachable) {
                     el.className = 'mb-status';
-                    txt.textContent = 'Maschine verbunden';
+                    txt.textContent = 'Erreichbar';
                     icon.className = 'bi bi-hdd-network-fill';
                 } else {
                     el.className = 'mb-status offline';
@@ -235,7 +239,7 @@
     // ── Drucker-Status ────────────────────────────────────────────────────
 
     function loadPrinterStatus() {
-        fetch('/api/printer/ready')
+        return fetch('/api/printer/ready')
             .then(function(r) { return r.json(); })
             .then(function(d) { printerReady = d.ready; })
             .catch(function() { printerReady = false; });
@@ -499,16 +503,15 @@
 
     loadStats();
     loadPrograms();
-    loadPrinterStatus();
-    loadProtocols(1);
+    loadPrinterStatus().then(function() { loadProtocols(1); });
     updateMachineStatus();
 
     setInterval(function() {
         loadStats();
-        loadPrinterStatus();
-        loadProtocols(currentPage);
-        updateMachineStatus();
+        loadPrinterStatus().then(function() { loadProtocols(currentPage); });
     }, 30000);
+
+    setInterval(updateMachineStatus, 60000);
 })();
 </script>
 {% endblock %}

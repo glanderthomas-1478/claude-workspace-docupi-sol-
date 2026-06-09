@@ -24,21 +24,51 @@
 <div id="panelDevices">
     <div class="set-grid">
 
+        <!-- Anlage -->
+        <div class="card">
+            <div class="card-head"><span><i class="bi bi-safe2"></i> Anlage</span></div>
+            <div class="card-body">
+                <div class="set-row">
+                    <div class="info">
+                        <div class="name">Maschinenname</div>
+                        <div class="desc">Angezeigter Name im Dashboard</div>
+                    </div>
+                    <div style="display:flex;gap:6px;align-items:center">
+                        <input type="text" class="ctrl" id="machineNameInput" placeholder="z.B. Belimed PST 14-8-12 HS1" style="width:220px" maxlength="64">
+                        <button class="btn btn-outline" onclick="saveMachineConfig()"><i class="bi bi-check-lg"></i> Setzen</button>
+                    </div>
+                </div>
+                <div class="set-row">
+                    <div class="info">
+                        <div class="name">IP-Adresse</div>
+                        <div class="desc">IP der Anlage für Ping-Test</div>
+                    </div>
+                    <div style="display:flex;gap:6px;align-items:center">
+                        <input type="text" class="ctrl mono-ip" id="machineIpInput" placeholder="192.168.0.x" style="width:140px" maxlength="15">
+                        <button class="btn btn-outline" onclick="saveMachineConfig()"><i class="bi bi-check-lg"></i> Setzen</button>
+                    </div>
+                </div>
+                <div class="set-row">
+                    <div class="info">
+                        <div class="name">Verbindungstest</div>
+                        <div class="desc">Ping zur konfigurierten IP</div>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:center">
+                        <span class="value" id="machinePingResult" style="font-size:12.5px;color:var(--muted)">—</span>
+                        <button class="btn btn-outline" onclick="testMachinePing()"><i class="bi bi-wifi"></i> Ping</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Drucker -->
         <div class="card">
             <div class="card-head"><span><i class="bi bi-printer"></i> Drucker</span></div>
             <div class="card-body">
                 <div class="set-row">
                     <div class="info">
-                        <div class="name">USB-Drucker erkennen</div>
-                        <div class="desc">Angeschlossene Drucker suchen</div>
-                    </div>
-                    <button class="btn btn-outline" onclick="detectPrinter()"><i class="bi bi-search"></i> Suchen</button>
-                </div>
-                <div class="set-row">
-                    <div class="info">
-                        <div class="name">Erkannter Drucker</div>
-                        <div class="desc">Aktuell verbundenes Gerät</div>
+                        <div class="name">Verbundener Drucker</div>
+                        <div class="desc">Angeschlossener Drucker</div>
                     </div>
                     <span class="value" id="printerName">wird geladen …</span>
                 </div>
@@ -538,15 +568,63 @@
 
     // ── Tab: Geräte & Netzwerk ────────────────────────────────────────────
 
+    function loadMachineConfig() {
+        fetch('/api/machine/config')
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                document.getElementById('machineNameInput').value = d.name || '';
+                document.getElementById('machineIpInput').value = d.ip || '';
+            }).catch(function() {});
+    }
+
+    window.saveMachineConfig = function() {
+        var name = document.getElementById('machineNameInput').value.trim();
+        var ip   = document.getElementById('machineIpInput').value.trim();
+        fetch('/api/machine/config', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name: name, ip: ip})
+        }).then(function(r) { return r.json(); })
+          .then(function(d) {
+              if (d.success) showToast('Gespeichert', 'Anlage-Konfiguration aktualisiert.');
+          }).catch(function() {});
+    };
+
+    window.testMachinePing = function() {
+        var el = document.getElementById('machinePingResult');
+        el.textContent = 'Prüfen …';
+        el.style.color = 'var(--muted)';
+        fetch('/api/machine/ping')
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (!d.configured) {
+                    el.textContent = 'IP nicht konfiguriert';
+                    el.style.color = 'var(--muted)';
+                } else if (d.reachable) {
+                    var lat = d.latency_ms ? ' (' + d.latency_ms.toFixed(1) + ' ms)' : '';
+                    el.textContent = 'Erreichbar' + lat;
+                    el.style.color = '#2fce7f';
+                } else {
+                    el.textContent = 'Nicht erreichbar (' + (d.ip || '—') + ')';
+                    el.style.color = 'var(--danger)';
+                }
+            }).catch(function() {
+                el.textContent = 'Fehler';
+                el.style.color = 'var(--danger)';
+            });
+    };
+
     function loadDeviceSettings() {
+        loadMachineConfig();
         // Drucker
         fetch('/api/printer/status')
             .then(function(r) { return r.json(); })
             .then(function(d) {
-                document.getElementById('printerName').textContent = d.printer || '(kein Drucker erkannt)';
+                document.getElementById('printerName').textContent =
+                    (d.printer_count === 0 || !d.printer) ? 'Kein Drucker angeschlossen' : d.printer;
                 document.getElementById('autoPrintToggle').checked = d.auto_print || false;
             }).catch(function() {
-                document.getElementById('printerName').textContent = '(kein Drucker erkannt)';
+                document.getElementById('printerName').textContent = 'Kein Drucker angeschlossen';
             });
 
         // TCP-Status

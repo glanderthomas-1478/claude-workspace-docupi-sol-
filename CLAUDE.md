@@ -113,15 +113,27 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 ### DocuControl Web-Interface (2026-06-03 vollstaendig deployed)
 
 **Drucker:** Epson XP-4150 als `DocuPrinter` via CUPS/IPP Everywhere (`ipps://EPSON41D474.local:631/ipp/print`)
+- Drucker-Erkennung via **USB sysfs** (`/sys/bus/usb/devices/`, `bInterfaceClass=07`): physisch angesteckt = verbunden, unabhaengig von CUPS-State oder Netzwerk
+- Modellname aus USB-Deskriptor (`manufacturer` + `product` aus sysfs), kein ipptool noetig
+- Bei kein USB-Drucker: `printer_count=0`, `printer=''` → Settings zeigt "Kein Drucker angeschlossen"
+
+**Maschinenname + IP (2026-06-09 konfigurierbar):**
+- `MACHINE_NAME`/`MACHINE_PROTOCOL` nicht mehr hardcodiert — kommen aus `config.json` Sektion `machine`
+- Settings-Card "Anlage": Maschinenname + IP editierbar, manueller Ping-Button
+- Machine-Bar-Status basiert auf ICMP-Ping zur konfigurierten IP (60s-Intervall), nicht mehr TCP-Receiver-Status
+- Bei leerer IP: "IP nicht konfiguriert" im Dashboard
 
 **Neue API-Endpunkte (alle in app.py auf Pi):**
+- `GET /api/machine/config` — Maschinenname, IP, Protokoll lesen
+- `POST /api/machine/config` — Maschinenname + IP speichern (in config.json)
+- `GET /api/machine/ping` — ICMP-Ping zur konfigurierten IP; `{reachable, configured, ip, latency_ms}`
 - `GET /api/dashboard/stats` — Dashboard-Karten: Gesamt, Heute, Monat, Vormonat-Trend (2026-06-09)
 - `GET /api/protocols` — paginiert, filterbar, sortierbar (Charge-Nr. per Regex aus raw_data)
 - `GET /api/protocols/programs` — distinct Programmnamen fuer Filter-Select
 - `DELETE /api/protocols/<id>` — loescht DB-Eintrag + PDF-Datei
-- `GET /api/printer/ready` — Drucker-Bereitschaft (`ready: bool`)
-- `GET /api/printer/status` — CUPS-Status mit Drucker-Liste
-- `POST /api/printer/detect` — Drucker-Erkennung
+- `GET /api/printer/ready` — Drucker-Bereitschaft (`ready: bool`, `printer` = echter Modellname)
+- `GET /api/printer/status` — CUPS-Status mit Drucker-Liste; `printer`/`model` = echter Modellname; `printer_count` = Anzahl
+- `POST /api/printer/detect` — Drucker-Erkennung (intern, Button in Settings entfernt)
 - `POST /api/printer/test` — Testdruck
 - `POST /api/printer/auto_print` — Auto-Druck Toggle
 - `POST /api/print/<id>` — Drucken per Protokoll-ID
@@ -161,7 +173,20 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 - nftables-Bug gefixt: `_write_nftables_conf()` wird jetzt VOR `nmcli con down/up` aufgerufen (verhindert Dashboard-Ausfall beim DHCP-Wechsel)
 - nftables-Regel auf Interface-basiert umgestellt: `iif eth0` statt `ip daddr <static-ip>` (DHCP-kompatibel)
 
-**Naechster Schritt:** Sample-Druckauftrag vom Tierlabor-Geraet analysieren, Installation vor Ort
+**Settings-Optimierungen (2026-06-09):**
+- Topbar-Badge (rot/gruen "Aktiv/Getrennt") entfernt — Status nur noch in Machine-Bar
+- Settings Card "Anlage" (erste Card): Maschinenname + IP editierbar, Ping-Button
+- Settings Card "Drucker": "Drucker erkennen"-Button entfernt, Label -> "Verbundener Drucker", zeigt echten Modellnamen oder "Kein Drucker angeschlossen"
+- Machine-Bar-Status basiert jetzt auf ICMP-Ping zur konfigurierten Maschinen-IP (60s-Intervall)
+- Drucker-Erkennung via sysfs USB (bInterfaceClass=07) statt TCP-Check — physisch angesteckt = verbunden
+- Auto-Print Bug gefixt: `_process_job()` in tcp_print_capture.py prueft jetzt print_config.json und druckt PDF automatisch nach Empfang
+- Dashboard Print-Button Race-Condition gefixt: `loadPrinterStatus()` gibt Promise zurueck, `loadProtocols()` wartet darauf
+
+**TCP-Test-Protokolle (2026-06-09 gesendet):**
+- CH021709–CH021713: 5 Testchargen (Instrumente 134°C + Bowie Dick) erfolgreich empfangen, PDF generiert, gedruckt
+- Auto-Print Pipeline bestaetigt: TCP → Parse → Chart → PDF → CUPS-Job < 1 Sekunde
+
+**Naechster Schritt:** Echten Druckauftrag vom Tierlabor-Geraet (Belimed PST 14-8-12 HS1) empfangen, IP in Settings eintragen, Installation vor Ort vorbereiten
 
 ---
 

@@ -180,7 +180,7 @@
             .then(function(r) { return r.json(); })
             .then(function(d) {
                 // Gesamt
-                document.getElementById('totalCount').textContent = d.total.toLocaleString('de-DE');
+                document.getElementById('totalCount').textContent = d.max_charge_nr || d.total;
 
                 // Heute
                 document.getElementById('todayCount').textContent = d.today;

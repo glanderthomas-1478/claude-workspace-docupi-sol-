@@ -13,7 +13,7 @@
 | Erster Feldtest | ABGESCHLOSSEN | Weitere geplant | Helios Krefeld, 25.03.-13.04.2026, 327 Protokolle |
 | Erster Kunden-Deal | In Umsetzung | Abschluss | DocuControl fuer Tierlabor Uni Essen, getmatic-Vertrieb, Pi 5 betriebsbereit seit 2026-06-02 |
 | DocuControl Pi 5 | Produktiv + stabil | Tierlabor-Deployment | Kernel 6.18.33, RTC DS3231, WLAN off, Service <1s Restart, 13 Test-Protokolle in DB (Betreiber: Uniklinik Essen Tierlabor) |
-| DocuControl Web-Interface | **v3 DASHBOARD + Settings optimiert** | Einstellungen+Dateien v3-Redesign ausstehend | Machine-Bar Ping-Status, Anlage-Card, Drucker USB-sysfs, Auto-Print gefixt, Print-Button Race-Fix (2026-06-09) |
+| DocuControl Web-Interface | **v3 DASHBOARD + Settings optimiert** | Einstellungen+Dateien v3-Redesign ausstehend | Machine-Bar Ping-Status, Anlage-Card, Drucker USB-sysfs, Auto-Print gefixt, Print-Button Race-Fix, Dashboard "Chargen gesamt" zeigt höchste Charge-Nr. (2026-06-09) |
 | USB Auto-Sync | **IMPLEMENTIERT** | Feldtest ausstehend | udev-Trigger, sofort + Intervall-Sync, Toggle in Einstellungen, Dateiliste im Datei-Manager |
 | Live-Monitor | **GEFIXT** | — | Bug d.text→d.content behoben, Terminal zeigt jetzt empfangene Rohdaten |
 | Backup DocuControl | Erstellt 2026-06-08 | — | backups/pi-backup-2026-06-08: DB, 11 PDFs, 18 Captures, Code, System-Configs |

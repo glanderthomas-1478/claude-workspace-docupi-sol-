@@ -54,6 +54,7 @@ Prototyp fertigstellen und erste Feldtests im eigenen Arbeitsumfeld durchfuehren
   - Maschinenname + IP in Settings konfigurierbar, Ping-basierter Status in Machine-Bar
   - Drucker-Erkennung via USB sysfs (physisch), Auto-Print Bug gefixt, Race-Condition Print-Button behoben
   - Topbar-Badge entfernt, 5 Testchargen (CH021709-CH021713) erfolgreich verarbeitet und gedruckt
+  - Dashboard "Chargen gesamt"-Karte zeigt höchste Charge-Nr. (z.B. 21713) statt DB-Zeilenanzahl — `/api/dashboard/stats` liefert `max_charge_nr` via CHARGE_RE über raw_data
 - OFFEN: Echten Druckauftrag vom Tierlabor-Geraet empfangen, IP der PST 14-8-12 HS1 in Settings eintragen
 - OFFEN: Installation vor Ort Tierlabor Uni Essen
 

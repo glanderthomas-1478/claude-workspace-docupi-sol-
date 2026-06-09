@@ -127,7 +127,7 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 - `GET /api/machine/config` — Maschinenname, IP, Protokoll lesen
 - `POST /api/machine/config` — Maschinenname + IP speichern (in config.json)
 - `GET /api/machine/ping` — ICMP-Ping zur konfigurierten IP; `{reachable, configured, ip, latency_ms}`
-- `GET /api/dashboard/stats` — Dashboard-Karten: Gesamt, Heute, Monat, Vormonat-Trend (2026-06-09)
+- `GET /api/dashboard/stats` — Dashboard-Karten: `max_charge_nr` (höchste Charge-Nr. numerisch aus raw_data), Heute, Monat, Vormonat-Trend (2026-06-09)
 - `GET /api/protocols` — paginiert, filterbar, sortierbar (Charge-Nr. per Regex aus raw_data)
 - `GET /api/protocols/programs` — distinct Programmnamen fuer Filter-Select
 - `DELETE /api/protocols/<id>` — loescht DB-Eintrag + PDF-Datei

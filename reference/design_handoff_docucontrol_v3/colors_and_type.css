@@ -1,0 +1,152 @@
+/* ============================================================
+   DocuControl 2026 — Design System Foundations
+   GeTmatic / DocuPi-3000 — sterilization & autoclave documentation
+   Source of truth: src/web/base.html + dashboard.html + patches
+   (lordboombastic/claude-workspace-docupi)
+   ============================================================ */
+
+/* ---------- BRAND DISPLAY FACE ----------
+   'Square' — GeTmatic corporate wordmark typeface ONLY.
+   All-caps, geometric. Used exclusively for the "GeTmatic"
+   logo lockup — never for headings, readouts, body or tables. */
+@font-face {
+  font-family: 'Square';
+  src: url('fonts/Square.ttf') format('truetype');
+  font-weight: 400 700;
+  font-display: swap;
+}
+
+:root {
+  /* ---------- BRAND / PRIMARY ---------- */
+  --docupi-blue:  #1f4e79;   /* primary navy — navbar, headers, headings, primary btn */
+  --docupi-light: #2e75b6;   /* accent blue — links, secondary icons, focus */
+  --docupi-bg:    #f4f6f9;   /* app background (cool off-white) */
+
+  /* Tints of the primary, used for stat icon-boxes */
+  --tint-blue:   rgba(31, 78, 121, 0.10);
+  --tint-light:  rgba(46, 117, 182, 0.10);
+
+  /* ---------- SEMANTIC STATUS ---------- */
+  --success:        #28a745;  /* online dot, success meters, OK */
+  --success-strong: #198754;  /* solid success (badges/buttons) */
+  --success-2:      #20c997;  /* meter gradient end */
+  --success-bg:     #f0fdf4;  /* "last PDF" panel bg */
+  --success-border: #bbf7d0;
+  --tint-success:   rgba(40, 167, 69, 0.10);
+
+  --danger:        #dc3545;   /* offline dot, errors, destructive */
+  --danger-2:      #c82333;   /* meter gradient end */
+  --tint-danger:   rgba(220, 53, 69, 0.10);
+
+  --warning:       #ffc107;   /* USB warnings, hints */
+  --warning-2:     #fd7e14;   /* meter gradient end / hot temp */
+  --warning-icon:  #e6a800;   /* warning icon color on light bg */
+  --tint-warning:  rgba(255, 193, 7, 0.10);
+
+  --info:          #00bcd4;   /* new-protocol notice (terminal) */
+  --info-light:    #69c0ff;   /* log info lines */
+
+  /* Health badge fills (System tab) */
+  --health-good-bg:     #d4edda;  --health-good-fg:     #155724;
+  --health-warning-bg:  #fff3cd;  --health-warning-fg:  #856404;
+  --health-critical-bg: #f8d7da;  --health-critical-fg: #721c24;
+
+  /* ---------- NEUTRALS / GRAYS (Bootstrap 5 scale) ---------- */
+  --white:    #ffffff;
+  --gray-100: #f8f9fa;
+  --gray-200: #e9ecef;   /* meter track, inactive pill bg, dividers */
+  --gray-300: #dee2e6;   /* pill hover */
+  --gray-400: #ced4da;   /* input borders */
+  --gray-500: #adb5bd;   /* footer text */
+  --gray-600: #6c757d;   /* muted text / labels */
+  --gray-700: #495057;   /* inactive pill text, body-ish */
+  --gray-900: #212529;   /* default body text */
+  --row-selected: #cce5ff; /* selected file-manager row */
+
+  /* ---------- TERMINAL (serial live monitor + logs) ---------- */
+  --term-bg:     #1e1e1e;
+  --term-head:   #2d2d2d;
+  --term-border: #333333;
+  --term-green:  #00ff41;   /* live serial RX text */
+  --term-orange: #ff6600;   /* page-feed marker */
+  --term-text:   #d4d4d4;   /* log default text */
+  --log-warn:    #ffc107;
+  --log-err:     #ff6b6b;
+  --log-info:    #69c0ff;
+  --log-ok:      #52c41a;
+
+  /* ============================================================
+     TYPOGRAPHY
+     Stack mirrors the product: 'Segoe UI' first (its native
+     Windows/laptop look), then cross-platform system fallbacks.
+     ============================================================ */
+  --font-sans: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'Courier New', ui-monospace, 'SF Mono', Menlo, monospace;
+  /* Brand wordmark only — the "GeTmatic" logo lockup, nothing else */
+  --font-brand: 'Square', 'Segoe UI', system-ui, sans-serif;
+
+  /* Type scale (rem, derived from product usage) */
+  --fs-display: 2rem;     /* 32px — big stat values, captive H1 */
+  --fs-h1:      1.7rem;   /* 27px — page hero */
+  --fs-stat:    1.4rem;   /* 22px — dashboard stat value */
+  --fs-h5:      1rem;     /* 16px — section headings */
+  --fs-body:    0.95rem;  /* 15px — base body */
+  --fs-sm:      0.85rem;  /* 14px — secondary / table */
+  --fs-label:   0.75rem;  /* 12px — stat labels, badges, uppercase */
+  --fs-mono:    13px;     /* serial terminal */
+
+  --fw-normal:   400; /* @kind font */
+  --fw-medium:   500; /* @kind font */
+  --fw-semibold: 600; /* @kind font */
+  --fw-bold:     700; /* @kind font */
+
+  /* ---------- RADII ---------- */
+  --radius-sm:  8px;    /* nav pills, inner boxes, terminal */
+  --radius:     10px;   /* cards, icon-boxes */
+  --radius-lg:  12px;   /* health badges, captive ip-box */
+  --radius-xl:  20px;   /* captive glass card */
+  --radius-pill: 50%;   /* status dots */
+
+  /* ---------- ELEVATION ---------- */
+  --shadow-card:  0 2px 8px rgba(0, 0, 0, 0.08);   /* every card */
+  --shadow-pill:  0 2px 6px rgba(31, 78, 121, 0.35); /* active settings pill */
+  --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.30);  /* captive card */
+  --shadow-btn:   0 4px 15px rgba(0, 0, 0, 0.20);  /* captive primary btn */
+
+  /* ---------- SPACING (Bootstrap g-scale, 0.25rem base) ---------- */
+  --space-1: 0.25rem;  /*  4px */
+  --space-2: 0.5rem;   /*  8px */
+  --space-3: 1rem;     /* 16px */
+  --space-4: 1.5rem;   /* 24px */
+  --space-5: 3rem;     /* 48px */
+
+  /* ---------- MOTION ---------- */
+  --ease: 0.2s; /* @kind other */        /* default transition (hover/transform) */
+  --lift: translateY(-2px); /* @kind other */  /* stat-card hover lift */
+}
+
+/* ============================================================
+   SEMANTIC ELEMENT DEFAULTS
+   Apply the foundations to bare elements so prototypes inherit
+   the clinical DocuControl look without extra classes.
+   ============================================================ */
+body {
+  background: var(--docupi-bg);
+  font-family: var(--font-sans);
+  color: var(--gray-900);
+  font-size: var(--fs-body);
+  line-height: 1.5;
+}
+
+h1 { font-size: var(--fs-h1); font-weight: var(--fw-bold); color: var(--docupi-blue); }
+h2 { font-size: 1.4rem; font-weight: var(--fw-bold); color: var(--docupi-blue); }
+h5, h6 { font-weight: var(--fw-semibold); color: var(--docupi-blue); }
+h5 { font-size: var(--fs-h5); }
+
+a { color: var(--docupi-light); text-decoration: none; }
+a:hover { color: var(--docupi-blue); }
+
+code, kbd, pre { font-family: var(--font-mono); }
+
+.text-muted { color: var(--gray-600); }
+small { font-size: var(--fs-sm); }

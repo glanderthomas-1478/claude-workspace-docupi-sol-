@@ -1,0 +1,8 @@
+/* ============================================================
+   DocuControl 2026 — Design System entry point
+   Consumers link THIS file. It pulls in the token foundation
+   and the component/liquid-glass layer in the right order.
+   ============================================================ */
+
+@import url('colors_and_type.css');   /* tokens, type scale, Square @font-face, element defaults */
+@import url('app/docucontrol.css');    /* component layer: topbar, cards, buttons, table, file manager, settings, terminal, modals */

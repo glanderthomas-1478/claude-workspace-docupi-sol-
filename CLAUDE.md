@@ -65,9 +65,10 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 │   ├── test_wd_e2e.py      # WD End-to-End Tests
 │   └── *.py                # Weitere Tests
 ├── reference/              # Dokumentation, Konzepte
-│   ├── design_handoff_docucontrol/  # hifi Design-Handoff (GeTmatic) — React-Mockup + CSS-Tokens
+│   ├── design_handoff_docucontrol/   # hifi Design-Handoff v1/v2 (GeTmatic)
+│   ├── design_handoff_docucontrol_v3/  # hifi Design-Handoff v3 (2026-06-08) — Liquid Glass, Machine-Bar, 6-Tab-Settings
 │   └── neues Design recap/  # Screenshots des laufenden DocuControl-Interface (2026-06-03)
-├── plans/                  # Implementierungsplaene (alle 2026-06-03 implementiert)
+├── plans/                  # Implementierungsplaene
 ├── outputs/                # Arbeitsergebnisse (Konzeptpapiere, generierte PDFs)
 │   └── docupi-3000_konzept_getmatic.{md,pdf}  # Vertriebs-Konzept fuer getmatic
 ├── backups/                # Pi-Backups (komplette Snapshots, gitignored)
@@ -104,7 +105,7 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 ## DocuControl (zweite Hardware-Linie) — WEB-INTERFACE PRODUKTIV
 
 **DocuControl** ist der Whitelabel-Name fuer die Kunden-Hardware ueber getmatic.
-- Erster Einsatz geplant: **Tierlabor Uni Essen** (Maschinentyp tbd, echter Druckauftrag noch ausstehend)
+- Erster Einsatz geplant: **Tierlabor Uni Essen** (Maschinentyp: Belimed PST 14-8-12 HS1, echter Druckauftrag noch ausstehend)
 - Pi 5 bei getmatic: Kernel 6.18.33, RTC DS3231, WLAN off, Service docucontrol.service aktiv
 - Architektur: TCP/9100-Capture -> Parse -> PDF -> DB (automatisch), USB-Drucker via CUPS
 - SSH: `ssh -i ~/.ssh/id_ed25519 docucontrol@192.168.0.171`, Passwort: Xtend1478 (fuer sudo)
@@ -114,6 +115,7 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 **Drucker:** Epson XP-4150 als `DocuPrinter` via CUPS/IPP Everywhere (`ipps://EPSON41D474.local:631/ipp/print`)
 
 **Neue API-Endpunkte (alle in app.py auf Pi):**
+- `GET /api/dashboard/stats` — Dashboard-Karten: Gesamt, Heute, Monat, Vormonat-Trend (2026-06-09)
 - `GET /api/protocols` — paginiert, filterbar, sortierbar (Charge-Nr. per Regex aus raw_data)
 - `GET /api/protocols/programs` — distinct Programmnamen fuer Filter-Select
 - `DELETE /api/protocols/<id>` — loescht DB-Eintrag + PDF-Datei

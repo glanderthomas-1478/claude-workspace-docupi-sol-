@@ -14,18 +14,26 @@
 <!-- Topbar -->
 <div class="topbar">
     <div class="brand">
-        <span class="logo">DocuControl<span class="by">by GeTmatic</span></span>
+        <span class="logo">DocuControl<span class="by">by <b>GeTmatic</b></span></span>
     </div>
-    <span class="conn-badge {% if tcp_connected %}online{% else %}offline{% endif %}" id="connBadge">
-        <span class="dot"></span>
-        <span id="connText">{% if tcp_connected %}Verbunden{% else %}Getrennt{% endif %}</span>
-    </span>
+    <div class="topbar-right">
+        <span class="topbar-clock">
+            <i class="bi bi-calendar3"></i>
+            <span id="barDate">—</span>
+            <span class="sepdot">·</span>
+            <span class="bartime" id="barTime">--:--:--</span>
+        </span>
+        <span class="conn-badge {% if tcp_connected %}online{% else %}offline{% endif %}" id="connBadge" title="Gerät betriebsbereit">
+            <span class="dot"></span>
+            <span id="connText">{% if tcp_connected %}Aktiv{% else %}Getrennt{% endif %}</span>
+        </span>
+    </div>
 </div>
 
 <!-- Navstrip -->
 <nav class="navstrip">
     <a href="/" class="tab {% if request.path == '/' %}active{% endif %}">
-        <i class="bi bi-speedometer2"></i> Dashboard
+        <i class="bi bi-collection"></i> Chargen
     </a>
     <a href="/files" class="tab {% if request.path.startswith('/files') %}active{% endif %}">
         <i class="bi bi-folder2-open"></i> Dateien
@@ -39,20 +47,33 @@
     {% block content %}{% endblock %}
 </main>
 
-<footer>DocuControl 2026 &copy; GeTmatic &mdash; Krefeld</footer>
+<footer>DocuControl 2026 &copy; <b>GeTmatic</b> &mdash; Krefeld</footer>
 
 <script>
-/* Badge: TCP-Status alle 10 Sekunden aktualisieren */
 (function() {
+    /* Live-Uhr */
+    function tickClock() {
+        var now = new Date();
+        var d = now.toLocaleDateString('de-DE', {day:'2-digit', month:'2-digit', year:'numeric'});
+        var t = now.toLocaleTimeString('de-DE');
+        var bd = document.getElementById('barDate');
+        var bt = document.getElementById('barTime');
+        if (bd) bd.textContent = d;
+        if (bt) bt.textContent = t;
+    }
+    tickClock();
+    setInterval(tickClock, 1000);
+
+    /* Badge: TCP-Status alle 10 Sekunden */
     function refreshBadge() {
         fetch('/api/tcp_capture/status')
             .then(function(r) { return r.json(); })
             .then(function(d) {
                 var badge = document.getElementById('connBadge');
-                var text = document.getElementById('connText');
+                var text  = document.getElementById('connText');
                 var connected = d.enabled;
                 badge.className = 'conn-badge ' + (connected ? 'online' : 'offline');
-                text.textContent = connected ? 'Verbunden' : 'Getrennt';
+                text.textContent = connected ? 'Aktiv' : 'Getrennt';
             })
             .catch(function() {});
     }

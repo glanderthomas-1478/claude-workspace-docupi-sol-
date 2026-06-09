@@ -39,16 +39,18 @@ Prototyp fertigstellen und erste Feldtests im eigenen Arbeitsumfeld durchfuehren
 ### 5. Erster Kunden-Deal (DocuControl, Tierlabor Uni Essen) — WEB-INTERFACE FERTIG
 
 - Vertrieb laeuft verdeckt ueber getmatic / Thomas Glander (Whitelabel)
-- Zielmaschine: Geraet im Tierlabor Uni Essen (Typ tbd)
+- Zielmaschine: **Belimed PST 14-8-12 HS1** (bestaetigt 2026-06-08)
 - **ERLEDIGT 2026-06-02**: Pi 5 aufgebaut, Service aktiv, TCP/9100-Pipeline produktiv
-- **ERLEDIGT 2026-06-03**: Vollstaendiges Web-Interface deployed und validiert:
-  - GeTmatic-Design (dunkel, "DocuControl by GeTmatic", 3-Tab-Nav)
-  - Dashboard: Protokoll-Tabelle mit Charge-Nr., Filter, Druck-Button + Toast
-  - Einstellungen: 3 Sub-Tabs (Geraete & Netzwerk mit LAN-Config, System-Health, Live-Monitor)
-  - Datei-Manager: PDF-Liste aus DB, Loeschen, USB-Sync
-  - Drucker: Epson XP-4150 via CUPS IPP Everywhere eingerichtet, Testdruck OK
-  - Service-Stabilitaet: SIGTERM-Fix (47ms Restart statt 15s SIGKILL)
-- OFFEN: Sample-Druckauftrag vom Tierlabor-Geraet analysieren, Installation vor Ort, Maschinentyp klaeren
+- **ERLEDIGT 2026-06-03**: Web-Interface v2 deployed (Dashboard, Einstellungen, Datei-Manager, Drucker, USB-Sync)
+- **ERLEDIGT 2026-06-09**: Dashboard v3 Liquid-Glass deployed:
+  - v3 Design-Handoff von getmatic empfangen und implementiert
+  - Machine-Bar (Belimed PST 14-8-12 HS1, 6050/6060 FIS, VAFI/KOST, TCP-Status live)
+  - 3 Stat-Karten: Chargen gesamt / heute / Monat (inkl. Vormonat-Trend)
+  - Dauer-Spalte + Programm-Icons in Tabelle
+  - Liquid-Glass-CSS, Square-Font, Live-Uhr, pulsierender Aktiv-Badge
+  - Neuer /api/dashboard/stats Endpunkt
+- OFFEN: Einstellungen + Datei-Manager auf v3 migrieren (separater Plan)
+- OFFEN: Sample-Druckauftrag vom Tierlabor-Geraet analysieren, Installation vor Ort
 
 ## Wie Erfolg aussieht
 

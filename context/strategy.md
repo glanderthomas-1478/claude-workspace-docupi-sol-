@@ -55,7 +55,14 @@ Prototyp fertigstellen und erste Feldtests im eigenen Arbeitsumfeld durchfuehren
   - Drucker-Erkennung via USB sysfs (physisch), Auto-Print Bug gefixt, Race-Condition Print-Button behoben
   - Topbar-Badge entfernt, 5 Testchargen (CH021709-CH021713) erfolgreich verarbeitet und gedruckt
   - Dashboard "Chargen gesamt"-Karte zeigt höchste Charge-Nr. (z.B. 21713) statt DB-Zeilenanzahl — `/api/dashboard/stats` liefert `max_charge_nr` via CHARGE_RE über raw_data
-- OFFEN: Echten Druckauftrag vom Tierlabor-Geraet empfangen, IP der PST 14-8-12 HS1 in Settings eintragen
+- **ERLEDIGT 2026-06-10**: Datensammlermodus vollstaendig implementiert und verifiziert:
+  - Toggle in Settings schreibt `collector_mode` Flag in `capture_config.json` (Merker-Architektur)
+  - Browser-Cache-Bug gefixt: `Cache-Control: no-store` via Flask `@after_request`
+  - Toast-Bestaetigung beim Schalten; `showToast()` nun auch fuer saveMachineConfig() verfuegbar
+  - Verifiziert: CH021718 (Normalmodus → PDF+DB+Druck) und CH021719 (Sammelmodus → Rohtext direkt gedruckt, kein PDF, kein DB)
+- OFFEN: Echten Druckauftrag vom Tierlabor-Geraet (Belimed PST 14-8-12 HS1) empfangen und Captures analysieren
+- OFFEN: protocol_parser.py auf echten PST 14-8-12 HS1 Daten kalibrieren
+- OFFEN: IP der PST 14-8-12 HS1 in Settings eintragen
 - OFFEN: Installation vor Ort Tierlabor Uni Essen
 
 ## Wie Erfolg aussieht

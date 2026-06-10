@@ -137,6 +137,8 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 - `POST /api/printer/test` — Testdruck
 - `POST /api/printer/auto_print` — Auto-Druck Toggle
 - `POST /api/print/<id>` — Drucken per Protokoll-ID
+- `GET /api/capture/collector` — Datensammlermodus lesen (`{collector_mode: bool}`)
+- `POST /api/capture/collector` — Datensammlermodus setzen (`{enabled: bool}`) → schreibt in capture_config.json
 
 **Stabilitaets-Fixes (2026-06-03):**
 - `os._exit(0)` in graceful_shutdown: Restart-Dauer 15s SIGKILL -> **47ms sauber**
@@ -185,6 +187,17 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 **TCP-Test-Protokolle (2026-06-09 gesendet):**
 - CH021709–CH021713: 5 Testchargen (Instrumente 134°C + Bowie Dick) erfolgreich empfangen, PDF generiert, gedruckt
 - Auto-Print Pipeline bestaetigt: TCP → Parse → Chart → PDF → CUPS-Job < 1 Sekunde
+
+**Datensammlermodus (2026-06-10 implementiert, UI-Fix 2026-06-10):**
+- Toggle in Settings-Card "TCP-Empfang": aktiviert Sammelmodus ohne PDF-Generierung
+- Wenn aktiv: TCP-Job → `.bin`+`.txt` gespeichert → Rohtext per `/usr/bin/lp` direkt gedruckt — kein Parse, kein PDF, kein DB-Eintrag
+- Wenn inaktiv: normale Pipeline (Parse → PDF → DB → Auto-Print)
+- **Merker**: Flag `collector_mode` in `capture_config.json` — von API geschrieben, von `_handle()` per Job gelesen
+- **API**: `GET/POST /api/capture/collector` — liest/schreibt Flag; POST gibt `{collector_mode, ok}` zurueck
+- **UI**: `window.toggleCollectorMode(enabled)` (global scope) — POST + Toast-Bestaetigung; `loadCollectorMode()` einmalig beim Seitenaufruf
+- **Browser-Cache-Fix**: `Cache-Control: no-store` in Flask `@after_request` fuer `/`, `/settings`, `/files`
+- Amber-Warn-Banner im UI wenn aktiv; Toast-Bestaetigung beim Schalten
+- Zweck: Protokollvarianten der PST 14-8-12 HS1 erfassen um `protocol_parser.py` zu kalibrieren
 
 **Naechster Schritt:** Echten Druckauftrag vom Tierlabor-Geraet (Belimed PST 14-8-12 HS1) empfangen, IP in Settings eintragen, Installation vor Ort vorbereiten
 

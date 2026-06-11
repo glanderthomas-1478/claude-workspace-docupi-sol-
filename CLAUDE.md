@@ -258,7 +258,15 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 - Settings-Card "Anlage": hat jetzt drittes Feld "Maschinennummer" zwischen Maschinenname und IP
 - Datei-Manager Mode-Toggle (2026-06-11 wiederhergestellt): `.segmented` Toggle "PDF-Protokolle / Rohdaten" oberhalb der two-col-Div
 
-**Naechster Schritt:** Echten Druckauftrag vom Tierlabor-Geraet (Belimed PST 14-8-12 HS1) empfangen, Maschinennummer in Settings eintragen, Installation vor Ort vorbereiten
+**Settings-Fixes (2026-06-11 in Workspace committed, waren vorher Pi-only Patches):**
+- `iface2StatusBadge` im Card-Header von Schnittstelle 2 — zeigt Verbunden/Getrennt (wie Schnittstelle 1)
+- `applyIfaceStatus()` setzt `iface2Enabled`-Checkbox korrekt aus `d.enabled` (war immer unchecked)
+- USB-Stick formatieren: Button in USB-Synchronisation-Card, POST `/api/storage/usb/format` `{label:"DOCUCTRL"}`, FAT32, Bestätigungs-Dialog, Danger-Styling
+- **Wichtiger Hinweis:** Vor jedem `settings.html`-Deploy prüfen ob Pi-Version neuer ist als Workspace (Pi-only Patches werden sonst überschrieben)
+
+**GitHub Collaboration (2026-06-11):** Thomas Glander (`glanderthomas-1478`) als Collaborator mit Push-Zugriff auf `lordboombastic/claude-workspace-docupi` hinzugefügt
+
+**Naechster Schritt:** Echten Druckauftrag vom Tierlabor-Geraet (Belimed PST 14-8-12 HS1) empfangen, Maschinennummer des Tierlabor-Geraets in Settings eintragen, Installation vor Ort vorbereiten
 
 ---
 

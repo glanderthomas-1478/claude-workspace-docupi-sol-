@@ -13,7 +13,7 @@
 | Erster Feldtest | ABGESCHLOSSEN | Weitere geplant | Helios Krefeld, 25.03.-13.04.2026, 327 Protokolle |
 | Erster Kunden-Deal | In Umsetzung | Abschluss | DocuControl fuer Tierlabor Uni Essen, getmatic-Vertrieb, Pi 5 betriebsbereit seit 2026-06-02 |
 | DocuControl Pi 5 | Produktiv + stabil | Tierlabor-Deployment | Kernel 6.18.33, RTC DS3231, WLAN off, Service <1s Restart, 13 Test-Protokolle in DB (Betreiber: Uniklinik Essen Tierlabor) |
-| DocuControl Web-Interface | **v3 DASHBOARD + Settings optimiert** | Einstellungen+Dateien v3-Redesign ausstehend | Machine-Bar Ping-Status, Anlage-Card, Drucker USB-sysfs, Auto-Print gefixt, Print-Button Race-Fix, Dashboard "Chargen gesamt" zeigt höchste Charge-Nr. (2026-06-09) |
+| DocuControl Web-Interface | **VOLLSTAENDIG** | — | Dashboard v3 + Settings (Maschinennummer, iface2Badge, iface2Enable-Fix, USB-Formatieren) + Dateien (Mode-Toggle PDF/Rohdaten, SQL-Paginierung) — Stand 2026-06-11 |
 | USB Auto-Sync | **IMPLEMENTIERT** | Feldtest ausstehend | udev-Trigger, sofort + Intervall-Sync, Toggle in Einstellungen, Dateiliste im Datei-Manager |
 | Live-Monitor | **GEFIXT** | — | Bug d.text→d.content behoben, Terminal zeigt jetzt empfangene Rohdaten |
 | Backup DocuControl | Erstellt 2026-06-08 | — | backups/pi-backup-2026-06-08: DB, 11 PDFs, 18 Captures, Code, System-Configs |
@@ -45,12 +45,12 @@
 - Hostname: DocuControl, Service: docucontrol.service (active+enabled, Restart < 1s via os._exit Fix)
 - Code: /home/docucontrol/docupi/, venv: /home/docucontrol/docupi/venv
 - Architektur: TCP/9100-Capture -> parse -> PDF -> DB (automatisch)
-- DB: /home/docucontrol/docupi/data/docupi.db (protocols-Tabelle: id, timestamp, device_name, raw_data, pdf_path, pdf_filename, file_size, status, charge_nr_int, program — 12 Eintraege Stand 2026-06-11)
-- PDFs: /home/docucontrol/docupi/data/pdfs/ (11 PDFs, Ordnerstruktur 2026/2026-06/)
-- Port-Redirect: nftables /etc/nftables-docucontrol.conf (80 -> 5000, Regel: iif eth0, DHCP-kompatibel)
+- DB: /home/docucontrol/docupi/data/docupi.db (protocols-Tabelle: id, timestamp, device_name, raw_data, pdf_path, pdf_filename, file_size, status, charge_nr_int, program — 32 Eintraege Stand 2026-06-11, letzte Charge CH021732)
+- PDFs: /home/docucontrol/docupi/data/pdfs/ (Dateiname-Format ab 2026-06-11: DATUM_ZEIT_CHxxxxxx_MaschinNr_Geraet.pdf)
+- Port-Redirect: nftables /etc/nftables-docucontrol.conf (80 -> 5000, Regeln: iif eth0 + iif eth1, beide IPs erreichbar)
 - Drucker: Epson XP-4150 als "DocuPrinter" via CUPS IPP Everywhere
-- Web: Dashboard v3 (Machine-Bar Belimed PST 14-8-12 HS1, 3 Stat-Karten+Trend, Dauer-Spalte, Programm-Icons, Liquid-Glass), Einstellungen (3 Tabs, noch v2), Dateien (noch v2)
-- Drucker-Settings: zeigt "EPSON XP-4150 Series" (echter Modellname via ipptool), "kein Drucker verbunden" wenn offline; "Drucker erkennen"-Button entfernt (2026-06-09)
+- Web: Dashboard v3 + Settings vollstaendig (Maschinennummer-Feld, iface2Badge, USB-Formatieren) + Dateien vollstaendig (Mode-Toggle PDF/Rohdaten, SQL-Paginierung 50/Seite)
+- Drucker-Settings: zeigt "EPSON XP-4150 Series" (echter Modellname via sysfs), "kein Drucker verbunden" wenn offline
 - USB: Auto-Sync via udev + storage_manager.py, Mount: /media/usbstick, Trigger: /var/lib/docucontrol/usb.trigger
 - Naechster Schritt: Sample-Druckauftrag Tierlabor analysieren, Installation vor Ort
 - Geplanter Einsatz: Tierlabor Uni Essen — Maschinentyp bestätigt: Belimed PST 14-8-12 HS1

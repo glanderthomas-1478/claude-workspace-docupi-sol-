@@ -77,9 +77,20 @@ Prototyp fertigstellen und erste Feldtests im eigenen Arbeitsumfeld durchfuehren
   - Laufzeiten variiert (18-42 min), `--dry-run`, `--count`, `--interval`, `--start-charge` Flags
   - Testlauf erfolgreich: alle 10 Chargen in DB, duration HH:MM:SS, alle 3 Programme erkannt
 - **ERLEDIGT 2026-06-11**: Skalierbarkeit 10.000+ Protokolle: DB-Spalten charge_nr_int + program, SQL LIMIT/OFFSET in api_protocols, Dateimanager-Paginierung (50/Seite)
+- **ERLEDIGT 2026-06-11**: PDF-Dateinamen + Maschinennummer:
+  - Dateiname-Reihenfolge: `{datum}_{zeit}_{charge}_{masch_nr}_{geraet}` (Charge-Nr. direkt nach Zeitstempel)
+  - Maschinennummer (`machine_nr`) als neues konfigurierbares Feld in Settings → Anlage-Card
+  - `build_filename()` in pdf_generator.py um `{masch_nr}`-Token erweitert
+  - Verifiziert: CH021732 → `2026-06-11_175105_CH021732_27163_Belimed_PST_14-8-12_HS1.pdf`
+- **ERLEDIGT 2026-06-11**: Datei-Manager Rohdaten-Toggle wiederhergestellt (war durch Skalierbarkeits-Deploy überschrieben)
+- **ERLEDIGT 2026-06-11**: Settings-Fixes (waren Pi-only Patches, jetzt committed):
+  - `iface2StatusBadge` im Schnittstelle-2-Card-Header (Verbunden/Getrennt)
+  - `applyIfaceStatus()` setzt `iface2Enabled`-Checkbox korrekt aus `d.enabled`
+  - USB-Stick formatieren Button (POST /api/storage/usb/format, FAT32, Label DOCUCTRL)
+- **ERLEDIGT 2026-06-11**: GitHub Collaboration: Thomas Glander (glanderthomas-1478) als Collaborator mit Push-Zugriff hinzugefügt
 - OFFEN: Echten Druckauftrag vom Tierlabor-Geraet (Belimed PST 14-8-12 HS1) empfangen und Captures analysieren
 - OFFEN: protocol_parser.py auf echten PST 14-8-12 HS1 Daten kalibrieren
-- OFFEN: IP der PST 14-8-12 HS1 in Settings eintragen
+- OFFEN: Maschinennummer des Tierlabor-Geraets in Settings eintragen
 - OFFEN: Installation vor Ort Tierlabor Uni Essen
 
 ## Wie Erfolg aussieht

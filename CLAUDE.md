@@ -125,8 +125,8 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 - Bei leerer IP: "IP nicht konfiguriert" im Dashboard
 
 **Neue API-Endpunkte (alle in app.py auf Pi):**
-- `GET /api/machine/config` — Maschinenname, IP, Protokoll lesen
-- `POST /api/machine/config` — Maschinenname + IP speichern (in config.json)
+- `GET /api/machine/config` — Maschinenname, Maschinennummer (`machine_nr`), IP, Protokoll lesen
+- `POST /api/machine/config` — Maschinenname, Maschinennummer + IP speichern (in config.json)
 - `GET /api/machine/ping` — ICMP-Ping zur konfigurierten IP; `{reachable, configured, ip, latency_ms}`
 - `GET /api/dashboard/stats` — Dashboard-Karten: `max_charge_nr` (höchste Charge-Nr. numerisch aus raw_data), Heute, Monat, Vormonat-Trend (2026-06-09)
 - `GET /api/protocols` — paginiert (SQL LIMIT/OFFSET), filterbar, sortierbar; Charge-Nr. + Programm als DB-Spalten (charge_nr_int, program) — kein raw_data-Scan mehr
@@ -252,7 +252,13 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 - 10 Chargen CH021720–021729 gesendet + verifiziert: duration HH:MM:SS, alle 3 Programme erkannt, Dashboard "Chargen heute" korrekt
 - Verwendung: `python3 scripts/send_test_charges.py [--count N] [--interval SECS] [--start-charge N] [--dry-run]`
 
-**Naechster Schritt:** Echten Druckauftrag vom Tierlabor-Geraet (Belimed PST 14-8-12 HS1) empfangen, IP in Settings eintragen, Installation vor Ort vorbereiten
+**PDF-Dateiname (2026-06-11):** `{datum}_{zeit}_{charge}_{masch_nr}_{geraet}` → z.B. `2026-06-11_175105_CH021732_27163_Belimed_PST_14-8-12_HS1.pdf`
+- `masch_nr` kommt aus `config.json machine.machine_nr` (konfigurierbar in Settings → Anlage → Maschinennummer)
+- Leer = kein doppelter Unterstrich dank bestehender `while sep+sep` Bereinigung in `build_filename()`
+- Settings-Card "Anlage": hat jetzt drittes Feld "Maschinennummer" zwischen Maschinenname und IP
+- Datei-Manager Mode-Toggle (2026-06-11 wiederhergestellt): `.segmented` Toggle "PDF-Protokolle / Rohdaten" oberhalb der two-col-Div
+
+**Naechster Schritt:** Echten Druckauftrag vom Tierlabor-Geraet (Belimed PST 14-8-12 HS1) empfangen, Maschinennummer in Settings eintragen, Installation vor Ort vorbereiten
 
 ---
 

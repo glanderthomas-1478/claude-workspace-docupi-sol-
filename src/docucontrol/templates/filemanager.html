@@ -8,6 +8,17 @@
     <div class="lede">Gespeicherte PDF-Protokolle und USB-Synchronisation verwalten.</div>
 </div>
 
+<div style="margin-bottom:14px;display:flex;align-items:center;gap:14px">
+    <div class="segmented" id="modeToggle">
+        <button id="btnModePdf" class="active" onclick="switchMode('pdf')">
+            <i class="bi bi-file-earmark-pdf"></i> PDF-Protokolle
+        </button>
+        <button id="btnModeCaptures" onclick="switchMode('captures')">
+            <i class="bi bi-file-earmark-text"></i> Rohdaten
+        </button>
+    </div>
+</div>
+
 <div class="two-col">
 
     <!-- Interner Speicher -->
@@ -124,7 +135,23 @@
         return d;
     }
 
-    // -- Interner Speicher -------------------------------------------------
+    // ── Modus-Toggle ──────────────────────────────────────────────────────────
+
+    var intMode = 'pdf';
+
+    window.switchMode = function(mode) {
+        intMode = mode;
+        document.getElementById('btnModePdf').classList.toggle('active', mode === 'pdf');
+        document.getElementById('btnModeCaptures').classList.toggle('active', mode === 'captures');
+        if (mode === 'pdf') {
+            loadInternalFiles(intPage);
+        } else {
+            loadCaptureFiles();
+        }
+        loadUsbFiles();
+    };
+
+    // ── Interner Speicher — PDF-Modus ─────────────────────────────────────────
 
     function renderFileRow(f, isInternal) {
         var fn = f.filename || f.pdf_filename || '';
@@ -140,23 +167,6 @@
             + '<td class="right"><div class="act">'
             + (id ? '<button class="icon-btn" title="Herunterladen" onclick="dlFile(' + id + ')"><i class="bi bi-download"></i></button>' : '')
             + (isInternal && id ? '<button class="icon-btn danger" title="Loeschen" onclick="delFile(' + id + ')"><i class="bi bi-trash"></i></button>' : '')
-            + '</div></td>'
-            + '</tr>';
-    }
-
-    function renderUsbFileRow(f) {
-        var fn = f.name || '';
-        var date = f.modified || '---';
-        var size = f.size_human || '---';
-        var path = encodeURIComponent(f.path || fn);
-        return '<tr>'
-            + '<td style="max-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
-            +   '<div class="fn" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
-            +   '<i class="bi bi-file-earmark-pdf-fill"></i>' + escHtml(fn) + '</div></td>'
-            + '<td class="muted">' + escHtml(date) + '</td>'
-            + '<td class="muted">' + escHtml(size) + '</td>'
-            + '<td class="right"><div class="act">'
-            + '<a class="icon-btn" title="Herunterladen" href="/api/storage/file/usb?path=' + path + '" download="' + escHtml(fn) + '"><i class="bi bi-download"></i></a>'
             + '</div></td>'
             + '</tr>';
     }
@@ -239,7 +249,95 @@
             }).catch(function() {});
     }
 
-    // -- USB-Speicher ------------------------------------------------------
+    // ── Interner Speicher — Captures-Modus ───────────────────────────────────
+
+    function parseCaptureTimestamp(fname) {
+        try {
+            return fname.substring(6,8) + '.' + fname.substring(4,6) + '.' + fname.substring(0,4)
+                   + ' ' + fname.substring(9,11) + ':' + fname.substring(11,13);
+        } catch(e) { return fname; }
+    }
+
+    function loadCaptureFiles() {
+        fetch('/api/tcp_capture/captures')
+            .then(function(r) { return r.json(); })
+            .then(function(files) {
+                var txts = (files || []).filter(function(f) { return (f.name || '').endsWith('.txt'); })
+                                       .sort(function(a, b) { return b.name.localeCompare(a.name); });
+                var bins = {};
+                (files || []).filter(function(f) { return (f.name || '').endsWith('.bin'); })
+                             .forEach(function(f) { bins[f.name.replace('.bin', '')] = f.size; });
+                var body = document.getElementById('intFileBody');
+                var countEl = document.getElementById('intCountInfo');
+                document.getElementById('intPager').innerHTML = '';
+                if (txts.length === 0) {
+                    body.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--muted)"><i class="bi bi-inbox"></i> Keine Captures gespeichert</td></tr>';
+                    countEl.textContent = '';
+                    return;
+                }
+                body.innerHTML = txts.map(function(f) { return renderCaptureRow(f, bins); }).join('');
+                countEl.textContent = txts.length + ' Captures';
+            }).catch(function() {
+                document.getElementById('intFileBody').innerHTML =
+                    '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--danger)">Fehler beim Laden</td></tr>';
+            });
+    }
+
+    function renderCaptureRow(f, bins) {
+        var base = f.name.replace('.txt', '');
+        var hasBin = Object.prototype.hasOwnProperty.call(bins, base);
+        var ts = parseCaptureTimestamp(f.name);
+        var size = formatBytes(f.size);
+        var binBtn = hasBin
+            ? '<a class="icon-btn" title=".bin laden" href="/api/tcp_capture/captures/' + encodeURIComponent(base + '.bin') + '" download="' + escHtml(base + '.bin') + '"><i class="bi bi-file-earmark-code"></i></a>'
+            : '';
+        return '<tr>'
+            + '<td style="max-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
+            +   '<div class="fn" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
+            +   '<i class="bi bi-file-earmark-text" style="color:var(--accent)"></i> ' + escHtml(base)
+            +   (hasBin ? ' <span style="font-size:0.75rem;color:var(--muted)">[+bin]</span>' : '')
+            +   '</div></td>'
+            + '<td class="muted" style="white-space:nowrap">' + escHtml(ts) + '</td>'
+            + '<td class="muted">' + escHtml(size) + '</td>'
+            + '<td class="right"><div class="act">'
+            + '<a class="icon-btn" title=".txt laden" href="/api/tcp_capture/captures/' + encodeURIComponent(f.name) + '" download="' + escHtml(f.name) + '"><i class="bi bi-download"></i></a>'
+            + binBtn
+            + '<button class="icon-btn danger" title="Löschen" onclick="delCapture(\'' + escHtml(base) + '\')"><i class="bi bi-trash"></i></button>'
+            + '</div></td>'
+            + '</tr>';
+    }
+
+    // ── USB-Speicher ──────────────────────────────────────────────────────────
+
+    function renderUsbFileRow(f) {
+        var fn = f.name || '';
+        var date = f.modified || '---';
+        var size = f.size_human || formatBytes(f.size) || '---';
+        var hasBin = f.has_bin || false;
+        if (intMode === 'captures') {
+            return '<tr>'
+                + '<td style="max-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
+                +   '<div class="fn" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
+                +   '<i class="bi bi-file-earmark-text" style="color:var(--accent)"></i> ' + escHtml(fn)
+                +   (hasBin ? ' <span style="font-size:0.75rem;color:var(--muted)">[+bin]</span>' : '')
+                +   '</div></td>'
+                + '<td class="muted" style="white-space:nowrap">' + escHtml(date) + '</td>'
+                + '<td class="muted">' + escHtml(size) + '</td>'
+                + '<td class="right"><div class="act"></div></td>'
+                + '</tr>';
+        }
+        var path = encodeURIComponent(f.path || fn);
+        return '<tr>'
+            + '<td style="max-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
+            +   '<div class="fn" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
+            +   '<i class="bi bi-file-earmark-pdf-fill"></i>' + escHtml(fn) + '</div></td>'
+            + '<td class="muted">' + escHtml(date) + '</td>'
+            + '<td class="muted">' + escHtml(size) + '</td>'
+            + '<td class="right"><div class="act">'
+            + '<a class="icon-btn" title="Herunterladen" href="/api/storage/file/usb?path=' + path + '" download="' + escHtml(fn) + '"><i class="bi bi-download"></i></a>'
+            + '</div></td>'
+            + '</tr>';
+    }
 
     function loadUsbFiles() {
         fetch('/api/storage/stats')
@@ -252,10 +350,18 @@
                 var statusText = document.getElementById('usbStatusText');
                 var syncStatus = document.getElementById('syncStatus');
                 var btnSync = document.getElementById('btnSync');
+                var btnSyncEl = document.getElementById('btnSync');
 
                 statusEl.className = 'usb-status' + (connected ? '' : ' absent');
                 statusText.textContent = connected ? 'Verbunden' : 'Nicht verbunden';
                 btnSync.disabled = !connected;
+
+                // Sync-Button-Label je nach Modus
+                if (connected) {
+                    btnSyncEl.innerHTML = intMode === 'captures'
+                        ? '<i class="bi bi-arrow-repeat"></i> Captures → USB'
+                        : '<i class="bi bi-arrow-repeat"></i> Jetzt sync.';
+                }
 
                 if (connected && usb.total_gb) {
                     var usedGb = (usb.total_gb * (usb.used_percent || 0) / 100).toFixed(1);
@@ -264,13 +370,16 @@
                     syncStatus.style.display = 'inline-flex';
 
                     if (mounted) {
-                        fetch('/api/storage/pdfs/usb')
+                        var usbEndpoint = intMode === 'captures' ? '/api/storage/captures/usb' : '/api/storage/pdfs/usb';
+                        fetch(usbEndpoint)
                             .then(function(r) { return r.json(); })
                             .then(function(data) {
                                 var files = data.files || [];
                                 var body = document.getElementById('usbFileBody');
                                 if (files.length === 0) {
-                                    body.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--muted)"><i class="bi bi-usb-drive"></i> Keine PDFs auf USB — Jetzt sync. starten</td></tr>';
+                                    body.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--muted)"><i class="bi bi-usb-drive"></i> '
+                                        + (intMode === 'captures' ? 'Keine Captures auf USB' : 'Keine PDFs auf USB — Jetzt sync. starten')
+                                        + '</td></tr>';
                                 } else {
                                     body.innerHTML = files.map(renderUsbFileRow).join('');
                                 }
@@ -289,7 +398,7 @@
             }).catch(function() {});
     }
 
-    // -- Aktionen ----------------------------------------------------------
+    // ── Aktionen ──────────────────────────────────────────────────────────────
 
     window.dlFile = function(id) {
         window.location.href = '/download/' + id;
@@ -301,7 +410,6 @@
             .then(function(r) { return r.json(); })
             .then(function(d) {
                 if (d.success) {
-                    // Nach Löschen: aktuelle Seite neu laden; falls leer, eine Seite zurück
                     loadInternalFiles(intPage);
                 } else {
                     alert('Fehler: ' + (d.error || 'Unbekannt'));
@@ -311,28 +419,42 @@
 
     window.goIntPage = function(p) { loadInternalFiles(p); };
 
+    window.delCapture = function(base) {
+        if (!confirm('Capture "' + base + '" wirklich löschen?')) return;
+        fetch('/api/tcp_capture/captures/' + encodeURIComponent(base + '.txt'), { method: 'DELETE' })
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (d.ok) loadCaptureFiles();
+                else alert('Fehler: ' + (d.error || 'Unbekannt'));
+            }).catch(function() {});
+    };
+
     window.syncUsb = function() {
         var btn = document.getElementById('btnSync');
         btn.disabled = true;
-        btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Synchronisiere ...';
-        fetch('/api/storage/sync/now', { method: 'POST' })
+        var isCaptures = intMode === 'captures';
+        btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> ' + (isCaptures ? 'Kopiere …' : 'Synchronisiere …');
+        var endpoint = isCaptures ? '/api/storage/sync/captures' : '/api/storage/sync/now';
+        fetch(endpoint, { method: 'POST' })
             .then(function(r) { return r.json(); })
             .then(function() {
-                loadInternalFiles(intPage);
-                loadUsbFiles();
+                if (isCaptures) { loadCaptureFiles(); } else { loadInternalFiles(intPage); loadUsbFiles(); }
                 btn.disabled = false;
-                btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Jetzt sync.';
+                btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> ' + (isCaptures ? 'Captures → USB' : 'Jetzt sync.');
             }).catch(function() {
                 btn.disabled = false;
-                btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Jetzt sync.';
+                btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> ' + (isCaptures ? 'Captures → USB' : 'Jetzt sync.');
             });
     };
 
-    // -- Init --------------------------------------------------------------
+    // ── Init ──────────────────────────────────────────────────────────────────
 
     loadInternalFiles(1);
     loadUsbFiles();
-    setInterval(function() { loadInternalFiles(intPage); loadUsbFiles(); }, 30000);
+    setInterval(function() {
+        if (intMode === 'captures') { loadCaptureFiles(); } else { loadInternalFiles(intPage); }
+        loadUsbFiles();
+    }, 30000);
 })();
 </script>
 {% endblock %}

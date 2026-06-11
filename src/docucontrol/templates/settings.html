@@ -40,6 +40,16 @@
                 </div>
                 <div class="set-row">
                     <div class="info">
+                        <div class="name">Maschinennummer</div>
+                        <div class="desc">Seriennummer im PDF-Dateinamen (z.B. 27163)</div>
+                    </div>
+                    <div style="display:flex;gap:6px;align-items:center">
+                        <input type="text" class="ctrl" id="machineNrInput" placeholder="z.B. 27163" style="width:140px" maxlength="32">
+                        <button class="btn btn-outline" onclick="saveMachineConfig()"><i class="bi bi-check-lg"></i> Setzen</button>
+                    </div>
+                </div>
+                <div class="set-row">
+                    <div class="info">
                         <div class="name">IP-Adresse</div>
                         <div class="desc">IP der Anlage für Ping-Test</div>
                     </div>
@@ -211,6 +221,7 @@
         <div class="card" id="iface2Card">
             <div class="card-head">
                 <span><i class="bi bi-hdd-network"></i> Schnittstelle 2 — Optional (USB-Ethernet)</span>
+                <span class="badge" id="iface2StatusBadge" style="font-size:11px;padding:2px 8px;border-radius:4px;background:var(--muted);color:#fff">—</span>
                 <label class="switch" style="margin-left:auto">
                     <input type="checkbox" id="iface2Enabled" onchange="toggleIface2(this.checked)">
                     <span class="track"></span>
@@ -379,6 +390,15 @@
                     </div>
                     <button class="btn btn-outline" id="btnSyncNow" onclick="syncNow()">
                         <i class="bi bi-arrow-repeat"></i> Jetzt sync.
+                    </button>
+                </div>
+                <div class="set-row">
+                    <div class="info">
+                        <div class="name">USB-Stick formatieren</div>
+                        <div class="desc">Stick als FAT32 (Label: DOCUCTRL) neu formatieren — alle Daten werden gelöscht</div>
+                    </div>
+                    <button class="btn btn-outline" id="btnFormatUsb" onclick="formatUsb()" style="color:var(--danger);border-color:var(--danger)">
+                        <i class="bi bi-hdd-fill"></i> Formatieren
                     </button>
                 </div>
             </div>
@@ -597,17 +617,19 @@
             .then(function(r) { return r.json(); })
             .then(function(d) {
                 document.getElementById('machineNameInput').value = d.name || '';
+                document.getElementById('machineNrInput').value = d.machine_nr || '';
                 document.getElementById('machineIpInput').value = d.ip || '';
             }).catch(function() {});
     }
 
     window.saveMachineConfig = function() {
         var name = document.getElementById('machineNameInput').value.trim();
+        var machineNr = document.getElementById('machineNrInput').value.trim();
         var ip   = document.getElementById('machineIpInput').value.trim();
         fetch('/api/machine/config', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({name: name, ip: ip})
+            body: JSON.stringify({name: name, machine_nr: machineNr, ip: ip})
         }).then(function(r) { return r.json(); })
           .then(function(d) {
               if (d.success) showToast('Gespeichert', 'Anlage-Konfiguration aktualisiert.');
@@ -789,11 +811,20 @@
             if (vlanInput) vlanInput.value = d.config_vlan || 0;
         }
 
-        // Status-Badge (nur Iface 1)
+        // Status-Badge
         var badge = document.getElementById('iface' + num + 'StatusBadge');
         if (badge) {
             badge.textContent = d.connected ? 'Verbunden' : 'Getrennt';
             badge.style.background = d.connected ? 'var(--success)' : 'var(--muted)';
+        }
+
+        // Iface2 Enable-Checkbox aus API-Zustand setzen
+        if (num === 2) {
+            var cb = document.getElementById('iface2Enabled');
+            if (cb) {
+                cb.checked = !!d.enabled;
+                toggleIface2(!!d.enabled);
+            }
         }
     }
 
@@ -1010,6 +1041,28 @@
         }).then(function(r) { return r.json(); })
           .then(function() { loadSyncSettings(); })
           .catch(function() {});
+    };
+
+    window.formatUsb = function() {
+        if (!confirm('USB-Stick wirklich formatieren?\nAlle Daten auf dem Stick werden gelöscht!\nDieser Vorgang kann nicht rückgängig gemacht werden.')) return;
+        var btn = document.getElementById('btnFormatUsb');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Formatiere …';
+        fetch('/api/storage/usb/format', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({label: 'DOCUCTRL'})
+        }).then(function(r) { return r.json(); })
+          .then(function(d) {
+              btn.disabled = false;
+              btn.innerHTML = '<i class="bi bi-hdd-fill"></i> Formatieren';
+              if (d.success) showToast('Formatierung abgeschlossen', d.message || 'USB-Stick erfolgreich formatiert.');
+              else alert('Fehler: ' + (d.message || 'Unbekannt'));
+          }).catch(function() {
+              btn.disabled = false;
+              btn.innerHTML = '<i class="bi bi-hdd-fill"></i> Formatieren';
+              alert('Formatierung fehlgeschlagen');
+          });
     };
 
     window.syncNow = function() {

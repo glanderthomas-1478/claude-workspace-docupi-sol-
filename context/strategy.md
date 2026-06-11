@@ -49,7 +49,6 @@ Prototyp fertigstellen und erste Feldtests im eigenen Arbeitsumfeld durchfuehren
   - Dauer-Spalte + Programm-Icons in Tabelle
   - Liquid-Glass-CSS, Square-Font, Live-Uhr, pulsierender Aktiv-Badge
   - Neuer /api/dashboard/stats Endpunkt
-- OFFEN: Einstellungen + Datei-Manager auf v3 migrieren (separater Plan)
 - **ERLEDIGT 2026-06-09**: Settings + Drucker-Erkennung optimiert:
   - Maschinenname + IP in Settings konfigurierbar, Ping-basierter Status in Machine-Bar
   - Drucker-Erkennung via USB sysfs (physisch), Auto-Print Bug gefixt, Race-Condition Print-Button behoben
@@ -58,8 +57,25 @@ Prototyp fertigstellen und erste Feldtests im eigenen Arbeitsumfeld durchfuehren
 - **ERLEDIGT 2026-06-10**: Datensammlermodus vollstaendig implementiert und verifiziert:
   - Toggle in Settings schreibt `collector_mode` Flag in `capture_config.json` (Merker-Architektur)
   - Browser-Cache-Bug gefixt: `Cache-Control: no-store` via Flask `@after_request`
-  - Toast-Bestaetigung beim Schalten; `showToast()` nun auch fuer saveMachineConfig() verfuegbar
   - Verifiziert: CH021718 (Normalmodus → PDF+DB+Druck) und CH021719 (Sammelmodus → Rohtext direkt gedruckt, kein PDF, kein DB)
+- **ERLEDIGT 2026-06-11**: v3 Makeover Settings + Datei-Manager deployed:
+  - Button-Hierarchie: `btn-primary` (Speichern), `btn-glass` (Ping/Test/Sync), `btn-outline-danger` (Reboot)
+  - `.segmented`-Toggle in Datei-Manager (CSS statt Inline-Styles), JS auf `classList.toggle('active')`
+  - `.lede`-Untertitel in Page-Head beider Seiten
+- **ERLEDIGT 2026-06-11**: Dashboard-Bugs behoben (Kundentermin-kritisch):
+  - "Chargen heute" Zaehler: `date(timestamp) = ?` statt String-Vergleich (ISO-T vs Space-Trenner-Bug)
+  - Dauer-Spalte: `_PROG_ENDE_RE` liest `MM:SS Programm Ende` direkt aus raw_data statt ISO-Timestamps
+- **ERLEDIGT 2026-06-11**: USB-Ethernet (Schnittstelle 2) vollstaendig funktionsfaehig:
+  - eth1 statisch 192.168.0.181/24 konfiguriert und stabil
+  - nftables auf interface-basierte Regeln umgestellt (iif eth0 + iif eth1) — beide IPs erreichbar
+  - Connected-Status basiert jetzt auf `/sys/class/net/<iface>/carrier` (physischer Link statt IP-Check)
+  - `iface2StatusBadge` im Settings Card-Header hinzugefuegt — zeigt Verbunden/Getrennt wie bei Schnittstelle 1
+  - Toggle-Bug behoben: `applyIfaceStatus()` setzt jetzt `iface2Enabled`-Checkbox korrekt aus API
+- **ERLEDIGT 2026-06-11**: `scripts/send_test_charges.py` erstellt:
+  - 3 Templates: Instrumente 134°C, Bowie Dick, Instrumente 121°C
+  - UTF-16LE mit BOM, 10 Chargen CH021720-021729, 30s Intervall
+  - Laufzeiten variiert (18-42 min), `--dry-run`, `--count`, `--interval`, `--start-charge` Flags
+  - Testlauf erfolgreich: alle 10 Chargen in DB, duration HH:MM:SS, alle 3 Programme erkannt
 - OFFEN: Echten Druckauftrag vom Tierlabor-Geraet (Belimed PST 14-8-12 HS1) empfangen und Captures analysieren
 - OFFEN: protocol_parser.py auf echten PST 14-8-12 HS1 Daten kalibrieren
 - OFFEN: IP der PST 14-8-12 HS1 in Settings eintragen

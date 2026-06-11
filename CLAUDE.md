@@ -79,6 +79,7 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
     ├── render_konzept_pdf.py     # Markdown -> PDF (WeasyPrint) fuer outputs/
     ├── deploy_docucontrol_design.sh   # Deployment-Script fuer Linux/Mac
     ├── deploy_docucontrol_win.ps1     # Deployment-Script fuer Windows (OpenSSH)
+    ├── send_test_charges.py  # Sendet simulierte Belimed-Protokolle via TCP/9100 (UTF-16LE, 3 Templates)
     └── saia_test_toolkit/
 ```
 
@@ -139,19 +140,35 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 - `POST /api/print/<id>` — Drucken per Protokoll-ID
 - `GET /api/capture/collector` — Datensammlermodus lesen (`{collector_mode: bool}`)
 - `POST /api/capture/collector` — Datensammlermodus setzen (`{enabled: bool}`) → schreibt in capture_config.json
+- `GET /api/tcp_capture/captures` — Liste aller Raw-Captures in `data/raw_captures/` `[{name, size}]`
+- `GET /api/tcp_capture/captures/<fname>` — Download einzelner Capture-Datei
+- `DELETE /api/tcp_capture/captures/<fname>` — Loescht `.txt` + `.bin` Paar (2026-06-10)
+- `POST /api/storage/sync/captures` — Kopiert alle Captures auf USB nach `docucontrol/captures/` (2026-06-10)
+- `POST /api/protocols/bulk-delete` — Batch-Loeschung `{ids:[...]}` DB + PDF-Datei (2026-06-10)
+- `POST /api/protocols/bulk-copy-usb` — Kopiert ausgewaehlte PDFs auf USB `{ids:[...]}` (2026-06-10)
+- `POST /api/tcp_capture/captures/bulk-copy-usb` — Kopiert ausgewaehlte Captures auf USB `{basenames:[...]}` (2026-06-10)
+- `GET /api/storage/captures/usb` — Liste Captures vom USB-Stick `[{name, path, size_human, has_bin, modified}]` (2026-06-10)
 
 **Stabilitaets-Fixes (2026-06-03):**
 - `os._exit(0)` in graceful_shutdown: Restart-Dauer 15s SIGKILL -> **47ms sauber**
 - `request.get_json(silent=True)` in allen POST-Routen
 - `d.tcp_enabled` statt `d.enabled` ueberall konsistent
 
-**USB Auto-Sync (2026-06-08 implementiert):**
+**USB Auto-Sync (2026-06-08 implementiert, 2026-06-10 erweitert):**
 - udev-Rule `/etc/udev/rules.d/99-docucontrol-usb.rules` + Trigger-Script `/usr/local/bin/docucontrol-usb-trigger.sh`
 - Trigger-Datei: `/var/lib/docucontrol/usb.trigger` (wegen PrivateTmp=yes im Service)
 - Sofort-Sync beim Einstecken + Intervall-Sync alle 15 min
+- Auto-Sync synchronisiert **PDFs und Captures** gleichzeitig (storage_manager.py: `sync_pdfs_to_usb()` + `sync_captures_to_usb()`)
+- PDF-Pfad auf USB: `DocuControl/` | Captures-Pfad auf USB: `docucontrol/captures/`
 - Auto-Sync-Toggle in Einstellungen (Geraete & Netzwerk)
-- USB-Dateiliste im Datei-Manager (rekursiv, mit Download-Link)
 - Sudoers: `/etc/sudoers.d/docucontrol-storage` (mount, umount, blkid, dosfsck ohne Passwort)
+
+**Datei-Manager Globaler Modus-Toggle (2026-06-10 implementiert):**
+- Toggle-Buttons "PDF-Protokolle" / "Rohdaten" oberhalb beider Panes — ein Klick steuert beide Seiten gleichzeitig
+- PDF-Modus: linke Pane = interne PDFs, rechte Pane = USB-PDFs
+- Rohdaten-Modus: linke Pane = interne Captures, rechte Pane = USB-Captures (`docucontrol/captures/` auf USB)
+- USB-Pane zeigt `.txt`-Captures mit `[+bin]`-Badge wenn passendes `.bin` vorhanden
+- Loeschen, Bulk-Copy, Sync-Button adaptieren sich je nach Modus
 
 **Netzwerk-Management (2026-06-08 implementiert):**
 - Root-Cause IP-Bug behoben: `/etc/sudoers.d/docucontrol-network` (nmcli, ip, hostnamectl, timedatectl, hwclock ohne Passwort)
@@ -198,6 +215,34 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 - **Browser-Cache-Fix**: `Cache-Control: no-store` in Flask `@after_request` fuer `/`, `/settings`, `/files`
 - Amber-Warn-Banner im UI wenn aktiv; Toast-Bestaetigung beim Schalten
 - Zweck: Protokollvarianten der PST 14-8-12 HS1 erfassen um `protocol_parser.py` zu kalibrieren
+
+**Rohdaten-Ansicht im Dateimanager (2026-06-10 implementiert):**
+- Dropdown "Ansicht" ueber der linken Dateiliste: "PDF-Protokolle" (Standard) oder "Rohdaten (.txt / .bin)"
+- Rohdaten-Modus zeigt alle `.txt`-Captures aus `data/raw_captures/` mit Datum (aus Dateiname), Groesse, Download-Buttons
+- Pro Zeile: `.txt`-Download, `.bin`-Download (falls vorhanden), Einzelloeschen (loescht `.txt` + `.bin` Paar)
+- Sync-Button adaptiv: in Rohdaten-Modus → "Captures → USB" ruft `POST /api/storage/sync/captures` auf
+
+**v3 Makeover Settings + Datei-Manager (2026-06-11 deployed):**
+- `settings.html`: `btn-primary` fuer alle Speichern/Setzen-Buttons, `btn-glass` fuer Ping/Testdruck/Sync, `btn-outline-danger` fuer Reboot
+- `filemanager.html`: Modus-Toggle auf `.segmented` CSS-Klasse umgestellt (kein Inline-Style), `switchMode()` JS nutzt `classList.toggle('active')`
+- Beide Seiten haben `.lede`-Untertitel im Page-Head
+
+**Dashboard-Bugs behoben (2026-06-11):**
+- "Chargen heute"-Zaehler: Query auf `date(timestamp) = ?` (SQLite) — war kaputt wegen ISO-T vs Space-Trenner-Bug beim String-Vergleich
+- Dauer-Spalte: `_PROG_ENDE_RE` = `^\s*(\d+):(\d+)\s+Programm\s+Ende` liest MM:SS direkt aus raw_data (alte ISO-Timestamp-Regexes trefren nie)
+
+**USB-Ethernet Schnittstelle 2 (2026-06-11 konfiguriert + Bugs behoben):**
+- eth1 statisch: `192.168.0.181/24`, Gateway `192.168.0.1` — persistent in NM-Keyfile
+- nftables `/etc/nftables-docucontrol.conf`: interface-basierte Regeln `iif eth0` + `iif eth1` (beide IPs erreichbar auf Port 80 + 9100)
+- `network_manager.py`: `_write_nftables_conf()` generiert immer interface-basierte Regeln — nicht mehr IP-spezifisch (Bug: IP-basiert ueberschrieb eth0-Regel beim eth1-Setup)
+- `network_manager.py`: `connected`-Feld aus `/sys/class/net/<iface>/carrier` (physischer Link: 1=Kabel da, 0=kein Kabel) statt IP-Check
+- `settings.html`: `iface2StatusBadge` im Card-Header von Schnittstelle 2 — zeigt Verbunden/Getrennt
+- `settings.html`: `applyIfaceStatus()` setzt `iface2Enabled`-Checkbox korrekt aus `d.enabled` (war immer unchecked)
+
+**Test-Chargen-Sender (2026-06-11):**
+- `scripts/send_test_charges.py`: 3 Templates (Instrumente 134°C / Bowie Dick / Instrumente 121°C), UTF-16LE+BOM, CLI-Flags
+- 10 Chargen CH021720–021729 gesendet + verifiziert: duration HH:MM:SS, alle 3 Programme erkannt, Dashboard "Chargen heute" korrekt
+- Verwendung: `python3 scripts/send_test_charges.py [--count N] [--interval SECS] [--start-charge N] [--dry-run]`
 
 **Naechster Schritt:** Echten Druckauftrag vom Tierlabor-Geraet (Belimed PST 14-8-12 HS1) empfangen, IP in Settings eintragen, Installation vor Ort vorbereiten
 

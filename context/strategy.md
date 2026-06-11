@@ -76,6 +76,7 @@ Prototyp fertigstellen und erste Feldtests im eigenen Arbeitsumfeld durchfuehren
   - UTF-16LE mit BOM, 10 Chargen CH021720-021729, 30s Intervall
   - Laufzeiten variiert (18-42 min), `--dry-run`, `--count`, `--interval`, `--start-charge` Flags
   - Testlauf erfolgreich: alle 10 Chargen in DB, duration HH:MM:SS, alle 3 Programme erkannt
+- **ERLEDIGT 2026-06-11**: Skalierbarkeit 10.000+ Protokolle: DB-Spalten charge_nr_int + program, SQL LIMIT/OFFSET in api_protocols, Dateimanager-Paginierung (50/Seite)
 - OFFEN: Echten Druckauftrag vom Tierlabor-Geraet (Belimed PST 14-8-12 HS1) empfangen und Captures analysieren
 - OFFEN: protocol_parser.py auf echten PST 14-8-12 HS1 Daten kalibrieren
 - OFFEN: IP der PST 14-8-12 HS1 in Settings eintragen

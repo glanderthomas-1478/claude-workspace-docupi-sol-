@@ -45,7 +45,7 @@
 - Hostname: DocuControl, Service: docucontrol.service (active+enabled, Restart < 1s via os._exit Fix)
 - Code: /home/docucontrol/docupi/, venv: /home/docucontrol/docupi/venv
 - Architektur: TCP/9100-Capture -> parse -> PDF -> DB (automatisch)
-- DB: /home/docucontrol/docupi/data/docupi.db (protocols-Tabelle, 13 Eintraege)
+- DB: /home/docucontrol/docupi/data/docupi.db (protocols-Tabelle: id, timestamp, device_name, raw_data, pdf_path, pdf_filename, file_size, status, charge_nr_int, program — 12 Eintraege Stand 2026-06-11)
 - PDFs: /home/docucontrol/docupi/data/pdfs/ (11 PDFs, Ordnerstruktur 2026/2026-06/)
 - Port-Redirect: nftables /etc/nftables-docucontrol.conf (80 -> 5000, Regel: iif eth0, DHCP-kompatibel)
 - Drucker: Epson XP-4150 als "DocuPrinter" via CUPS IPP Everywhere

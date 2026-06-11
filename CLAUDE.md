@@ -129,8 +129,8 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 - `POST /api/machine/config` — Maschinenname + IP speichern (in config.json)
 - `GET /api/machine/ping` — ICMP-Ping zur konfigurierten IP; `{reachable, configured, ip, latency_ms}`
 - `GET /api/dashboard/stats` — Dashboard-Karten: `max_charge_nr` (höchste Charge-Nr. numerisch aus raw_data), Heute, Monat, Vormonat-Trend (2026-06-09)
-- `GET /api/protocols` — paginiert, filterbar, sortierbar (Charge-Nr. per Regex aus raw_data)
-- `GET /api/protocols/programs` — distinct Programmnamen fuer Filter-Select
+- `GET /api/protocols` — paginiert (SQL LIMIT/OFFSET), filterbar, sortierbar; Charge-Nr. + Programm als DB-Spalten (charge_nr_int, program) — kein raw_data-Scan mehr
+- `GET /api/protocols/programs` — distinct Programmnamen via `SELECT DISTINCT program` (kein raw_data-Scan)
 - `DELETE /api/protocols/<id>` — loescht DB-Eintrag + PDF-Datei
 - `GET /api/printer/ready` — Drucker-Bereitschaft (`ready: bool`, `printer` = echter Modellname)
 - `GET /api/printer/status` — CUPS-Status mit Drucker-Liste; `printer`/`model` = echter Modellname; `printer_count` = Anzahl
@@ -238,6 +238,14 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 - `network_manager.py`: `connected`-Feld aus `/sys/class/net/<iface>/carrier` (physischer Link: 1=Kabel da, 0=kein Kabel) statt IP-Check
 - `settings.html`: `iface2StatusBadge` im Card-Header von Schnittstelle 2 — zeigt Verbunden/Getrennt
 - `settings.html`: `applyIfaceStatus()` setzt `iface2Enabled`-Checkbox korrekt aus `d.enabled` (war immer unchecked)
+
+**Skalierbarkeit 10.000+ Protokolle (2026-06-11 deployed):**
+- DB: `protocols`-Tabelle hat neue Spalten `charge_nr_int INTEGER` + `program TEXT` (aus raw_data extrahiert, indiziert)
+- `database.py`: `save_protocol()` extrahiert + speichert charge_nr_int + program beim Insert direkt
+- `api_protocols`: echte SQL-Paginierung (LIMIT/OFFSET), COUNT(*) fuer Total — kein vollstaendiges Laden mehr
+- `api_protocols_programs`: `SELECT DISTINCT program` statt raw_data-Scan
+- `filemanager.html`: Paginierung (50/Seite, Mini-Pager mit Seitenangabe) fuer interne PDF-Liste
+- Migrations-Script: `scripts/migrate_add_charge_program_cols.py` (bereits ausgefuehrt)
 
 **Test-Chargen-Sender (2026-06-11):**
 - `scripts/send_test_charges.py`: 3 Templates (Instrumente 134°C / Bowie Dick / Instrumente 121°C), UTF-16LE+BOM, CLI-Flags

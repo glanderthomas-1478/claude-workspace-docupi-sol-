@@ -5,6 +5,7 @@
 <div class="page-head">
     <div class="over">Speicher</div>
     <h1>Dateien</h1>
+    <div class="lede">Gespeicherte PDF-Protokolle und USB-Synchronisation verwalten.</div>
 </div>
 
 <div class="two-col">
@@ -38,6 +39,10 @@
                     </td></tr>
                 </tbody>
             </table>
+            </div>
+            <div class="table-foot">
+                <span id="intCountInfo" style="font-size:13px;color:var(--muted)"></span>
+                <div class="pager" id="intPager"></div>
             </div>
         </div>
     </div>
@@ -156,14 +161,53 @@
             + '</tr>';
     }
 
-    function loadInternalFiles() {
-        fetch('/api/protocols?per_page=200&sort_by=timestamp&sort_dir=desc')
+    var intPage = 1;
+
+    function renderIntPager(page, pages) {
+        var pager = document.getElementById('intPager');
+        if (pages <= 1) { pager.innerHTML = ''; return; }
+        var html = '';
+        if (page <= 1) {
+            html += '<span class="pg disabled"><i class="bi bi-chevron-left"></i></span>';
+        } else {
+            html += '<span class="pg" onclick="goIntPage(' + (page-1) + ')"><i class="bi bi-chevron-left"></i></span>';
+        }
+        var start = Math.max(1, page - 2);
+        var end   = Math.min(pages, start + 4);
+        start = Math.max(1, end - 4);
+        if (start > 1) {
+            html += '<span class="pg" onclick="goIntPage(1)">1</span>';
+            if (start > 2) html += '<span class="pg disabled">…</span>';
+        }
+        for (var i = start; i <= end; i++) {
+            html += '<span class="pg' + (i === page ? ' active' : '') + '" onclick="goIntPage(' + i + ')">' + i + '</span>';
+        }
+        if (end < pages) {
+            if (end < pages - 1) html += '<span class="pg disabled">…</span>';
+            html += '<span class="pg" onclick="goIntPage(' + pages + ')">' + pages + '</span>';
+        }
+        if (page >= pages) {
+            html += '<span class="pg disabled"><i class="bi bi-chevron-right"></i></span>';
+        } else {
+            html += '<span class="pg" onclick="goIntPage(' + (page+1) + ')"><i class="bi bi-chevron-right"></i></span>';
+        }
+        pager.innerHTML = html;
+    }
+
+    function loadInternalFiles(page) {
+        intPage = page || intPage;
+        fetch('/api/protocols?per_page=50&page=' + intPage + '&sort_by=timestamp&sort_dir=desc')
             .then(function(r) { return r.json(); })
             .then(function(d) {
                 var files = d.protocols || [];
                 var body = document.getElementById('intFileBody');
+                var countEl = document.getElementById('intCountInfo');
+                var total = d.total || 0;
+                var pages = d.pages || 1;
                 if (files.length === 0) {
                     body.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--muted)"><i class="bi bi-inbox"></i> Keine PDFs gespeichert</td></tr>';
+                    countEl.textContent = '';
+                    document.getElementById('intPager').innerHTML = '';
                 } else {
                     body.innerHTML = files.map(function(f) {
                         return renderFileRow({
@@ -173,6 +217,10 @@
                             file_size: f.file_size || 0
                         }, true);
                     }).join('');
+                    var from = (intPage - 1) * 50 + 1;
+                    var to   = Math.min(intPage * 50, total);
+                    countEl.textContent = from + '–' + to + ' von ' + total.toLocaleString('de-DE') + ' Dateien';
+                    renderIntPager(intPage, pages);
                 }
             }).catch(function() {
                 document.getElementById('intFileBody').innerHTML =
@@ -252,10 +300,16 @@
         fetch('/api/protocols/' + id, { method: 'DELETE' })
             .then(function(r) { return r.json(); })
             .then(function(d) {
-                if (d.success) loadInternalFiles();
-                else alert('Fehler: ' + (d.error || 'Unbekannt'));
+                if (d.success) {
+                    // Nach Löschen: aktuelle Seite neu laden; falls leer, eine Seite zurück
+                    loadInternalFiles(intPage);
+                } else {
+                    alert('Fehler: ' + (d.error || 'Unbekannt'));
+                }
             }).catch(function() {});
     };
+
+    window.goIntPage = function(p) { loadInternalFiles(p); };
 
     window.syncUsb = function() {
         var btn = document.getElementById('btnSync');
@@ -264,7 +318,7 @@
         fetch('/api/storage/sync/now', { method: 'POST' })
             .then(function(r) { return r.json(); })
             .then(function() {
-                loadInternalFiles();
+                loadInternalFiles(intPage);
                 loadUsbFiles();
                 btn.disabled = false;
                 btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Jetzt sync.';
@@ -276,9 +330,9 @@
 
     // -- Init --------------------------------------------------------------
 
-    loadInternalFiles();
+    loadInternalFiles(1);
     loadUsbFiles();
-    setInterval(function() { loadInternalFiles(); loadUsbFiles(); }, 30000);
+    setInterval(function() { loadInternalFiles(intPage); loadUsbFiles(); }, 30000);
 })();
 </script>
 {% endblock %}

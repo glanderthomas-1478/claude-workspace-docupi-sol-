@@ -128,7 +128,7 @@ class SterilizationPDF(FPDF):
         self.set_font("Helvetica", "B", 7)
         device = self.data.get("maschinen_typ", "")
         nr = self.data.get("maschinen_nr", "")
-        self.cell(60, 4, f"{device} Nr:{nr} / DocuPi-3000")
+        self.cell(60, 4, f"{device} Nr:{nr} / DocuControl")
 
         self.set_font("Helvetica", "", 6)
         self.set_xy(120, y + 2)
@@ -148,10 +148,10 @@ class SterilizationPDF(FPDF):
         self.set_xy(235, y + 3)
         self.cell(25, 6, f"Seite {page_nr}/{self.page_count_total}", align="C")
 
-        self.set_font("Helvetica", "B", 14)
+        self.set_font("Helvetica", "B", 10)
         self.set_text_color(200, 200, 200)
-        self.set_xy(263, y + 2)
-        self.cell(28, 10, "DocuPi", align="R")
+        self.set_xy(263, y + 3)
+        self.cell(28, 10, "DocuControl", align="R")
 
     # ---------------------------------------------------------------
     # PAGE 1: KPI + Full Data Table + Freigabe
@@ -536,6 +536,7 @@ def build_filename(protocol_id, timestamp, config, charge_nr=""):
         "tag": timestamp.strftime("%d"),
         "stunde": timestamp.strftime("%H"),
         "minute": timestamp.strftime("%M"),
+        "masch_nr": ((config.get("machine", {}) or {}).get("machine_nr", "") or "").strip().replace(" ", "_"),
     }
     pattern = config["pdf"].get("filename_pattern", "{datum}_{zeit}_{geraet}_{charge}")
     sep = config["pdf"].get("filename_separator", "_")
@@ -581,6 +582,10 @@ def generate_pdf(raw_data, protocol_id, timestamp, config, rtc_timestamps=None):
     if not parsed_charge:
         parsed_charge = str(protocol_id)
         protocol_data["charge_nr"] = parsed_charge
+
+    machine_nr = ((config.get("machine", {}) or {}).get("machine_nr", "") or "").strip()
+    if machine_nr:
+        protocol_data["maschinen_nr"] = machine_nr
 
     output_base, on_usb = get_output_dir(config)
     subfolder = build_subfolder(timestamp, config)

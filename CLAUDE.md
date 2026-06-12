@@ -320,6 +320,18 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 - Validierungs-Checkliste in `plans/2026-06-12-netzwerk-speicherort-sync.md` jetzt vollstaendig
   abgehakt — Feature komplett abgeschlossen
 
+**PDF-Branding + Maschinen-Nr (2026-06-12 behoben):**
+- `src/pdf_generator.py`: `generate_pdf()` ueberschreibt `protocol_data["maschinen_nr"]` jetzt immer mit
+  `config["machine"]["machine_nr"]` (statt der aus dem Rohprotokoll geparsten, ggf. veralteten Nummer)
+  — Kopf-Bereich ("Nr: 10980") und Footer ("... Nr:10980 / ...") zeigen damit konsistent die
+  konfigurierte Maschinennummer
+- Footer: "DocuPi-3000" -> "DocuControl" (Geraete-Zeile) und "DocuPi" -> "DocuControl"
+  (Branding unten rechts, Schriftgroesse 14 -> 10 damit der Text in die 28mm-Zelle passt)
+- `build_filename()`: fehlenden `masch_nr`-Token (`config["machine"]["machine_nr"]`) aus Pi-Version
+  nachgezogen — lokale Datei war nicht mehr 1:1-Spiegel
+- Verifiziert per Testcharge CH021740 + `pdftotext`/`pdftoppm`-Render: "Nr: 10980", "DocuControl"
+  korrekt in Kopf- und Fusszeile
+
 **Naechster Schritt (Tierlabor):** Echten Druckauftrag vom Tierlabor-Geraet (Belimed PST 14-8-12 HS1) empfangen, Maschinennummer des Tierlabor-Geraets in Settings eintragen, Installation vor Ort vorbereiten
 
 ---

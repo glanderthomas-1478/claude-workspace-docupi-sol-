@@ -49,7 +49,13 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 │   │   ├── base.html       # Basis-Template
 │   │   ├── dashboard.html  # Haupt-Dashboard
 │   │   └── captive.html    # Captive Portal (Hotspot)
-│   └── docucontrol/        # DocuControl Design-System — DEPLOYED auf 192.168.0.171
+│   └── docucontrol/        # DocuControl Backend + Design-System — vollstaendiger 1:1-Spiegel von 192.168.0.171
+│       ├── app.py                 # Flask-Backend, alle Routen/API-Endpunkte (2026-06-12 aus Pi uebernommen)
+│       ├── config.py              # load_config/save_config (config.json)
+│       ├── database.py            # SQLite-Layer (protocols-Tabelle, Pagination)
+│       ├── network_manager.py     # Hotspot/LAN/Multi-Interface/Hostname/NTP/RTC/nftables
+│       ├── print_manager.py       # Drucker-Management (CUPS, pycups)
+│       ├── storage_manager.py     # USB-Erkennung, Mount, Auto-Sync (PDFs + Captures), udev-Trigger
 │       ├── static/
 │       │   └── docucontrol.css    # Kanonisches CSS (Design-Tokens + Komponenten)
 │       ├── templates/
@@ -57,8 +63,7 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 │       │   ├── dashboard.html     # 2 Stat-Karten + Filter + Protokoll-Tabelle + Print-Toast
 │       │   ├── settings.html      # 3 Sub-Tabs: Geraete & Netzwerk / System / Live-Monitor + USB-Sync-Toggle
 │       │   └── filemanager.html   # Dual-Pane intern (aus DB) + USB (Dateiliste rekursiv)
-│       ├── app_additions.py       # Context Processor + /api/protocols (bereits in app.py integriert)
-│       └── storage_manager.py     # USB-Erkennung, Mount, Auto-Sync, udev-Trigger (/var/lib/docucontrol/usb.trigger)
+│       └── app_additions.py       # Context Processor + /api/protocols (Inhalt bereits in app.py integriert, Datei als Referenz behalten)
 ├── tests/                  # Test-Skripte
 │   ├── fixtures/           # Test-PDFs + WD390-Fixture
 │   ├── test_wd_parser.py   # WD-Parser Tests (34 Tests)
@@ -124,7 +129,7 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 - Machine-Bar-Status basiert auf ICMP-Ping zur konfigurierten IP (60s-Intervall), nicht mehr TCP-Receiver-Status
 - Bei leerer IP: "IP nicht konfiguriert" im Dashboard
 
-**Neue API-Endpunkte (alle in app.py auf Pi):**
+**Neue API-Endpunkte (alle in `src/docucontrol/app.py`):**
 - `GET /api/machine/config` — Maschinenname, Maschinennummer (`machine_nr`), IP, Protokoll lesen
 - `POST /api/machine/config` — Maschinenname, Maschinennummer + IP speichern (in config.json)
 - `GET /api/machine/ping` — ICMP-Ping zur konfigurierten IP; `{reachable, configured, ip, latency_ms}`
@@ -262,9 +267,15 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 - `iface2StatusBadge` im Card-Header von Schnittstelle 2 — zeigt Verbunden/Getrennt (wie Schnittstelle 1)
 - `applyIfaceStatus()` setzt `iface2Enabled`-Checkbox korrekt aus `d.enabled` (war immer unchecked)
 - USB-Stick formatieren: Button in USB-Synchronisation-Card, POST `/api/storage/usb/format` `{label:"DOCUCTRL"}`, FAT32, Bestätigungs-Dialog, Danger-Styling
-- **Wichtiger Hinweis:** Vor jedem `settings.html`-Deploy prüfen ob Pi-Version neuer ist als Workspace (Pi-only Patches werden sonst überschrieben)
 
 **GitHub Collaboration (2026-06-11):** Thomas Glander (`glanderthomas-1478`) als Collaborator mit Push-Zugriff auf `lordboombastic/claude-workspace-docupi` hinzugefügt
+
+**Backend-Sync Pi → Repo (2026-06-12):**
+- `src/docucontrol/` ist jetzt ein **vollstaendiger 1:1-Spiegel** der Pi-Codebasis: `app.py`, `config.py`, `network_manager.py`, `storage_manager.py` vom Pi (Stand 2026-06-10/12) ins Repo geholt und gepusht — keine Pi-only-Dateien mehr
+- `network_manager.py`: `connected` jetzt via `/sys/class/net/<iface>/carrier`, nftables interface-basiert (`iif eth0`+`iif eth1`)
+- `storage_manager.py`: `sync_captures_to_usb()` + `USB_CAPTURE_SUBDIR` ergaenzt (Auto-Sync synct jetzt PDFs + Captures)
+- GitHub-Backup vor dem Sync: `backups/github-backup-2026-06-12/claude-workspace-docupi.bundle` (Bundle, Commit `e4cc7d1`)
+- **Wichtiger Hinweis:** Vor jedem Deploy auf den Pi pruefen, ob die Pi-Version neuer ist als das Repo (z.B. `md5sum`/`diff` gegen `src/docucontrol/`), sonst werden Pi-Fixes ueberschrieben — Workflow jetzt: Aenderungen direkt im Repo machen, dann per `scp`/Deploy-Skript auf den Pi spielen
 
 **Naechster Schritt:** Echten Druckauftrag vom Tierlabor-Geraet (Belimed PST 14-8-12 HS1) empfangen, Maschinennummer des Tierlabor-Geraets in Settings eintragen, Installation vor Ort vorbereiten
 

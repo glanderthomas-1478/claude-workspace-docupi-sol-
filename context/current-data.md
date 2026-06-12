@@ -13,7 +13,8 @@
 | Erster Feldtest | ABGESCHLOSSEN | Weitere geplant | Helios Krefeld, 25.03.-13.04.2026, 327 Protokolle |
 | Erster Kunden-Deal | In Umsetzung | Abschluss | DocuControl fuer Tierlabor Uni Essen, getmatic-Vertrieb, Pi 5 betriebsbereit seit 2026-06-02 |
 | DocuControl Pi 5 | Produktiv + stabil | Tierlabor-Deployment | Kernel 6.18.33, RTC DS3231, WLAN off, Service <1s Restart, 13 Test-Protokolle in DB (Betreiber: Uniklinik Essen Tierlabor) |
-| DocuControl Web-Interface | **VOLLSTAENDIG** | — | Dashboard v3 + Settings (Maschinennummer, iface2Badge, iface2Enable-Fix, USB-Formatieren) + Dateien (Mode-Toggle PDF/Rohdaten, SQL-Paginierung) — Stand 2026-06-11 |
+| DocuControl Web-Interface | **VOLLSTAENDIG** | — | Dashboard v3 + Settings (Maschinennummer, iface2Badge, iface2Enable-Fix, USB-Formatieren, Netzwerk-Speicherort SMB) + Dateien (Mode-Toggle PDF/Rohdaten, SQL-Paginierung) — Stand 2026-06-12 |
+| Netzwerk-Speicherort (SMB-Sync) | **IMPLEMENTIERT**, Konfiguration laeuft | Erste echte Freigabe verbunden | Mount/Sync/Status/Test-Routen fertig, Fehlerpfad verifiziert; Testverbindung zu Thomas' PC (192.168.0.86) noch nicht erfolgreich (STATUS_LOGON_FAILURE — PIN statt Passwort, falscher Benutzername) |
 | USB Auto-Sync | **IMPLEMENTIERT** | Feldtest ausstehend | udev-Trigger, sofort + Intervall-Sync, Toggle in Einstellungen, Dateiliste im Datei-Manager |
 | Live-Monitor | **GEFIXT** | — | Bug d.text→d.content behoben, Terminal zeigt jetzt empfangene Rohdaten |
 | Backup DocuControl | Erstellt 2026-06-08 | — | backups/pi-backup-2026-06-08: DB, 11 PDFs, 18 Captures, Code, System-Configs |
@@ -41,7 +42,7 @@
 ### DocuControl (bei getmatic, Web-Interface produktiv — 2026-06-03)
 - Raspberry Pi 5 mit DS3231 RTC (I2C 0x68, /dev/rtc1, dtoverlay=i2c-rtc,ds3231)
 - OS: Debian Trixie (aarch64), Kernel 6.18.33, WLAN hardware-deaktiviert (dtoverlay=disable-wifi)
-- User: docucontrol (Passwort: Xtend1478), SSH: `ssh -i ~/.ssh/id_ed25519 docucontrol@192.168.0.171`
+- User: docucontrol (Passwort: Xtend1478), SSH: `ssh docucontrol` (Alias, IdentityFile `~/.ssh/docucontrol_id`)
 - Hostname: DocuControl, Service: docucontrol.service (active+enabled, Restart < 1s via os._exit Fix)
 - Code: /home/docucontrol/docupi/, venv: /home/docucontrol/docupi/venv
 - Architektur: TCP/9100-Capture -> parse -> PDF -> DB (automatisch)

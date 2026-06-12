@@ -73,7 +73,7 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 ├── reference/              # Dokumentation, Konzepte
 │   ├── design_handoff_docucontrol/   # hifi Design-Handoff v1/v2 (GeTmatic)
 │   ├── design_handoff_docucontrol_v3/  # hifi Design-Handoff v3 (2026-06-08) — Liquid Glass, Machine-Bar, 6-Tab-Settings
-│   └── neues Design recap/  # Screenshots des laufenden DocuControl-Interface (2026-06-03)
+│   └── neues Design recap/  # Screenshots des laufenden DocuControl-Interface (laufend aktualisiert, zuletzt 2026-06-12)
 ├── plans/                  # Implementierungsplaene
 ├── outputs/                # Arbeitsergebnisse (Konzeptpapiere, generierte PDFs)
 │   └── docupi-3000_konzept_getmatic.{md,pdf}  # Vertriebs-Konzept fuer getmatic
@@ -103,7 +103,7 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 ## Wichtiger Kontext
 
 - Hardware: Raspberry Pi — DocuPi-3000 (SSH: belimed@192.168.178.83, zu Hause) | DocuControl (SSH: docucontrol@192.168.0.171, bei getmatic)
-- SSH-Key fuer DocuControl: `~/.ssh/id_ed25519` (tatsaechlicher Key), Passwort: Xtend1478 (fuer sudo)
+- SSH fuer DocuControl: Alias `ssh docucontrol` (Host 192.168.0.171, User docucontrol, IdentityFile `~/.ssh/docucontrol_id`, siehe `~/.ssh/config`), Passwort: Xtend1478 (fuer sudo)
 - Langfristiges Ziel: CE-zertifizierte Linux-Controller (Unipi Neuron / RevPi Connect)
 - Geschaeftsmodell: Softwarelizenz + Sensor-Kit
 - Erster Feldtest abgeschlossen: 3 Wochen, 140 Chargen, Helios Krefeld (Belimed 9-6-18 HS2)
@@ -115,7 +115,7 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 - Erster Einsatz geplant: **Tierlabor Uni Essen** (Maschinentyp: Belimed PST 14-8-12 HS1, echter Druckauftrag noch ausstehend)
 - Pi 5 bei getmatic: Kernel 6.18.33, RTC DS3231, WLAN off, Service docucontrol.service aktiv
 - Architektur: TCP/9100-Capture -> Parse -> PDF -> DB (automatisch), USB-Drucker via CUPS
-- SSH: `ssh -i ~/.ssh/id_ed25519 docucontrol@192.168.0.171`, Passwort: Xtend1478 (fuer sudo)
+- SSH: `ssh docucontrol` (Alias, siehe `~/.ssh/config`), Passwort: Xtend1478 (fuer sudo)
 
 ### DocuControl Web-Interface (2026-06-03 vollstaendig deployed)
 
@@ -301,7 +301,26 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 - GitHub-Backup vor dem Sync: `backups/github-backup-2026-06-12/claude-workspace-docupi.bundle` (Bundle, Commit `e4cc7d1`)
 - **Wichtiger Hinweis:** Vor jedem Deploy auf den Pi pruefen, ob die Pi-Version neuer ist als das Repo (z.B. `md5sum`/`diff` gegen `src/docucontrol/`), sonst werden Pi-Fixes ueberschrieben — Workflow jetzt: Aenderungen direkt im Repo machen, dann per `scp`/Deploy-Skript auf den Pi spielen
 
-**Naechster Schritt:** Echten Druckauftrag vom Tierlabor-Geraet (Belimed PST 14-8-12 HS1) empfangen, Maschinennummer des Tierlabor-Geraets in Settings eintragen, Installation vor Ort vorbereiten
+**Netzwerk-Speicherort-Einrichtung (2026-06-12, in Arbeit):**
+- Feature ist implementiert und funktioniert (Fehlerpfad vollstaendig verifiziert, siehe
+  `plans/2026-06-12-netzwerk-speicherort-sync.md`)
+- Versuch, Thomas' eigenen Windows-Rechner (192.168.0.86, Freigabe `temp` = `C:\temp`) als
+  Test-Ziel einzurichten: bisher `STATUS_LOGON_FAILURE` (per `dmesg` auf dem Pi verifiziert) —
+  Server/Freigabe werden korrekt erreicht, Problem liegt an den Zugangsdaten
+- Identifizierte Ursachen: eingegebenes "Passwort" war eine 4-stellige Windows-PIN (PIN
+  funktioniert nicht fuer SMB, nur das echte Kontopasswort) und der Benutzername (`tom tom`,
+  mit Leerzeichen) ist wahrscheinlich nicht der echte SAM-Anmeldename (Profilordner heisst
+  `C:\Users\tomto`)
+- Empfehlung an Thomas: dediziertes lokales Windows-Konto (z.B. `docucontrol` + echtes Passwort)
+  anlegen, diesem in `C:\temp` Freigabe- UND NTFS-Berechtigungen geben, dann in DocuControl
+  eintragen
+- Pi-Konfig aktuell: `enabled:true`, Server `192.168.0.86`, Freigabe `temp`, weiterhin
+  `last_error: "Zugriff verweigert..."` — Hintergrund-Thread retried alle 60s, harmlos aber
+  noch nicht erfolgreich
+- **Naechster Schritt (Netzwerk-Speicherort):** dediziertes Konto auf 192.168.0.86 anlegen,
+  Zugangsdaten in DocuControl eintragen, "Verbindung testen" erneut pruefen (per `dmesg`)
+
+**Naechster Schritt (Tierlabor):** Echten Druckauftrag vom Tierlabor-Geraet (Belimed PST 14-8-12 HS1) empfangen, Maschinennummer des Tierlabor-Geraets in Settings eintragen, Installation vor Ort vorbereiten
 
 ---
 

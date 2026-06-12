@@ -2,7 +2,6 @@
 
 **Erstellt:** 2026-06-11
 **Status:** Verworfen — User hat Plan abgebrochen; stattdessen nur Dateinamen-Reihenfolge geändert (siehe Plan 2026-06-11-dateimanager-modetoggle-restore-filename.md)
-**Status:** Entwurf
 **Anforderung:** Dateimanager-Tabellen umstrukturieren: statt abgeschnittenem Dateinamen die Felder Charge-Nr., Datum, Programm, Größe zeigen — analog zum Dashboard
 
 ---

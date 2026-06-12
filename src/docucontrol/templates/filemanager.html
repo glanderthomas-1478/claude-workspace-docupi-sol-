@@ -38,6 +38,7 @@
             <table class="filelist" id="intFileList">
                 <thead>
                     <tr>
+                        <th style="width:30px"><input type="checkbox" id="intSelectAll" onchange="toggleSelectAllInternal(this)"></th>
                         <th style="width:99%">Dateiname</th>
                         <th style="white-space:nowrap">Datum</th>
                         <th style="white-space:nowrap">Größe</th>
@@ -45,14 +46,19 @@
                     </tr>
                 </thead>
                 <tbody id="intFileBody">
-                    <tr><td colspan="4" style="text-align:center;padding:20px;color:var(--muted)">
+                    <tr><td colspan="5" style="text-align:center;padding:20px;color:var(--muted)">
                         <i class="bi bi-hourglass-split"></i> Wird geladen …
                     </td></tr>
                 </tbody>
             </table>
             </div>
             <div class="table-foot">
-                <span id="intCountInfo" style="font-size:13px;color:var(--muted)"></span>
+                <div style="display:flex;align-items:center;gap:10px">
+                    <span id="intCountInfo" style="font-size:13px;color:var(--muted)"></span>
+                    <button class="btn btn-sm btn-outline" id="btnDownloadSelected" onclick="downloadSelectedInternal()" disabled>
+                        <i class="bi bi-download"></i> Ausgewählte (<span id="intSelCount">0</span>)
+                    </button>
+                </div>
                 <div class="pager" id="intPager"></div>
             </div>
         </div>
@@ -143,6 +149,8 @@
         intMode = mode;
         document.getElementById('btnModePdf').classList.toggle('active', mode === 'pdf');
         document.getElementById('btnModeCaptures').classList.toggle('active', mode === 'captures');
+        document.getElementById('intSelectAll').style.visibility = mode === 'pdf' ? 'visible' : 'hidden';
+        document.getElementById('btnDownloadSelected').style.display = mode === 'pdf' ? '' : 'none';
         if (mode === 'pdf') {
             loadInternalFiles(intPage);
         } else {
@@ -159,6 +167,7 @@
         var size = formatBytes(f.file_size || f.size);
         var id = f.id || '';
         return '<tr>'
+            + '<td>' + (isInternal && id ? '<input type="checkbox" class="file-cb" data-id="' + id + '" onchange="onIntFileCbChange()">' : '') + '</td>'
             + '<td style="max-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
             +   '<div class="fn" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
             +   '<i class="bi bi-file-earmark-pdf-fill"></i>' + escHtml(fn) + '</div></td>'
@@ -215,7 +224,7 @@
                 var total = d.total || 0;
                 var pages = d.pages || 1;
                 if (files.length === 0) {
-                    body.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--muted)"><i class="bi bi-inbox"></i> Keine PDFs gespeichert</td></tr>';
+                    body.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--muted)"><i class="bi bi-inbox"></i> Keine PDFs gespeichert</td></tr>';
                     countEl.textContent = '';
                     document.getElementById('intPager').innerHTML = '';
                 } else {
@@ -232,9 +241,11 @@
                     countEl.textContent = from + '–' + to + ' von ' + total.toLocaleString('de-DE') + ' Dateien';
                     renderIntPager(intPage, pages);
                 }
+                updateIntSelection();
             }).catch(function() {
                 document.getElementById('intFileBody').innerHTML =
-                    '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--danger)">Fehler beim Laden</td></tr>';
+                    '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--danger)">Fehler beim Laden</td></tr>';
+                updateIntSelection();
             });
 
         fetch('/api/storage/stats')
@@ -271,15 +282,18 @@
                 var countEl = document.getElementById('intCountInfo');
                 document.getElementById('intPager').innerHTML = '';
                 if (txts.length === 0) {
-                    body.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--muted)"><i class="bi bi-inbox"></i> Keine Captures gespeichert</td></tr>';
+                    body.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--muted)"><i class="bi bi-inbox"></i> Keine Captures gespeichert</td></tr>';
                     countEl.textContent = '';
+                    updateIntSelection();
                     return;
                 }
                 body.innerHTML = txts.map(function(f) { return renderCaptureRow(f, bins); }).join('');
                 countEl.textContent = txts.length + ' Captures';
+                updateIntSelection();
             }).catch(function() {
                 document.getElementById('intFileBody').innerHTML =
-                    '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--danger)">Fehler beim Laden</td></tr>';
+                    '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--danger)">Fehler beim Laden</td></tr>';
+                updateIntSelection();
             });
     }
 
@@ -292,6 +306,7 @@
             ? '<a class="icon-btn" title=".bin laden" href="/api/tcp_capture/captures/' + encodeURIComponent(base + '.bin') + '" download="' + escHtml(base + '.bin') + '"><i class="bi bi-file-earmark-code"></i></a>'
             : '';
         return '<tr>'
+            + '<td></td>'
             + '<td style="max-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
             +   '<div class="fn" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
             +   '<i class="bi bi-file-earmark-text" style="color:var(--accent)"></i> ' + escHtml(base)
@@ -374,7 +389,8 @@
                         fetch(usbEndpoint)
                             .then(function(r) { return r.json(); })
                             .then(function(data) {
-                                var files = data.files || [];
+                                var files = (data.files || []).slice()
+                                    .sort(function(a, b) { return (b.name || '').localeCompare(a.name || ''); });
                                 var body = document.getElementById('usbFileBody');
                                 if (files.length === 0) {
                                     body.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--muted)"><i class="bi bi-usb-drive"></i> '
@@ -418,6 +434,55 @@
     };
 
     window.goIntPage = function(p) { loadInternalFiles(p); };
+
+    function updateIntSelection() {
+        var boxes = document.querySelectorAll('#intFileBody .file-cb');
+        var checked = document.querySelectorAll('#intFileBody .file-cb:checked');
+        var selectAll = document.getElementById('intSelectAll');
+        selectAll.checked = boxes.length > 0 && checked.length === boxes.length;
+        document.getElementById('intSelCount').textContent = checked.length;
+        document.getElementById('btnDownloadSelected').disabled = checked.length === 0;
+    }
+
+    window.onIntFileCbChange = function() { updateIntSelection(); };
+
+    window.toggleSelectAllInternal = function(cb) {
+        document.querySelectorAll('#intFileBody .file-cb').forEach(function(el) {
+            el.checked = cb.checked;
+        });
+        updateIntSelection();
+    };
+
+    window.downloadSelectedInternal = function() {
+        var ids = [];
+        document.querySelectorAll('#intFileBody .file-cb:checked').forEach(function(el) {
+            ids.push(parseInt(el.getAttribute('data-id'), 10));
+        });
+        if (ids.length === 0) return;
+        if (ids.length === 1) {
+            window.location.href = '/download/' + ids[0];
+            return;
+        }
+        fetch('/api/protocols/bulk-download-zip', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids: ids })
+        }).then(function(r) {
+            if (!r.ok) throw new Error('Fehler');
+            return r.blob();
+        }).then(function(blob) {
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'DocuControl_Protokolle.zip';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }).catch(function() {
+            alert('Fehler beim Download');
+        });
+    };
 
     window.delCapture = function(base) {
         if (!confirm('Capture "' + base + '" wirklich löschen?')) return;

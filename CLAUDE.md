@@ -79,7 +79,9 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 │   └── docupi-3000_konzept_getmatic.{md,pdf}  # Vertriebs-Konzept fuer getmatic
 ├── backups/                # Pi-Backups (komplette Snapshots, gitignored)
 │   ├── pi-backup-2026-04-13/  # DocuPi-3000 nach Feldtest Helios Krefeld
-│   └── pi-backup-2026-06-08/  # DocuControl — 13 Protokolle, 11 PDFs, Storage-Manager, Templates
+│   ├── pi-backup-2026-06-08/  # DocuControl — 13 Protokolle, 11 PDFs, Storage-Manager, Templates
+│   ├── pi-backup-2026-06-11/  # DocuControl — Code+Patches, DB, Configs, Captures, System-Configs
+│   └── pi-backup-2026-06-12/  # DocuControl — Code, DB, Configs (inkl. Netzwerk-Speicherort), 14 PDFs, 37 Captures, Logs, System-Configs
 └── scripts/                # Hilfsskripte
     ├── fix_ssh.sh
     ├── render_konzept_pdf.py     # Markdown -> PDF (WeasyPrint) fuer outputs/

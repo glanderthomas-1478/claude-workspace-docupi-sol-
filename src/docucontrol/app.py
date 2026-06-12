@@ -1591,6 +1591,34 @@ def api_protocols_bulk_copy_usb():
     return jsonify({'ok': True, 'copied': copied, 'errors': errors})
 
 
+@app.route('/api/protocols/bulk-download-zip', methods=['POST'])
+def api_protocols_bulk_download_zip():
+    import zipfile
+    import io
+    data = request.get_json(silent=True) or {}
+    ids = data.get('ids', [])
+    if not ids:
+        return jsonify({'ok': False, 'error': 'keine IDs'}), 400
+    db = get_db()
+    mem_zip = io.BytesIO()
+    added = 0
+    with zipfile.ZipFile(mem_zip, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for pid in ids:
+            row = db.execute('SELECT pdf_path, pdf_filename FROM protocols WHERE id=?', (pid,)).fetchone()
+            if not row or not row[0] or not os.path.exists(row[0]):
+                continue
+            zf.write(row[0], row[1] or os.path.basename(row[0]))
+            added += 1
+    db.close()
+    if added == 0:
+        return jsonify({'ok': False, 'error': 'Keine Dateien gefunden'}), 404
+    mem_zip.seek(0)
+    from datetime import datetime as _dt
+    ts = _dt.now().strftime('%Y%m%d_%H%M%S')
+    return send_file(mem_zip, mimetype='application/zip', as_attachment=True,
+                      download_name=f'DocuControl_Protokolle_{ts}.zip')
+
+
 @app.route('/api/tcp_capture/captures/bulk-copy-usb', methods=['POST'])
 def api_captures_bulk_copy_usb():
     import shutil as _shutil

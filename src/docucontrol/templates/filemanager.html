@@ -58,6 +58,9 @@
                     <button class="btn btn-sm btn-outline" id="btnDownloadSelected" onclick="downloadSelectedInternal()" disabled>
                         <i class="bi bi-download"></i> Ausgewählte (<span id="intSelCount">0</span>)
                     </button>
+                    <button class="btn btn-sm btn-outline-danger" id="btnDeleteSelected" onclick="deleteSelectedInternal()" disabled>
+                        <i class="bi bi-trash"></i> Löschen
+                    </button>
                 </div>
                 <div class="pager" id="intPager"></div>
             </div>
@@ -442,6 +445,7 @@
         selectAll.checked = boxes.length > 0 && checked.length === boxes.length;
         document.getElementById('intSelCount').textContent = checked.length;
         document.getElementById('btnDownloadSelected').disabled = checked.length === 0;
+        document.getElementById('btnDeleteSelected').disabled = checked.length === 0;
     }
 
     window.onIntFileCbChange = function() { updateIntSelection(); };
@@ -482,6 +486,29 @@
         }).catch(function() {
             alert('Fehler beim Download');
         });
+    };
+
+    window.deleteSelectedInternal = function() {
+        var ids = [];
+        document.querySelectorAll('#intFileBody .file-cb:checked').forEach(function(el) {
+            ids.push(parseInt(el.getAttribute('data-id'), 10));
+        });
+        if (ids.length === 0) return;
+        if (!confirm(ids.length + ' Protokoll(e) wirklich löschen?')) return;
+        fetch('/api/protocols/bulk-delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids: ids })
+        }).then(function(r) { return r.json(); })
+          .then(function(d) {
+              if (d.ok) {
+                  loadInternalFiles(intPage);
+              } else {
+                  alert('Fehler: ' + (d.error || 'Unbekannt'));
+              }
+          }).catch(function() {
+              alert('Fehler beim Löschen');
+          });
     };
 
     window.delCapture = function(base) {

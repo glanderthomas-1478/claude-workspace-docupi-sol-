@@ -58,7 +58,7 @@
 </div>
 
 <!-- Stat-Karten -->
-<div class="stat-row" id="statRow">
+<div class="stat-row mon" id="statRow">
     <div class="stat">
         <div class="icon-tile navy"><i class="bi bi-hash"></i></div>
         <div class="label">Chargen gesamt</div>
@@ -76,6 +76,12 @@
         <div class="label">Chargen diesen Monat</div>
         <div class="big" id="monthCount">—</div>
         <div class="sub" id="monthSub">Wird geladen …</div>
+    </div>
+    <div class="stat">
+        <div class="icon-tile navy"><i class="bi bi-safe2"></i></div>
+        <div class="label">Maschine</div>
+        <div class="big" id="machineNrBig" style="font-size:26px">—</div>
+        <div class="sub" id="machineNameSub">Wird geladen …</div>
     </div>
 </div>
 
@@ -208,6 +214,18 @@
                         document.getElementById('totalCount').textContent = (d.total || 0).toLocaleString('de-DE');
                     }).catch(function() {});
             });
+    }
+
+    // ── Maschinen-Info ────────────────────────────────────────────────────
+
+    function loadMachineInfo() {
+        fetch('/api/machine/config')
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                document.getElementById('machineNrBig').textContent = d.machine_nr || '—';
+                document.getElementById('machineNameSub').textContent = d.name || 'Kein Name hinterlegt';
+            })
+            .catch(function() {});
     }
 
     // ── Machine-Status ────────────────────────────────────────────────────
@@ -503,6 +521,7 @@
 
     loadStats();
     loadPrograms();
+    loadMachineInfo();
     loadPrinterStatus().then(function() { loadProtocols(1); });
     updateMachineStatus();
 

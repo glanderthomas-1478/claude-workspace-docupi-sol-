@@ -28,6 +28,10 @@ from storage_manager import (
     delete_file, delete_directory, copy_file,
     try_mount_usb_on_boot,
     SD_PDF_DIR, USB_MOUNT_POINT, USB_PDF_SUBDIR)
+from network_storage_manager import (
+    load_network_config, save_network_config, get_network_storage_status,
+    test_network_connection, sync_pdfs_to_network, sync_captures_to_network,
+    start_network_sync)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
     handlers=[logging.FileHandler("/home/docucontrol/docupi/logs/docupi.log"), logging.StreamHandler()])
@@ -436,6 +440,54 @@ def api_sync_now():
     ok, msg, count = sync_pdfs_to_usb()
     log_event("INFO" if ok else "ERROR", f"Manual Sync: {msg}")
     return jsonify({"success": ok, "message": msg, "count": count})
+
+@app.route("/api/storage/network/config", methods=["GET", "POST"])
+def api_network_storage_config():
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        cfg = load_network_config()
+        if "enabled" in data:
+            cfg["enabled"] = bool(data["enabled"])
+        for key in ("server", "share", "username", "domain"):
+            if key in data:
+                cfg[key] = str(data[key]).strip()
+        if data.get("password"):
+            cfg["password"] = data["password"]
+        for key in ("sync_days", "sync_interval_minutes"):
+            if key in data:
+                cfg[key] = int(data[key])
+        save_network_config(cfg)
+        log_event("INFO", "Netzwerk-Speicherort-Konfiguration gespeichert")
+        return jsonify({"success": True, "message": "Gespeichert"})
+
+    cfg = dict(load_network_config())
+    cfg["has_password"] = bool(cfg.pop("password", ""))
+    return jsonify(cfg)
+
+@app.route("/api/storage/network/status")
+def api_network_storage_status():
+    return jsonify(get_network_storage_status())
+
+@app.route("/api/storage/network/test", methods=["POST"])
+def api_network_storage_test():
+    data = request.get_json(silent=True) or {}
+    cfg = load_network_config()
+    server = data.get("server", cfg["server"])
+    share = data.get("share", cfg["share"])
+    username = data.get("username", cfg["username"])
+    password = data.get("password") or cfg["password"]
+    domain = data.get("domain", cfg["domain"])
+    ok, msg = test_network_connection(server, share, username, password, domain)
+    log_event("INFO" if ok else "WARN", f"Netzwerk-Speicherort Test: {msg}")
+    return jsonify({"success": ok, "message": msg})
+
+@app.route("/api/storage/network/sync", methods=["POST"])
+def api_network_storage_sync():
+    ok1, msg1, n1 = sync_pdfs_to_network()
+    ok2, msg2, n2 = sync_captures_to_network()
+    ok = ok1 and ok2
+    log_event("INFO" if ok else "ERROR", f"Netzwerk-Sync: {msg1} / {msg2}")
+    return jsonify({"success": ok, "message": f"{msg1}; {msg2}", "count": n1 + n2})
 
 @app.route("/api/storage/copy", methods=["POST"])
 def api_storage_copy():
@@ -1839,6 +1891,7 @@ if __name__ == "__main__":
         logger.warning(f"USB Boot-Mount Fehler: {e}")
     # Auto-Sync starten
     start_auto_sync()
+    start_network_sync()
 
     # Start hardware watchdog (Waveshare RTC Watchdog HAT B)
     try:

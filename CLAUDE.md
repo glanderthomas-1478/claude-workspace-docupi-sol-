@@ -54,6 +54,7 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 │       ├── config.py              # load_config/save_config (config.json)
 │       ├── database.py            # SQLite-Layer (protocols-Tabelle, Pagination)
 │       ├── network_manager.py     # Hotspot/LAN/Multi-Interface/Hostname/NTP/RTC/nftables
+│       ├── network_storage_manager.py  # SMB/CIFS-Netzwerkfreigabe: Mount, Verbindungstest, Auto-Sync (PDFs + Captures)
 │       ├── print_manager.py       # Drucker-Management (CUPS, pycups)
 │       ├── storage_manager.py     # USB-Erkennung, Mount, Auto-Sync (PDFs + Captures), udev-Trigger
 │       ├── static/
@@ -153,6 +154,10 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 - `POST /api/protocols/bulk-copy-usb` — Kopiert ausgewaehlte PDFs auf USB `{ids:[...]}` (2026-06-10)
 - `POST /api/tcp_capture/captures/bulk-copy-usb` — Kopiert ausgewaehlte Captures auf USB `{basenames:[...]}` (2026-06-10)
 - `GET /api/storage/captures/usb` — Liste Captures vom USB-Stick `[{name, path, size_human, has_bin, modified}]` (2026-06-10)
+- `GET/POST /api/storage/network/config` — Netzwerk-Speicherort (SMB) Konfiguration lesen/speichern; GET liefert `has_password` statt Klartext-Passwort (2026-06-12)
+- `GET /api/storage/network/status` — Mount-Status, freier Speicher, letzter Sync, `last_error` (2026-06-12)
+- `POST /api/storage/network/test` — Testet SMB-Verbindung mit (ggf. uebergebenen) Zugangsdaten, gibt deutsche Fehlermeldung zurueck (2026-06-12)
+- `POST /api/storage/network/sync` — Sofort-Sync PDFs + Rohdaten-Captures auf Netzwerk-Freigabe (2026-06-12)
 
 **Stabilitaets-Fixes (2026-06-03):**
 - `os._exit(0)` in graceful_shutdown: Restart-Dauer 15s SIGKILL -> **47ms sauber**
@@ -167,6 +172,25 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 - PDF-Pfad auf USB: `DocuControl/` | Captures-Pfad auf USB: `docucontrol/captures/`
 - Auto-Sync-Toggle in Einstellungen (Geraete & Netzwerk)
 - Sudoers: `/etc/sudoers.d/docucontrol-storage` (mount, umount, blkid, dosfsck ohne Passwort)
+
+**Netzwerk-Speicherort / SMB-Sync (2026-06-12 implementiert):**
+- Neues Modul `network_storage_manager.py`: mountet eine SMB/CIFS-Freigabe (Windows-Rechner im
+  Kliniknetz) nach `/mnt/docucontrol_share` und synct PDFs + Rohdaten-Captures automatisch
+- Settings-Card "Netzwerk-Speicherort" (Tab Geraete & Netzwerk, nach USB-Synchronisation):
+  Server/Freigabename/Benutzer/Passwort/Domain, Status-Badge, "Verbindung testen"/"Jetzt sync."/"Speichern"
+- Konfiguration in `data/network_storage_config.json` (eigene Datei, analog `sync_config.json`),
+  Zugangsdaten zusaetzlich in `data/network_share.cred` (chmod 600, `credentials=`-Option fuer
+  `mount.cifs` — Passwort landet nicht in der Prozessliste)
+- Passwort wird **nie** ueber `GET /api/storage/network/config` zurueckgegeben (nur `has_password`)
+- Pfade auf der Freigabe identisch zum USB-Stick: `DocuControl/` (PDFs) + `docucontrol/captures/` (Rohdaten)
+- Hintergrund-Thread (`start_network_sync()`, 30s-Takt, Mount-Backoff 60s) laeuft parallel zum
+  USB-Auto-Sync; Sync-Intervall konfigurierbar (Default 15 Min, wie USB)
+- Verbindungstest uebersetzt `mount.cifs`-Fehler in deutsche Klartexte (Zugriff verweigert /
+  Freigabe nicht gefunden / Server nicht erreichbar)
+- Sudoers: keine Erweiterung noetig — bestehende `NOPASSWD: /usr/bin/mount, /usr/bin/umount, ...`
+  Zeile in `/etc/sudoers.d/docucontrol-storage` deckt `mount -t cifs` bereits ab (verifiziert)
+- Server/Freigabename werden per Regex validiert, alle Mount-Aufrufe nutzen `subprocess.run([...],
+  shell=False)` (Listenform) — kein Shell-Injection-Risiko bei diesem neuen Code
 
 **Datei-Manager Globaler Modus-Toggle (2026-06-10 implementiert):**
 - Toggle-Buttons "PDF-Protokolle" / "Rohdaten" oberhalb beider Panes — ein Klick steuert beide Seiten gleichzeitig

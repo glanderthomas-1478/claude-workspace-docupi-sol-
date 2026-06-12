@@ -400,6 +400,53 @@
             </div>
         </div>
 
+        <!-- Netzwerk-Speicherort (SMB) -->
+        <div class="card">
+            <div class="card-head">
+                <span><i class="bi bi-hdd-network-fill"></i> Netzwerk-Speicherort</span>
+                <span class="badge" id="netStorageStatusBadge" style="font-size:11px;padding:2px 8px;border-radius:4px;background:var(--muted);color:#fff">—</span>
+                <label class="switch" style="margin-left:auto">
+                    <input type="checkbox" id="netStorageEnabled" onchange="saveNetworkStorageConfig()">
+                    <span class="track"></span>
+                </label>
+            </div>
+            <div class="card-body">
+                <div class="set-row">
+                    <div class="info"><div class="name">Server (IP oder Name)</div><div class="desc">z.B. 192.168.0.50 oder PC-BUERO</div></div>
+                    <input type="text" class="ctrl" id="netStorageServer" placeholder="192.168.0.50" style="width:185px">
+                </div>
+                <div class="set-row">
+                    <div class="info"><div class="name">Freigabename</div><div class="desc">Name der Windows-Freigabe</div></div>
+                    <input type="text" class="ctrl" id="netStorageShare" placeholder="DocuControl" style="width:185px">
+                </div>
+                <div class="set-row">
+                    <div class="info"><div class="name">Benutzername</div></div>
+                    <input type="text" class="ctrl" id="netStorageUser" placeholder="benutzer" style="width:185px">
+                </div>
+                <div class="set-row">
+                    <div class="info"><div class="name">Passwort</div><div class="desc" id="netStoragePwHint">—</div></div>
+                    <input type="password" class="ctrl" id="netStoragePw" placeholder="unverändert lassen" style="width:185px">
+                </div>
+                <div class="set-row">
+                    <div class="info"><div class="name">Domain / Workgroup</div><div class="desc">optional</div></div>
+                    <input type="text" class="ctrl" id="netStorageDomain" placeholder="WORKGROUP" style="width:185px">
+                </div>
+                <hr style="margin:12px 0;border:none;border-top:1px solid var(--border)">
+                <div class="set-row">
+                    <div class="info">
+                        <div class="name">Letzter Sync</div>
+                        <div class="desc">Zeitpunkt und Anzahl synchronisierter Dateien</div>
+                    </div>
+                    <span class="value" id="netStorageLastSync" style="font-size:12.5px;color:var(--muted)">—</span>
+                </div>
+                <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+                    <button class="btn btn-glass" onclick="testNetworkStorage()"><i class="bi bi-plug"></i> Verbindung testen</button>
+                    <button class="btn btn-glass" onclick="syncNetworkNow()"><i class="bi bi-arrow-repeat"></i> Jetzt sync.</button>
+                    <button class="btn btn-primary" onclick="saveNetworkStorageConfig()"><i class="bi bi-save"></i> Speichern</button>
+                </div>
+            </div>
+        </div>
+
     </div>
 </div>
 
@@ -687,6 +734,9 @@
         // USB Sync
         loadSyncSettings();
 
+        // Netzwerk-Speicherort Status
+        pollNetworkStorageStatus();
+
         // Laufende Uhr
         if (!clockInterval) {
             clockInterval = setInterval(function() {
@@ -702,6 +752,7 @@
         loadInterfaces();
         loadHostname();
         loadTimeStatus();
+        loadNetworkStorageConfig();
     }
 
     // ── Interfaces ────────────────────────────────────────────────────────
@@ -1059,6 +1110,107 @@
             }).catch(function() {
                 btn.disabled = false;
                 btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Jetzt sync.';
+            });
+    };
+
+    // ── Netzwerk-Speicherort (SMB) ───────────────────────────────────────
+
+    function loadNetworkStorageConfig() {
+        fetch('/api/storage/network/config')
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                document.getElementById('netStorageEnabled').checked = !!d.enabled;
+                document.getElementById('netStorageServer').value = d.server || '';
+                document.getElementById('netStorageShare').value = d.share || '';
+                document.getElementById('netStorageUser').value = d.username || '';
+                document.getElementById('netStorageDomain').value = d.domain || '';
+                document.getElementById('netStoragePwHint').textContent = d.has_password
+                    ? 'Passwort gesetzt — Feld leer lassen, um es zu behalten'
+                    : 'Kein Passwort gesetzt';
+            }).catch(function() {});
+        pollNetworkStorageStatus();
+    }
+
+    function pollNetworkStorageStatus() {
+        fetch('/api/storage/network/status')
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                var badge = document.getElementById('netStorageStatusBadge');
+                if (!d.enabled) {
+                    badge.textContent = 'Deaktiviert';
+                    badge.style.background = 'var(--muted)';
+                } else if (d.mounted) {
+                    badge.textContent = 'Verbunden';
+                    badge.style.background = 'var(--success)';
+                } else if (d.last_error) {
+                    badge.textContent = 'Fehler';
+                    badge.style.background = 'var(--danger)';
+                } else {
+                    badge.textContent = 'Getrennt';
+                    badge.style.background = 'var(--muted)';
+                }
+                var info = '—';
+                if (d.last_sync) {
+                    info = d.last_sync + ' · ' + (d.last_sync_count || 0) + ' Dateien';
+                }
+                if (d.last_error) {
+                    info += (info === '—' ? '' : ' · ') + d.last_error;
+                }
+                document.getElementById('netStorageLastSync').textContent = info;
+            }).catch(function() {});
+    }
+
+    window.saveNetworkStorageConfig = function() {
+        var body = {
+            enabled: document.getElementById('netStorageEnabled').checked,
+            server: document.getElementById('netStorageServer').value.trim(),
+            share: document.getElementById('netStorageShare').value.trim(),
+            username: document.getElementById('netStorageUser').value.trim(),
+            domain: document.getElementById('netStorageDomain').value.trim()
+        };
+        var pw = document.getElementById('netStoragePw').value;
+        if (pw) body.password = pw;
+        fetch('/api/storage/network/config', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(body)
+        }).then(function(r) { return r.json(); })
+          .then(function(d) {
+              showToast('Gespeichert', d.message || 'Netzwerk-Speicherort aktualisiert.');
+              document.getElementById('netStoragePw').value = '';
+              loadNetworkStorageConfig();
+          }).catch(function() {});
+    };
+
+    window.testNetworkStorage = function() {
+        var body = {
+            server: document.getElementById('netStorageServer').value.trim(),
+            share: document.getElementById('netStorageShare').value.trim(),
+            username: document.getElementById('netStorageUser').value.trim(),
+            domain: document.getElementById('netStorageDomain').value.trim()
+        };
+        var pw = document.getElementById('netStoragePw').value;
+        if (pw) body.password = pw;
+        fetch('/api/storage/network/test', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(body)
+        }).then(function(r) { return r.json(); })
+          .then(function(d) {
+              showToast(d.success ? 'Verbindung OK' : 'Verbindung fehlgeschlagen', d.message);
+          }).catch(function() {
+              showToast('Fehler', 'Verbindungstest fehlgeschlagen');
+          });
+    };
+
+    window.syncNetworkNow = function() {
+        fetch('/api/storage/network/sync', {method: 'POST'})
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                showToast(d.success ? 'Sync abgeschlossen' : 'Sync fehlgeschlagen', d.message);
+                pollNetworkStorageStatus();
+            }).catch(function() {
+                showToast('Fehler', 'Synchronisation fehlgeschlagen');
             });
     };
 

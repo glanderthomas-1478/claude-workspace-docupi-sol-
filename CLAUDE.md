@@ -301,24 +301,22 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 - GitHub-Backup vor dem Sync: `backups/github-backup-2026-06-12/claude-workspace-docupi.bundle` (Bundle, Commit `e4cc7d1`)
 - **Wichtiger Hinweis:** Vor jedem Deploy auf den Pi pruefen, ob die Pi-Version neuer ist als das Repo (z.B. `md5sum`/`diff` gegen `src/docucontrol/`), sonst werden Pi-Fixes ueberschrieben — Workflow jetzt: Aenderungen direkt im Repo machen, dann per `scp`/Deploy-Skript auf den Pi spielen
 
-**Netzwerk-Speicherort-Einrichtung (2026-06-12, in Arbeit):**
-- Feature ist implementiert und funktioniert (Fehlerpfad vollstaendig verifiziert, siehe
-  `plans/2026-06-12-netzwerk-speicherort-sync.md`)
-- Versuch, Thomas' eigenen Windows-Rechner (192.168.0.86, Freigabe `temp` = `C:\temp`) als
-  Test-Ziel einzurichten: bisher `STATUS_LOGON_FAILURE` (per `dmesg` auf dem Pi verifiziert) —
-  Server/Freigabe werden korrekt erreicht, Problem liegt an den Zugangsdaten
-- Identifizierte Ursachen: eingegebenes "Passwort" war eine 4-stellige Windows-PIN (PIN
-  funktioniert nicht fuer SMB, nur das echte Kontopasswort) und der Benutzername (`tom tom`,
-  mit Leerzeichen) ist wahrscheinlich nicht der echte SAM-Anmeldename (Profilordner heisst
-  `C:\Users\tomto`)
-- Empfehlung an Thomas: dediziertes lokales Windows-Konto (z.B. `docucontrol` + echtes Passwort)
-  anlegen, diesem in `C:\temp` Freigabe- UND NTFS-Berechtigungen geben, dann in DocuControl
-  eintragen
-- Pi-Konfig aktuell: `enabled:true`, Server `192.168.0.86`, Freigabe `temp`, weiterhin
-  `last_error: "Zugriff verweigert..."` — Hintergrund-Thread retried alle 60s, harmlos aber
-  noch nicht erfolgreich
-- **Naechster Schritt (Netzwerk-Speicherort):** dediziertes Konto auf 192.168.0.86 anlegen,
-  Zugangsdaten in DocuControl eintragen, "Verbindung testen" erneut pruefen (per `dmesg`)
+**Netzwerk-Speicherort-Einrichtung — ERLEDIGT (2026-06-12):**
+- Auf Thomas' Windows-Rechner (192.168.0.86) dediziertes lokales Konto `docucontrol` angelegt
+  (PasswordNeverExpires, UserMayNotChangePassword), `C:\temp` als SMB-Freigabe `temp` mit
+  Vollzugriff fuer `docucontrol` freigegeben, NTFS-Rechte via
+  `icacls --% C:\temp /grant docucontrol:(OI)(CI)M` (PowerShell-Klammer-Workaround: `--%`
+  Stop-Parsing-Token oder cmd.exe verwenden, sonst `(OI)(CI)` Parse-Fehler)
+- DocuControl-Config aktualisiert: Server `192.168.0.86`, Freigabe `temp`, User `docucontrol`,
+  Domain leer (lokales Konto, kein `GIGANETZ`-Workgroup-Eintrag), Passwort gesetzt
+- Verbindungstest: `success:true` ("Verbindung erfolgreich")
+- Sofort-Sync: 88 Dateien uebertragen (14 PDFs + 74 Captures), Status `mounted:true`,
+  `last_error:""`, 281.6 GB frei auf `C:\temp`-Laufwerk
+- Verifiziert auf Windows-Seite: `C:\temp\DocuControl\2026\2026-06\*.pdf` +
+  `C:\temp\DocuControl\captures\*.{txt,bin}` vollstaendig vorhanden
+- Hintergrund-Thread synct jetzt automatisch alle 15 Min parallel zum USB-Sync
+- Validierungs-Checkliste in `plans/2026-06-12-netzwerk-speicherort-sync.md` jetzt vollstaendig
+  abgehakt — Feature komplett abgeschlossen
 
 **Naechster Schritt (Tierlabor):** Echten Druckauftrag vom Tierlabor-Geraet (Belimed PST 14-8-12 HS1) empfangen, Maschinennummer des Tierlabor-Geraets in Settings eintragen, Installation vor Ort vorbereiten
 

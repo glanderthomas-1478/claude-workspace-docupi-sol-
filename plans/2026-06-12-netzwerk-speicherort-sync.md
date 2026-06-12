@@ -563,9 +563,9 @@ Neues Modul nach dem Vorbild von `storage_manager.py`, aber fuer SMB/CIFS-Freiga
       ueberschrieben
 - [x] `POST /api/storage/network/test` mit falschen Zugangsdaten liefert lesbare deutsche
       Fehlermeldung
-- [ ] Mit echter Freigabe: Mount erfolgreich, `DocuControl/` + `docucontrol/captures/` werden
-      angelegt, Sync kopiert Dateien (kein SMB-Server im Testnetz verfuegbar — siehe
-      Implementierungsnotizen)
+- [x] Mit echter Freigabe: Mount erfolgreich, `DocuControl/` + `docucontrol/captures/` werden
+      angelegt, Sync kopiert Dateien — verifiziert gegen Thomas' Windows-PC (192.168.0.86,
+      Freigabe `temp`, dediziertes Konto `docucontrol`), 88 Dateien synchronisiert
 - [x] Settings-UI zeigt Status-Badge korrekt (Deaktiviert/Verbunden/Getrennt/Fehler)
 - [x] Service-Neustart funktioniert ohne Fehler, Hintergrund-Thread laeuft (`journalctl`)
 - [x] CLAUDE.md aktualisiert

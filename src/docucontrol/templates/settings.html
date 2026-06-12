@@ -222,12 +222,8 @@
             <div class="card-head">
                 <span><i class="bi bi-hdd-network"></i> Schnittstelle 2 — Optional (USB-Ethernet)</span>
                 <span class="badge" id="iface2StatusBadge" style="font-size:11px;padding:2px 8px;border-radius:4px;background:var(--muted);color:#fff">—</span>
-                <label class="switch" style="margin-left:auto">
-                    <input type="checkbox" id="iface2Enabled" onchange="toggleIface2(this.checked)">
-                    <span class="track"></span>
-                </label>
             </div>
-            <div class="card-body" id="iface2Body" style="opacity:0.45;pointer-events:none">
+            <div class="card-body" id="iface2Body">
                 <div class="set-row">
                     <div class="info"><div class="name">Adapter</div><div class="desc">Erkannte USB-Ethernet-Adapter</div></div>
                     <select class="ctrl" id="iface2Select" style="width:160px" onchange="loadIface(2)">
@@ -817,15 +813,6 @@
             badge.textContent = d.connected ? 'Verbunden' : 'Getrennt';
             badge.style.background = d.connected ? 'var(--success)' : 'var(--muted)';
         }
-
-        // Iface2 Enable-Checkbox aus API-Zustand setzen
-        if (num === 2) {
-            var cb = document.getElementById('iface2Enabled');
-            if (cb) {
-                cb.checked = !!d.enabled;
-                toggleIface2(!!d.enabled);
-            }
-        }
     }
 
     // userChange=true: User hat Dropdown manuell geändert → Button zeigen
@@ -835,12 +822,6 @@
         var dhcpBtn = document.getElementById('iface' + num + 'DhcpAction');
         if (form) form.style.display = mode === 'static' ? '' : 'none';
         if (dhcpBtn) dhcpBtn.style.display = (mode === 'dhcp' && userChange) ? 'flex' : 'none';
-    };
-
-    window.toggleIface2 = function(enabled) {
-        var body = document.getElementById('iface2Body');
-        body.style.opacity = enabled ? '1' : '0.45';
-        body.style.pointerEvents = enabled ? '' : 'none';
     };
 
     window.saveIfaceStatic = function(num) {

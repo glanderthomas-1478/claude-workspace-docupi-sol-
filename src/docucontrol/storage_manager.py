@@ -22,6 +22,7 @@ logger = logging.getLogger("docupi.storage")
 SD_PDF_DIR = "/home/docucontrol/docupi/data/pdfs"
 USB_MOUNT_POINT = "/media/usbstick"
 USB_PDF_SUBDIR = "DocuControl"  # Subfolder on USB for PDFs
+USB_CAPTURE_SUBDIR = "docucontrol/captures"  # Subfolder on USB for raw captures
 SYNC_CONFIG_FILE = "/home/docucontrol/docupi/data/sync_config.json"
 
 DEFAULT_SYNC_CONFIG = {
@@ -382,6 +383,51 @@ def sync_pdfs_to_usb(days=None):
     return True, msg, synced
 
 
+
+def sync_captures_to_usb(days=None):
+    """Sync raw capture files from last N days from SD to USB stick."""
+    config = load_sync_config()
+    if days is None:
+        days = config.get("sync_days", 7)
+
+    if not os.path.ismount(USB_MOUNT_POINT):
+        ok, msg = mount_usb()
+        if not ok:
+            return False, msg, 0
+
+    capture_dir = "/home/docucontrol/docupi/data/raw_captures"
+    usb_capture_dir = os.path.join(USB_MOUNT_POINT, USB_CAPTURE_SUBDIR)
+    os.makedirs(usb_capture_dir, exist_ok=True)
+
+    cutoff = datetime.now() - timedelta(days=days)
+    synced = 0
+    errors = 0
+
+    if os.path.isdir(capture_dir):
+        for fname in sorted(os.listdir(capture_dir)):
+            src = os.path.join(capture_dir, fname)
+            if not os.path.isfile(src):
+                continue
+            try:
+                mtime = datetime.fromtimestamp(os.path.getmtime(src))
+                if mtime < cutoff:
+                    continue
+                dst = os.path.join(usb_capture_dir, fname)
+                if os.path.exists(dst) and os.path.getsize(src) == os.path.getsize(dst):
+                    continue
+                shutil.copy2(src, dst)
+                synced += 1
+            except Exception as e:
+                logger.error(f"Captures-Sync Fehler {fname}: {e}")
+                errors += 1
+
+    msg = f"{synced} Capture-Dateien synchronisiert (letzte {days} Tage)"
+    if errors:
+        msg += f", {errors} Fehler"
+    logger.info(msg)
+    return True, msg, synced
+
+
 # --- Auto-Sync Background Thread ---
 
 USB_TRIGGER_FILE = "/var/lib/docucontrol/usb.trigger"
@@ -451,6 +497,10 @@ def _auto_sync_loop():
             if should_sync:
                 try:
                     ok, msg, count = sync_pdfs_to_usb()
+                    try:
+                        sync_captures_to_usb()
+                    except Exception as e:
+                        logger.error(f"Captures Auto-Sync Fehler: {e}")
                     last_sync_time = time.time()
                     if newly_inserted:
                         logger.info(f"USB Sofort-Sync nach Einstecken: {msg}")

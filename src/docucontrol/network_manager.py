@@ -312,10 +312,12 @@ def get_interface_status(iface='eth0'):
         "speed": "",
     }
 
+    ok, out, _ = _run(f"cat /sys/class/net/{iface}/carrier 2>/dev/null")
+    result["connected"] = ok and out.strip() == "1"
+
     ok, out, _ = _run(f"ip -4 addr show {iface} 2>/dev/null")
     ip_match = re.search(r"inet\s+(\d+\.\d+\.\d+\.\d+)/(\d+)", out)
     if ip_match:
-        result["connected"] = True
         result["current_ip"] = ip_match.group(1)
 
     ok, out, _ = _run("ip route show default 2>/dev/null")
@@ -387,28 +389,21 @@ method=disabled
 
 
 def _write_nftables_conf(static_ip=None):
-    """Aktualisiert nftables-Config.
-    static_ip gesetzt → IP-gefilterter Redirect (nur diese IP antwortet).
-    static_ip=None → Interface-gefilterter Redirect (DHCP-Modus, IP dynamisch).
-    """
-    if static_ip:
-        prerouting_rule = f"ip daddr {static_ip} tcp dport 80 redirect to :5000"
-        accept_rule = f"\n        ip daddr {static_ip} tcp dport 9100 accept"
-    else:
-        prerouting_rule = "iif eth0 tcp dport 80 redirect to :5000"
-        accept_rule = ""
-    content = f"""table ip docucontrol_nat {{
-    chain prerouting {{
+    """Aktualisiert nftables-Config -- interface-basierte Regeln fuer eth0 + eth1."""
+    conf = """table ip docucontrol_nat {
+    chain prerouting {
         type nat hook prerouting priority dstnat; policy accept;
-        {prerouting_rule}{accept_rule}
-    }}
-    chain output {{
+        iif eth0 tcp dport 80 redirect to :5000
+        iif eth1 tcp dport 80 redirect to :5000
+        tcp dport 9100 accept
+    }
+    chain output {
         type nat hook output priority -100; policy accept;
         ip daddr 127.0.0.1 tcp dport 80 redirect to :5000
-    }}
-}}
+    }
+}
 """
-    ok, _, err = _run_stdin(f"sudo tee {NFTABLES_CONF}", content)
+    ok, _, err = _run_stdin(f"sudo tee {NFTABLES_CONF}", conf)
     if ok:
         _run("sudo nft flush table ip docucontrol_nat 2>/dev/null; sudo nft -f " + NFTABLES_CONF)
     return ok, err

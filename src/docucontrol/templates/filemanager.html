@@ -101,6 +101,10 @@
                 </tbody>
             </table>
             </div>
+            <div class="table-foot">
+                <span id="usbCountInfo" style="font-size:13px;color:var(--muted)"></span>
+                <div class="pager" id="usbPager"></div>
+            </div>
             <div class="sync-row" id="syncRow">
                 <span class="lbl">Synchronisation</span>
                 <span id="syncStatus" class="ok" style="display:none">
@@ -150,6 +154,8 @@
 
     window.switchMode = function(mode) {
         intMode = mode;
+        capPage = 1;
+        usbPage = 1;
         document.getElementById('btnModePdf').classList.toggle('active', mode === 'pdf');
         document.getElementById('btnModeCaptures').classList.toggle('active', mode === 'captures');
         document.getElementById('intSelectAll').style.visibility = mode === 'pdf' ? 'visible' : 'hidden';
@@ -183,37 +189,47 @@
             + '</tr>';
     }
 
+    var PAGE_SIZE = 20;
     var intPage = 1;
+    var capPage = 1;
+    var usbPage = 1;
 
-    function renderIntPager(page, pages) {
-        var pager = document.getElementById('intPager');
-        if (pages <= 1) { pager.innerHTML = ''; return; }
+    function pagerHtml(page, pages, fn) {
+        if (pages <= 1) return '';
         var html = '';
         if (page <= 1) {
             html += '<span class="pg disabled"><i class="bi bi-chevron-left"></i></span>';
         } else {
-            html += '<span class="pg" onclick="goIntPage(' + (page-1) + ')"><i class="bi bi-chevron-left"></i></span>';
+            html += '<span class="pg" onclick="' + fn + '(' + (page-1) + ')"><i class="bi bi-chevron-left"></i></span>';
         }
         var start = Math.max(1, page - 2);
         var end   = Math.min(pages, start + 4);
         start = Math.max(1, end - 4);
         if (start > 1) {
-            html += '<span class="pg" onclick="goIntPage(1)">1</span>';
+            html += '<span class="pg" onclick="' + fn + '(1)">1</span>';
             if (start > 2) html += '<span class="pg disabled">…</span>';
         }
         for (var i = start; i <= end; i++) {
-            html += '<span class="pg' + (i === page ? ' active' : '') + '" onclick="goIntPage(' + i + ')">' + i + '</span>';
+            html += '<span class="pg' + (i === page ? ' active' : '') + '" onclick="' + fn + '(' + i + ')">' + i + '</span>';
         }
         if (end < pages) {
             if (end < pages - 1) html += '<span class="pg disabled">…</span>';
-            html += '<span class="pg" onclick="goIntPage(' + pages + ')">' + pages + '</span>';
+            html += '<span class="pg" onclick="' + fn + '(' + pages + ')">' + pages + '</span>';
         }
         if (page >= pages) {
             html += '<span class="pg disabled"><i class="bi bi-chevron-right"></i></span>';
         } else {
-            html += '<span class="pg" onclick="goIntPage(' + (page+1) + ')"><i class="bi bi-chevron-right"></i></span>';
+            html += '<span class="pg" onclick="' + fn + '(' + (page+1) + ')"><i class="bi bi-chevron-right"></i></span>';
         }
-        pager.innerHTML = html;
+        return html;
+    }
+
+    function renderIntPager(page, pages, fn) {
+        document.getElementById('intPager').innerHTML = pagerHtml(page, pages, fn || 'goIntPage');
+    }
+
+    function renderUsbPager(page, pages) {
+        document.getElementById('usbPager').innerHTML = pagerHtml(page, pages, 'goUsbPage');
     }
 
     function loadInternalFiles(page) {
@@ -283,15 +299,22 @@
                              .forEach(function(f) { bins[f.name.replace('.bin', '')] = f.size; });
                 var body = document.getElementById('intFileBody');
                 var countEl = document.getElementById('intCountInfo');
-                document.getElementById('intPager').innerHTML = '';
-                if (txts.length === 0) {
+                var total = txts.length;
+                if (total === 0) {
                     body.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--muted)"><i class="bi bi-inbox"></i> Keine Captures gespeichert</td></tr>';
                     countEl.textContent = '';
+                    renderIntPager(1, 1, 'goCapPage');
                     updateIntSelection();
                     return;
                 }
-                body.innerHTML = txts.map(function(f) { return renderCaptureRow(f, bins); }).join('');
-                countEl.textContent = txts.length + ' Captures';
+                var pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+                if (capPage > pages) capPage = pages;
+                var pageItems = txts.slice((capPage - 1) * PAGE_SIZE, capPage * PAGE_SIZE);
+                body.innerHTML = pageItems.map(function(f) { return renderCaptureRow(f, bins); }).join('');
+                var from = (capPage - 1) * PAGE_SIZE + 1;
+                var to   = Math.min(capPage * PAGE_SIZE, total);
+                countEl.textContent = from + '–' + to + ' von ' + total + ' Captures';
+                renderIntPager(capPage, pages, 'goCapPage');
                 updateIntSelection();
             }).catch(function() {
                 document.getElementById('intFileBody').innerHTML =
@@ -395,16 +418,29 @@
                                 var files = (data.files || []).slice()
                                     .sort(function(a, b) { return (b.name || '').localeCompare(a.name || ''); });
                                 var body = document.getElementById('usbFileBody');
-                                if (files.length === 0) {
+                                var countEl = document.getElementById('usbCountInfo');
+                                var total = files.length;
+                                if (total === 0) {
                                     body.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--muted)"><i class="bi bi-usb-drive"></i> '
                                         + (intMode === 'captures' ? 'Keine Captures auf USB' : 'Keine PDFs auf USB — Jetzt sync. starten')
                                         + '</td></tr>';
+                                    countEl.textContent = '';
+                                    renderUsbPager(1, 1);
                                 } else {
-                                    body.innerHTML = files.map(renderUsbFileRow).join('');
+                                    var pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+                                    if (usbPage > pages) usbPage = pages;
+                                    var pageItems = files.slice((usbPage - 1) * PAGE_SIZE, usbPage * PAGE_SIZE);
+                                    body.innerHTML = pageItems.map(renderUsbFileRow).join('');
+                                    var from = (usbPage - 1) * PAGE_SIZE + 1;
+                                    var to   = Math.min(usbPage * PAGE_SIZE, total);
+                                    countEl.textContent = from + '–' + to + ' von ' + total + ' Dateien';
+                                    renderUsbPager(usbPage, pages);
                                 }
                             }).catch(function() {
                                 document.getElementById('usbFileBody').innerHTML =
                                     '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--muted)"><i class="bi bi-usb-drive"></i> USB verbunden</td></tr>';
+                                document.getElementById('usbCountInfo').textContent = '';
+                                renderUsbPager(1, 1);
                             });
                     }
                 } else {
@@ -412,6 +448,8 @@
                     document.getElementById('usbFill').style.width = '0%';
                     document.getElementById('usbFileBody').innerHTML =
                         '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--muted)">--- kein USB-Speicher verbunden ---</td></tr>';
+                    document.getElementById('usbCountInfo').textContent = '';
+                    renderUsbPager(1, 1);
                     syncStatus.style.display = 'none';
                 }
             }).catch(function() {});
@@ -437,6 +475,8 @@
     };
 
     window.goIntPage = function(p) { loadInternalFiles(p); };
+    window.goCapPage = function(p) { capPage = p; loadCaptureFiles(); };
+    window.goUsbPage = function(p) { usbPage = p; loadUsbFiles(); };
 
     function updateIntSelection() {
         var boxes = document.querySelectorAll('#intFileBody .file-cb');

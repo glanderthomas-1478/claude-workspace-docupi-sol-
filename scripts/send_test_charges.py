@@ -294,8 +294,8 @@ PROGRAMS = [
 ]
 
 
-def build_protocol(i, start_charge=START_CHARGE):
-    prog_idx = ROTATION[i % len(ROTATION)]
+def build_protocol(i, start_charge=START_CHARGE, sequence=None):
+    prog_idx = sequence[i] if sequence is not None else ROTATION[i % len(ROTATION)]
     name, func, base_min, _variance = PROGRAMS[prog_idx]
     offset = DURATION_OFFSETS[i % len(DURATION_OFFSETS)]
     ende_mm = base_min + offset
@@ -330,8 +330,16 @@ def main():
     parser.add_argument("--interval", type=int, default=30,  help="Pause zwischen Chargen in Sekunden (default: 30)")
     parser.add_argument("--start-charge", type=int, default=START_CHARGE,
                         help=f"Erste Chargennummer (default: {START_CHARGE})")
+    parser.add_argument("--sequence", default=None,
+                        help="Komma-Liste Programm-Indizes (0=Instr134, 1=BowieDick, 2=Instr121), "
+                             "ueberschreibt --count und Standard-Rotation, z.B. '1,0,0,0,0,0'")
     parser.add_argument("--dry-run",  action="store_true",   help="Protokolle auf stdout ausgeben, nicht senden")
     args = parser.parse_args()
+
+    sequence = None
+    if args.sequence:
+        sequence = [int(x) for x in args.sequence.split(",")]
+        args.count = len(sequence)
 
     print(f"DocuControl Test-Chargen-Sender")
     print(f"Ziel: {args.host}:{args.port}  |  Chargen: {args.count}  |  Interval: {args.interval}s")
@@ -340,7 +348,7 @@ def main():
     print("-" * 60)
 
     for i in range(args.count):
-        charge_nr, prog_name, ende_mm, ende_ss, text = build_protocol(i, args.start_charge)
+        charge_nr, prog_name, ende_mm, ende_ss, text = build_protocol(i, args.start_charge, sequence)
         raw = encode_protocol(text)
         duration_str = f"{ende_mm}:{ende_ss:02d}"
 

@@ -218,7 +218,7 @@
 
     function loadInternalFiles(page) {
         intPage = page || intPage;
-        fetch('/api/protocols?per_page=50&page=' + intPage + '&sort_by=timestamp&sort_dir=desc')
+        fetch('/api/protocols?per_page=20&page=' + intPage + '&sort_by=timestamp&sort_dir=desc')
             .then(function(r) { return r.json(); })
             .then(function(d) {
                 var files = d.protocols || [];
@@ -239,8 +239,8 @@
                             file_size: f.file_size || 0
                         }, true);
                     }).join('');
-                    var from = (intPage - 1) * 50 + 1;
-                    var to   = Math.min(intPage * 50, total);
+                    var from = (intPage - 1) * 20 + 1;
+                    var to   = Math.min(intPage * 20, total);
                     countEl.textContent = from + '–' + to + ' von ' + total.toLocaleString('de-DE') + ' Dateien';
                     renderIntPager(intPage, pages);
                 }

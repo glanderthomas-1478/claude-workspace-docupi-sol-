@@ -343,7 +343,7 @@ table.data tbody tr:last-child td { border-bottom: none; }
 .badge.fail .bdot { background: var(--danger); }
 .badge.mono { background: #eceff3; color: #51607a; font-family: var(--font-mono); font-weight: 600; }
 
-.act { display: inline-flex; gap: 6px; justify-content: flex-end; min-height: 34px; align-items: center; }
+.act { display: inline-flex; gap: 6px; justify-content: flex-end; }
 .icon-btn {
   width: 34px; height: 34px; border-radius: 9px;
   border: 1px solid var(--glass-bd);
@@ -387,7 +387,7 @@ table.data tbody tr:last-child td { border-bottom: none; }
 .filelist { width: 100%; border-collapse: collapse; font-size: 13px; }
 .filelist th { text-align: left; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); padding: 8px 10px; border-bottom: 1px solid var(--border); }
 .filelist th.right { text-align: right; }
-.filelist td { padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.filelist td { padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; height: 52px; }
 .filelist td.right { text-align: right; }
 .filelist tr:last-child td { border-bottom: none; }
 .filelist .fn { font-family: var(--font-mono); font-size: 12.5px; color: var(--text); display: flex; align-items: center; gap: 8px; }

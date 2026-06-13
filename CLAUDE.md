@@ -332,6 +332,17 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 - Verifiziert per Testcharge CH021740 + `pdftotext`/`pdftoppm`-Render: "Nr: 10980", "DocuControl"
   korrekt in Kopf- und Fusszeile
 
+**nftables-Boot-Race behoben (2026-06-13):**
+- Nach Reboot war Web-Interface auf beiden IPs nicht erreichbar (Ping/SSH ok, `docucontrol.service`
+  aktiv, aber `curl` -> Connection refused). Ursache: `nftables.service` startete vor Enumeration
+  des USB-Ethernet-Adapters (`eth1`, RTL8153) und scheiterte komplett mit "Interface does not exist"
+  fuer die `iif eth1`-Regel in `/etc/nftables-docucontrol.conf` — dadurch fehlte die komplette
+  Port-80->5000-Weiterleitung (auch fuer eth0)
+- Sofort-Fix: `systemctl restart nftables`
+- Permanent-Fix (system-only, nicht im Repo): `/etc/systemd/system/nftables.service.d/override.conf`
+  mit `After=`/`Wants=sys-subsystem-net-devices-eth1.device` + `ExecStartPre=/bin/sleep 2`,
+  `systemctl daemon-reload` ausgefuehrt und verifiziert
+
 **Naechster Schritt (Tierlabor):** Echten Druckauftrag vom Tierlabor-Geraet (Belimed PST 14-8-12 HS1) empfangen, Maschinennummer des Tierlabor-Geraets in Settings eintragen, Installation vor Ort vorbereiten
 
 ---

@@ -72,10 +72,16 @@
     <div class="card">
         <div class="card-head">
             <span><i class="bi bi-usb-drive"></i> USB / Externer Speicher</span>
-            <span class="usb-status absent" id="usbStatus">
-                <span class="dot"></span>
-                <span id="usbStatusText">Nicht verbunden</span>
-            </span>
+            <div style="display:flex;align-items:center;gap:14px">
+                <span class="usb-status absent" id="usbStatus">
+                    <span class="dot"></span>
+                    <span id="usbStatusText">USB: Nicht verbunden</span>
+                </span>
+                <span class="usb-status absent" id="netStorageStatus">
+                    <span class="dot"></span>
+                    <span id="netStorageStatusText">Netzwerk: Nicht verbunden</span>
+                </span>
+            </div>
         </div>
         <div class="card-body">
             <div class="storagebar">
@@ -401,7 +407,7 @@
                 var btnSyncEl = document.getElementById('btnSync');
 
                 statusEl.className = 'usb-status' + (connected ? '' : ' absent');
-                statusText.textContent = connected ? 'Verbunden' : 'Nicht verbunden';
+                statusText.textContent = 'USB: ' + (connected ? 'Verbunden' : 'Nicht verbunden');
                 btnSync.disabled = !connected;
 
                 // Sync-Button-Label je nach Modus
@@ -606,13 +612,29 @@
             });
     };
 
+    // ── Netzwerk-Speicherort ──────────────────────────────────────────────────
+
+    function loadNetworkStorageStatus() {
+        fetch('/api/storage/network/status')
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                var connected = !!(d.enabled && d.mounted);
+                var statusEl = document.getElementById('netStorageStatus');
+                var statusText = document.getElementById('netStorageStatusText');
+                statusEl.className = 'usb-status' + (connected ? '' : ' absent');
+                statusText.textContent = 'Netzwerk: ' + (connected ? 'Verbunden' : 'Nicht verbunden');
+            }).catch(function() {});
+    }
+
     // ── Init ──────────────────────────────────────────────────────────────────
 
     loadInternalFiles(1);
     loadUsbFiles();
+    loadNetworkStorageStatus();
     setInterval(function() {
         if (intMode === 'captures') { loadCaptureFiles(); } else { loadInternalFiles(intPage); }
         loadUsbFiles();
+        loadNetworkStorageStatus();
     }, 30000);
 })();
 </script>

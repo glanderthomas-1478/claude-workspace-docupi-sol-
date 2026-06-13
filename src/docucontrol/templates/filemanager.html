@@ -202,9 +202,9 @@
         } else {
             html += '<span class="pg" onclick="' + fn + '(' + (page-1) + ')"><i class="bi bi-chevron-left"></i></span>';
         }
-        var start = Math.max(1, page - 2);
-        var end   = Math.min(pages, start + 4);
-        start = Math.max(1, end - 4);
+        var start = Math.max(1, page - 1);
+        var end   = Math.min(pages, start + 2);
+        start = Math.max(1, end - 2);
         if (start > 1) {
             html += '<span class="pg" onclick="' + fn + '(1)">1</span>';
             if (start > 2) html += '<span class="pg disabled">…</span>';

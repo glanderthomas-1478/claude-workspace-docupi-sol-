@@ -343,7 +343,7 @@ table.data tbody tr:last-child td { border-bottom: none; }
 .badge.fail .bdot { background: var(--danger); }
 .badge.mono { background: #eceff3; color: #51607a; font-family: var(--font-mono); font-weight: 600; }
 
-.act { display: inline-flex; gap: 6px; justify-content: flex-end; }
+.act { display: inline-flex; gap: 6px; justify-content: flex-end; min-height: 34px; align-items: center; }
 .icon-btn {
   width: 34px; height: 34px; border-radius: 9px;
   border: 1px solid var(--glass-bd);

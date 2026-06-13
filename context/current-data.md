@@ -18,7 +18,9 @@
 | USB Auto-Sync | **IMPLEMENTIERT** | Feldtest ausstehend | udev-Trigger, sofort + Intervall-Sync, Toggle in Einstellungen, Dateiliste im Datei-Manager |
 | Live-Monitor | **GEFIXT** | — | Bug d.text→d.content behoben, Terminal zeigt jetzt empfangene Rohdaten |
 | PDF-Branding/Maschinen-Nr | **GEFIXT** | — | PDF zeigt jetzt konfigurierte Maschinennummer (10980) statt Rohprotokoll-Wert, Footer "DocuPi-3000"/"DocuPi" → "DocuControl" (2026-06-12) |
-| Backup DocuControl | Erstellt 2026-06-08 | — | backups/pi-backup-2026-06-08: DB, 11 PDFs, 18 Captures, Code, System-Configs |
+| Backup DocuControl | Erstellt 2026-06-13 | — | backups/pi-backup-2026-06-13b: DB (851 Protokolle), 851 PDFs, 1702 Captures, Code, Logs, System-Configs (inkl. nftables-Override) |
+| nftables-Boot-Race | **GEFIXT** | — | systemd-Override `/etc/systemd/system/nftables.service.d/override.conf` wartet auf eth1, per Reboot-Test verifiziert (2026-06-13) |
+| Dateimanager Storage-Status | **IMPLEMENTIERT** | — | USB- und Netzwerk-Speicherort-Status als zwei Badges nebeneinander in Karte "USB / Externer Speicher" (2026-06-13) |
 | Netzwerk-Management | **IMPLEMENTIERT** | — | IP-Bug gefixt (sudoers), DHCP aktiv, Router-MAC-Binding gibt .171, Multi-Interface UI, Hostname, NTP/RTC, VLAN-Feld |
 | IP Live-Anzeige | **IMPLEMENTIERT** | — | pollCurrentIPs() alle 5s, aktualisiert current_ip/badge ohne Input-Felder zu überschreiben |
 
@@ -47,7 +49,7 @@
 - Hostname: DocuControl, Service: docucontrol.service (active+enabled, Restart < 1s via os._exit Fix)
 - Code: /home/docucontrol/docupi/, venv: /home/docucontrol/docupi/venv
 - Architektur: TCP/9100-Capture -> parse -> PDF -> DB (automatisch)
-- DB: /home/docucontrol/docupi/data/docupi.db (protocols-Tabelle: id, timestamp, device_name, raw_data, pdf_path, pdf_filename, file_size, status, charge_nr_int, program — 22 Eintraege Stand 2026-06-12, letzte Charge CH021751)
+- DB: /home/docucontrol/docupi/data/docupi.db (protocols-Tabelle: id, timestamp, device_name, raw_data, pdf_path, pdf_filename, file_size, status, charge_nr_int, program — 851 Eintraege Stand 2026-06-13, letzte Charge CH022773)
 - PDFs: /home/docucontrol/docupi/data/pdfs/ (Dateiname-Format ab 2026-06-11: DATUM_ZEIT_CHxxxxxx_MaschinNr_Geraet.pdf)
 - Port-Redirect: nftables /etc/nftables-docucontrol.conf (80 -> 5000, Regeln: iif eth0 + iif eth1, beide IPs erreichbar)
 - Drucker: Epson XP-4150 als "DocuPrinter" via CUPS IPP Everywhere

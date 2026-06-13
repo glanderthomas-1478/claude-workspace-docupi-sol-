@@ -27,7 +27,7 @@ from storage_manager import (
     load_sync_config, save_sync_config, start_auto_sync,
     delete_file, delete_directory, copy_file,
     try_mount_usb_on_boot,
-    SD_PDF_DIR, USB_MOUNT_POINT, USB_PDF_SUBDIR)
+    SD_PDF_DIR, USB_MOUNT_POINT, USB_PDF_SUBDIR, USB_CAPTURE_SUBDIR)
 from network_storage_manager import (
     load_network_config, save_network_config, get_network_storage_status,
     test_network_connection, sync_pdfs_to_network, sync_captures_to_network,
@@ -385,6 +385,11 @@ def api_storage_file(pane):
         if not usb.get("mounted"):
             return "USB nicht gemountet", 404
         base = os.path.join(usb["mount_point"], USB_PDF_SUBDIR)
+    elif pane == "usb_captures":
+        usb = get_usb_info()
+        if not usb.get("mounted"):
+            return "USB nicht gemountet", 404
+        base = os.path.join(usb["mount_point"], USB_CAPTURE_SUBDIR)
     else:
         return "Unbekannt", 400
 

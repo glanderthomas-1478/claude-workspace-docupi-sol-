@@ -356,6 +356,10 @@
         var size = f.size_human || formatBytes(f.size) || '---';
         var hasBin = f.has_bin || false;
         if (intMode === 'captures') {
+            var binPath = encodeURIComponent((f.path || fn).replace(/\.txt$/, '.bin'));
+            var usbBinBtn = hasBin
+                ? '<a class="icon-btn" title=".bin laden" href="/api/storage/file/usb_captures?path=' + binPath + '&download=1" download="' + escHtml(fn.replace(/\.txt$/, '.bin')) + '"><i class="bi bi-file-earmark-code"></i></a>'
+                : '';
             return '<tr>'
                 + '<td style="max-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
                 +   '<div class="fn" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
@@ -364,7 +368,10 @@
                 +   '</div></td>'
                 + '<td class="muted" style="white-space:nowrap">' + escHtml(date) + '</td>'
                 + '<td class="muted">' + escHtml(size) + '</td>'
-                + '<td class="right"><div class="act"></div></td>'
+                + '<td class="right"><div class="act">'
+                + '<a class="icon-btn" title=".txt laden" href="/api/storage/file/usb_captures?path=' + encodeURIComponent(f.path || fn) + '&download=1" download="' + escHtml(fn) + '"><i class="bi bi-download"></i></a>'
+                + usbBinBtn
+                + '</div></td>'
                 + '</tr>';
         }
         var path = encodeURIComponent(f.path || fn);

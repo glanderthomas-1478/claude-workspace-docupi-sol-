@@ -55,8 +55,9 @@
             <div class="table-foot">
                 <div style="display:flex;align-items:center;gap:10px">
                     <span id="intCountInfo" style="font-size:13px;color:var(--muted)"></span>
+                    <span id="intSelInfo" style="font-size:13px;color:var(--muted)"></span>
                     <button class="btn btn-sm btn-outline" id="btnDownloadSelected" onclick="downloadSelectedInternal()" disabled>
-                        <i class="bi bi-download"></i> Ausgewählte (<span id="intSelCount">0</span>)
+                        <i class="bi bi-download"></i> Ausgewählte
                     </button>
                     <button class="btn btn-sm btn-outline-danger" id="btnDeleteSelected" onclick="deleteSelectedInternal()" disabled>
                         <i class="bi bi-trash"></i> Löschen
@@ -158,7 +159,6 @@
         usbPage = 1;
         document.getElementById('btnModePdf').classList.toggle('active', mode === 'pdf');
         document.getElementById('btnModeCaptures').classList.toggle('active', mode === 'captures');
-        document.getElementById('intSelectAll').style.visibility = mode === 'pdf' ? 'visible' : 'hidden';
         document.getElementById('btnDownloadSelected').style.display = mode === 'pdf' ? '' : 'none';
         if (mode === 'pdf') {
             loadInternalFiles(intPage);
@@ -332,7 +332,7 @@
             ? '<a class="icon-btn" title=".bin laden" href="/api/tcp_capture/captures/' + encodeURIComponent(base + '.bin') + '" download="' + escHtml(base + '.bin') + '"><i class="bi bi-file-earmark-code"></i></a>'
             : '';
         return '<tr>'
-            + '<td></td>'
+            + '<td><input type="checkbox" class="file-cb" data-id="' + escHtml(base) + '" onchange="onIntFileCbChange()"></td>'
             + '<td style="max-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
             +   '<div class="fn" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
             +   '<i class="bi bi-file-earmark-text" style="color:var(--accent)"></i> ' + escHtml(base)
@@ -490,7 +490,7 @@
         var checked = document.querySelectorAll('#intFileBody .file-cb:checked');
         var selectAll = document.getElementById('intSelectAll');
         selectAll.checked = boxes.length > 0 && checked.length === boxes.length;
-        document.getElementById('intSelCount').textContent = checked.length;
+        document.getElementById('intSelInfo').textContent = checked.length > 0 ? (checked.length + ' ausgewählt') : '';
         document.getElementById('btnDownloadSelected').disabled = checked.length === 0;
         document.getElementById('btnDeleteSelected').disabled = checked.length === 0;
     }
@@ -538,14 +538,34 @@
     window.deleteSelectedInternal = function() {
         var ids = [];
         document.querySelectorAll('#intFileBody .file-cb:checked').forEach(function(el) {
-            ids.push(parseInt(el.getAttribute('data-id'), 10));
+            ids.push(el.getAttribute('data-id'));
         });
         if (ids.length === 0) return;
+
+        if (intMode === 'captures') {
+            if (!confirm(ids.length + ' Capture(s) wirklich löschen?')) return;
+            fetch('/api/tcp_capture/captures/bulk-delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ basenames: ids })
+            }).then(function(r) { return r.json(); })
+              .then(function(d) {
+                  if (d.ok) {
+                      loadCaptureFiles();
+                  } else {
+                      alert('Fehler: ' + (d.error || 'Unbekannt'));
+                  }
+              }).catch(function() {
+                  alert('Fehler beim Löschen');
+              });
+            return;
+        }
+
         if (!confirm(ids.length + ' Protokoll(e) wirklich löschen?')) return;
         fetch('/api/protocols/bulk-delete', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ids: ids })
+            body: JSON.stringify({ ids: ids.map(function(i) { return parseInt(i, 10); }) })
         }).then(function(r) { return r.json(); })
           .then(function(d) {
               if (d.ok) {

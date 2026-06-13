@@ -1463,6 +1463,33 @@ def api_tcp_capture_delete_one(fname):
     return jsonify({"ok": True, "deleted": deleted})
 
 
+@app.route("/api/tcp_capture/captures/bulk-delete", methods=["POST"])
+def api_tcp_capture_bulk_delete():
+    import re as _re_cap_bulk
+    data = request.get_json(silent=True) or {}
+    basenames = data.get("basenames", [])
+    if not basenames:
+        return jsonify({"ok": False, "error": "keine Basenames"}), 400
+    capture_dir = "/home/docucontrol/docupi/data/raw_captures"
+    deleted = 0
+    errors = 0
+    for base in basenames:
+        if not _re_cap_bulk.match(r'^[A-Za-z0-9_\-]+$', base):
+            errors += 1
+            continue
+        for ext in ('.txt', '.bin'):
+            fp = os.path.join(capture_dir, base + ext)
+            if os.path.exists(fp):
+                try:
+                    os.remove(fp)
+                    deleted += 1
+                except Exception as e:
+                    logger.error(f"Bulk-Delete Capture {base}{ext}: {e}")
+                    errors += 1
+    log_event("INFO", f"Captures bulk gelöscht: {len(basenames)} Basen, {deleted} Dateien")
+    return jsonify({"ok": True, "deleted": deleted, "errors": errors})
+
+
 @app.route("/api/storage/sync/captures", methods=["POST"])
 def api_storage_sync_captures():
     import shutil as _shutil

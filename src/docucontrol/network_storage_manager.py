@@ -291,6 +291,36 @@ def sync_pdfs_to_network(days=None):
     return True, msg, synced
 
 
+def copy_pdf_to_network_instant(pdf_path, pdf_filename):
+    """Kopiert ein frisch erzeugtes PDF sofort auf den Netzwerk-Speicherort.
+    Wird nach jeder neuen Charge aufgerufen."""
+    cfg = load_network_config()
+    if not cfg.get("enabled"):
+        return
+
+    if not is_mounted():
+        ok, msg = mount_network_share(cfg)
+        if not ok:
+            logger.warning(f"Netzwerk Sofortkopie: Mount fehlgeschlagen: {msg}")
+            return
+
+    net_pdf_dir = os.path.join(NETWORK_MOUNT_POINT, NETWORK_PDF_SUBDIR)
+    os.makedirs(net_pdf_dir, exist_ok=True)
+
+    if SD_PDF_DIR in pdf_path:
+        rel = os.path.relpath(pdf_path, SD_PDF_DIR)
+        dst = os.path.join(net_pdf_dir, rel)
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+    else:
+        dst = os.path.join(net_pdf_dir, pdf_filename)
+
+    try:
+        shutil.copy2(pdf_path, dst)
+        logger.info(f"Netzwerk Sofortkopie: {pdf_filename}")
+    except Exception as e:
+        logger.warning(f"Netzwerk Sofortkopie fehlgeschlagen: {e}")
+
+
 def sync_captures_to_network(days=None):
     """Sync raw capture files from last N days from SD to network share."""
     cfg = load_network_config()

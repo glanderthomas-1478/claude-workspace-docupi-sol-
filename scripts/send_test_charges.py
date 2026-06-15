@@ -284,6 +284,73 @@ def prog_instrumente_121(charge_nr, start_dt, ende_mm, ende_ss):
 
 
 # ---------------------------------------------------------------------------
+# Template 4: Aufheizen & VPR  (Basislaufzeit: 46 min, Varianz: ±3 min)
+# ---------------------------------------------------------------------------
+
+def prog_vpr(charge_nr, start_dt, ende_mm, ende_ss):
+    lecktest_mm = ende_mm - 12
+    belueften2_mm = ende_mm - 2
+    return (
+        "BELIMED CHARGEN-DOKUMENTATION\n"
+        "============================================================\n"
+        f"Betreiber     : Uniklinik Essen Tierlabor\n"
+        f"Abteilung     : ZTL\n"
+        f"Maschinen-Typ : PST 14-8-12 HS1    Nr:10980\n"
+        f"Laufende Nr.  : {charge_nr:06d}\n"
+        f"Benutzer      : User\n"
+        f"Programm      :  4: Aufheizen & VPR\n"
+        f"Version       : PR: 07.03.2018 SW: 103\n"
+        f"\n"
+        f"Sollwerte     : Leckrate        <   1.3 mbar/min\n"
+        f"                Testzeit               10.0min\n"
+        f"\n"
+        f"Programmstart : {start_dt.strftime('%d.%m.%Y / %H:%M')}\n"
+        f"\n"
+        f" Zeit  Phase    Kammer       mbara  T2 °C\n"
+        f"  m:s           Luftnachweisg.      T3 °C\n"
+        f"-----------------------------------------\n"
+        f"  0:02 1. Vorvakuum            991   32.2\n"
+        f"                                     31.4\n"
+        f"  2:33 Aufheizen                75   66.7\n"
+        f"                                     52.3\n"
+        f" 10:59 Sterilisation          3166  134.6\n"
+        f"                                    134.4\n"
+        f" 11:59                        3187  135.1\n"
+        f"                                    134.9\n"
+        f" 12:59                        3184  135.1\n"
+        f"                                    135.0\n"
+        f" 13:59                        3180  135.1\n"
+        f"                                    135.1\n"
+        f" 14:59                        3195  135.1\n"
+        f"                                    135.2\n"
+        f" 16:00 Nachvakuum             3169  135.0\n"
+        f"                                    135.0\n"
+        f" 19:22 Trocknung               100   76.7\n"
+        f"                                     94.2\n"
+        f" 25:22 Belüften                 41   32.3\n"
+        f"                                     78.1\n"
+        f" 27:14 Vakuum                  956   34.0\n"
+        f"                                     42.6\n"
+        f" 29:42 Stabilisierung           70   30.2\n"
+        f"                                     36.1\n"
+        f" {lecktest_mm}:43 Lecktest                 76   35.2\n"
+        f"                                     35.8\n"
+        f" {belueften2_mm}:44 Belüften                 80   38.4\n"
+        f"                                     38.1\n"
+        f" {ende_mm}:{ende_ss:02d} Programm Ende           956   39.6\n"
+        f"                                     39.2\n"
+        f"\n"
+        f"Leckrate                     0.7 mbar/min\n"
+        f"\n"
+        f"PROGRAMM BEENDET NICHT STERIL\n"
+        f"\n"
+        f"Freigabe: J / N         Datum:\n"
+        f"\n"
+        f"Unterschrift:\n"
+    )
+
+
+# ---------------------------------------------------------------------------
 # Generator
 # ---------------------------------------------------------------------------
 
@@ -291,6 +358,7 @@ PROGRAMS = [
     ("Instrumente 134°C", prog_instrumente_134, 33, 3),
     ("Bowie Dick",        prog_bowie_dick,      20, 2),
     ("Instrumente 121°C", prog_instrumente_121, 42, 4),
+    ("Aufheizen & VPR",   prog_vpr,             46, 3),
 ]
 
 
@@ -331,8 +399,8 @@ def main():
     parser.add_argument("--start-charge", type=int, default=START_CHARGE,
                         help=f"Erste Chargennummer (default: {START_CHARGE})")
     parser.add_argument("--sequence", default=None,
-                        help="Komma-Liste Programm-Indizes (0=Instr134, 1=BowieDick, 2=Instr121), "
-                             "ueberschreibt --count und Standard-Rotation, z.B. '1,0,0,0,0,0'")
+                        help="Komma-Liste Programm-Indizes (0=Instr134, 1=BowieDick, 2=Instr121, 3=VPR), "
+                             "ueberschreibt --count und Standard-Rotation, z.B. '3,0,0,1'")
     parser.add_argument("--dry-run",  action="store_true",   help="Protokolle auf stdout ausgeben, nicht senden")
     args = parser.parse_args()
 

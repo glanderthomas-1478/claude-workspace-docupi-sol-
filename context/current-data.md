@@ -14,8 +14,8 @@
 | Erster Kunden-Deal | In Umsetzung | Abschluss | DocuControl fuer Tierlabor Uni Essen, getmatic-Vertrieb, Pi 5 betriebsbereit seit 2026-06-02 |
 | DocuControl Pi 5 | Produktiv + stabil | Tierlabor-Deployment | Kernel 6.18.33, RTC DS3231, WLAN off, Service <1s Restart, 13 Test-Protokolle in DB (Betreiber: Uniklinik Essen Tierlabor) |
 | DocuControl Web-Interface | **VOLLSTAENDIG** | — | Dashboard v3 + Settings (Maschinennummer, iface2Badge, iface2Enable-Fix, USB-Formatieren, Netzwerk-Speicherort SMB) + Dateien (Mode-Toggle PDF/Rohdaten, SQL-Paginierung) — Stand 2026-06-12 |
-| Netzwerk-Speicherort (SMB-Sync) | **PRODUKTIV** | — | Dediziertes Konto `docucontrol` auf 192.168.0.86, Freigabe `temp`=C:\temp, Verbindung + Sync erfolgreich (88 Dateien), Hintergrund-Sync alle 15 Min aktiv |
-| USB Auto-Sync | **IMPLEMENTIERT** | Feldtest ausstehend | udev-Trigger, sofort + Intervall-Sync, Toggle in Einstellungen, Dateiliste im Datei-Manager |
+| Netzwerk-Speicherort (SMB-Sync) | **PRODUKTIV + SOFORTKOPIE** | — | Konto `docucontrol` auf 192.168.0.99 (gland), Freigabe `temp`=C:\temp, via eth1 (Host-Route), Sofortkopie nach jeder Charge (2026-06-15) |
+| USB Auto-Sync | **IMPLEMENTIERT + SOFORTKOPIE** | — | udev-Trigger, sofort nach Charge (copy_pdf_to_usb_instant in tcp_print_capture.py), Intervall-Sync 15 Min, USB-Mount-Fix (Log+Sleep+Retry) — 2026-06-15 |
 | Live-Monitor | **GEFIXT** | — | Bug d.text→d.content behoben, Terminal zeigt jetzt empfangene Rohdaten |
 | PDF-Branding/Maschinen-Nr | **GEFIXT** | — | PDF zeigt jetzt konfigurierte Maschinennummer (10980) statt Rohprotokoll-Wert, Footer "DocuPi-3000"/"DocuPi" → "DocuControl" (2026-06-12) |
 | Backup DocuControl | Erstellt 2026-06-13 | — | backups/pi-backup-2026-06-13b: DB (851 Protokolle), 851 PDFs, 1702 Captures, Code, Logs, System-Configs (inkl. nftables-Override) |
@@ -56,7 +56,14 @@
 - Web: Dashboard v3 + Settings vollstaendig (Maschinennummer-Feld, iface2Badge, USB-Formatieren, Button "USB einrichten") + Dateien vollstaendig (Mode-Toggle PDF/Rohdaten, SQL-Paginierung 50/Seite)
 - Drucker-Settings: zeigt "EPSON XP-4150 Series" (echter Modellname via sysfs), "kein Drucker verbunden" wenn offline
 - USB: Auto-Sync via udev + storage_manager.py, Mount: /media/usbstick, Trigger: /var/lib/docucontrol/usb.trigger
+- USB Sofortkopie: copy_pdf_to_usb_instant() in tcp_print_capture.py eingehängt (2026-06-15) — PDF landet sofort auf Stick nach Charge
+- Netzwerk Sofortkopie: copy_pdf_to_network_instant() in network_storage_manager.py + tcp_print_capture.py (2026-06-15) — PDF sofort auf \\192.168.0.99\temp
+- USB Auto-Mount Fix: logging bei Mount-Fehler + sleep nach Lazy-Unmount + Mount-Versuch in copy_pdf_to_usb_instant (2026-06-15)
+- USB Device-Name: nach Re-Enumeration kann sdb1 -> sda1 wechseln (detect_usb_device() findet es dynamisch via lsblk)
+- Netzwerk-Sync Ziel: 192.168.0.99 (gland, eth1=192.168.0.181), Host-Route 192.168.0.99 -> eth1 persistent via NM
+- eth1 (192.168.0.181) kommuniziert mit 192.168.0.99 via statische Host-Route (nmcli, 2026-06-15)
 - Abteilung in Test-Chargen + config.json Default: "ZTL" (war "AEMP") — 2026-06-15
+- VPR-Template in send_test_charges.py ergänzt (Index 3: Aufheizen & VPR, ~46 min) — 2026-06-15
 - eth0 DHCP-Problem: nach Reboot manchmal kein IP — Workaround: `nmcli con down/up docucontrol-eth0`; Langfrist-Fix: eth0 statisch auf .171 konfigurieren (noch offen)
 - Naechster Schritt: Sample-Druckauftrag Tierlabor analysieren, Installation vor Ort; eth0 statisch konfigurieren
 - Geplanter Einsatz: Tierlabor Uni Essen — Maschinentyp bestätigt: Belimed PST 14-8-12 HS1

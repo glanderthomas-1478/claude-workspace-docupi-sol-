@@ -491,6 +491,8 @@ def _auto_sync_loop():
                 now_mounted = True
                 newly_inserted = True
                 logger.info(f"USB auto-gemountet: {msg}")
+            else:
+                logger.warning(f"USB Auto-Mount fehlgeschlagen: {msg}")
 
         if now_mounted and auto_enabled:
             should_sync = newly_inserted or ((time.time() - last_sync_time) >= interval_secs)
@@ -512,6 +514,7 @@ def _auto_sync_loop():
                         _run(f"sudo /usr/bin/umount -l {USB_MOUNT_POINT}")
                         now_mounted = False
                         was_mounted = False
+                        time.sleep(10)  # Kernel nach Lazy-Unmount einpendeln lassen
                     else:
                         logger.error(f"Auto-Sync Fehler: {e}")
                 except Exception as e:
@@ -577,7 +580,13 @@ def copy_pdf_to_usb_instant(pdf_path, pdf_filename):
     Wird nach jeder neuen Charge aufgerufen, damit der Kunde
     den Stick direkt nach der Charge ziehen kann."""
     if not os.path.ismount(USB_MOUNT_POINT):
-        return  # Kein Stick eingesteckt, nichts tun
+        dev = detect_usb_device()
+        if not dev:
+            return  # Kein Stick eingesteckt
+        ok, msg = mount_usb()
+        if not ok:
+            logger.warning(f"USB Sofortkopie: Mount fehlgeschlagen: {msg}")
+            return
 
     usb_pdf_dir = os.path.join(USB_MOUNT_POINT, USB_PDF_SUBDIR)
     os.makedirs(usb_pdf_dir, exist_ok=True)

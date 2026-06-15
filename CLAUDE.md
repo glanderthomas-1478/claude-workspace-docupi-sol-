@@ -353,6 +353,22 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 - Settings-Button "USB einrichten" fuer manuellen Reset
 - Verifiziert: DocuPrinter jetzt auf `ipp://EPSON%20XP-4150%20Series%20(USB)._ipp._tcp.local/`, Druck funktioniert
 
+**Netzwerk-Speicherort auf gland-Rechner umgezogen (2026-06-15):**
+- SMB-Freigabe `\\192.168.0.99\temp` eingerichtet (lokales Konto `docucontrol`, C:\temp, FAT-Rechte)
+- Routing: Pi eth1 (192.168.0.181) → 192.168.0.99 via persistente Host-Route (`nmcli connection modify docucontrol-eth1 +ipv4.routes "192.168.0.99/32"`)
+- Pi SSH-Zugang via paramiko (Python) mit Passwort (SSH-Key fehlt auf diesem Rechner)
+
+**USB + Netzwerk Sofortkopie (2026-06-15 implementiert):**
+- `copy_pdf_to_usb_instant()` in `tcp_print_capture.py` eingehängt: PDF landet sofort nach Charge auf USB-Stick (nicht erst nach 15-Min-Zyklus)
+- `copy_pdf_to_network_instant()` neu in `network_storage_manager.py` + in `tcp_print_capture.py` eingehängt: PDF sofort auf Netzwerk-Freigabe
+- Root-Cause USB-Sync-Problem: `copy_pdf_to_usb_instant()` war zwar in storage_manager.py definiert, wurde aber nirgendwo aufgerufen
+- USB Auto-Mount Fix: Warning-Log bei Mount-Fehler, 10s Sleep nach Lazy-Unmount, Mount-Versuch in copy_pdf_to_usb_instant()
+- USB Device-Name: kann nach Re-Enumeration wechseln (sdb1 -> sda1) — detect_usb_device() findet es dynamisch via lsblk
+
+**VPR-Template in send_test_charges.py (2026-06-15):**
+- Template 4 "Aufheizen & VPR" (Index 3): Basislaufzeit 46 min, Leckrate 0.7 mbar/min, "PROGRAMM BEENDET NICHT STERIL"
+- Verwendung: `--sequence 3`
+
 **Naechster Schritt (Tierlabor):** Echten Druckauftrag vom Tierlabor-Geraet (Belimed PST 14-8-12 HS1) empfangen, Maschinennummer des Tierlabor-Geraets in Settings eintragen, Installation vor Ort vorbereiten
 
 ---

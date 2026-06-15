@@ -88,12 +88,12 @@ Prototyp fertigstellen und erste Feldtests im eigenen Arbeitsumfeld durchfuehren
   - `applyIfaceStatus()` setzt `iface2Enabled`-Checkbox korrekt aus `d.enabled`
   - USB-Stick formatieren Button (POST /api/storage/usb/format, FAT32, Label DOCUCTRL)
 - **ERLEDIGT 2026-06-11**: GitHub Collaboration: Thomas Glander (glanderthomas-1478) als Collaborator mit Push-Zugriff hinzugefügt
-- **ERLEDIGT 2026-06-15**: Drucker USB-Fix deployed:
-  - Epson XP-4150 nutzt IPP-over-USB (ipp-usb-Dienst), nicht klassisches usb://-Backend
-  - setup_usb_printer() erkennt beide URI-Typen, laeuft automatisch beim Service-Start
-  - Settings-Button "USB einrichten" fuer manuellen Reset
-  - Sudoers fuer lpadmin + lpinfo gesetzt, Druck verifiziert
+- **ERLEDIGT 2026-06-15**: Drucker USB-Fix deployed (IPP-over-USB, Sudoers, Druck verifiziert)
 - **ERLEDIGT 2026-06-15**: Abteilung "AEMP" -> "ZTL" in Test-Chargen + config.py Default
+- **ERLEDIGT 2026-06-15**: SMB-Sync auf gland-Rechner 192.168.0.99 umgestellt (war 192.168.0.86), eth1-Host-Route gesetzt
+- **ERLEDIGT 2026-06-15**: USB + Netzwerk Sofortkopie: copy_pdf_to_usb_instant() + copy_pdf_to_network_instant() in tcp_print_capture.py eingehängt — PDF sofort nach Charge auf Stick + Netzwerk
+- **ERLEDIGT 2026-06-15**: VPR-Template in send_test_charges.py (Index 3, Aufheizen & VPR ~46 min)
+- **ERLEDIGT 2026-06-15**: USB Auto-Mount-Fix: Warning-Log, Sleep nach Lazy-Unmount, Mount-Versuch in Sofortkopie
 - OFFEN: eth0 statisch auf 192.168.0.171 konfigurieren (DHCP-Boot-Race, Workaround: nmcli con down/up)
 - OFFEN: Abteilung "ZTL" in config.json auf Pi direkt setzen (Einmalig: `python3 -c "import json; f='/home/docucontrol/docupi/data/config.json'; c=json.load(open(f)); c.setdefault('pdf',{})['abteilung']='ZTL'; json.dump(c,open(f,'w'),indent=2)"`)
 - OFFEN: Echten Druckauftrag vom Tierlabor-Geraet (Belimed PST 14-8-12 HS1) empfangen und Captures analysieren

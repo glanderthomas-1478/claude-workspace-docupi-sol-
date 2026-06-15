@@ -88,6 +88,14 @@ Prototyp fertigstellen und erste Feldtests im eigenen Arbeitsumfeld durchfuehren
   - `applyIfaceStatus()` setzt `iface2Enabled`-Checkbox korrekt aus `d.enabled`
   - USB-Stick formatieren Button (POST /api/storage/usb/format, FAT32, Label DOCUCTRL)
 - **ERLEDIGT 2026-06-11**: GitHub Collaboration: Thomas Glander (glanderthomas-1478) als Collaborator mit Push-Zugriff hinzugefügt
+- **ERLEDIGT 2026-06-15**: Drucker USB-Fix deployed:
+  - Epson XP-4150 nutzt IPP-over-USB (ipp-usb-Dienst), nicht klassisches usb://-Backend
+  - setup_usb_printer() erkennt beide URI-Typen, laeuft automatisch beim Service-Start
+  - Settings-Button "USB einrichten" fuer manuellen Reset
+  - Sudoers fuer lpadmin + lpinfo gesetzt, Druck verifiziert
+- **ERLEDIGT 2026-06-15**: Abteilung "AEMP" -> "ZTL" in Test-Chargen + config.py Default
+- OFFEN: eth0 statisch auf 192.168.0.171 konfigurieren (DHCP-Boot-Race, Workaround: nmcli con down/up)
+- OFFEN: Abteilung "ZTL" in config.json auf Pi direkt setzen (Einmalig: `python3 -c "import json; f='/home/docucontrol/docupi/data/config.json'; c=json.load(open(f)); c.setdefault('pdf',{})['abteilung']='ZTL'; json.dump(c,open(f,'w'),indent=2)"`)
 - OFFEN: Echten Druckauftrag vom Tierlabor-Geraet (Belimed PST 14-8-12 HS1) empfangen und Captures analysieren
 - OFFEN: protocol_parser.py auf echten PST 14-8-12 HS1 Daten kalibrieren
 - OFFEN: Maschinennummer des Tierlabor-Geraets in Settings eintragen

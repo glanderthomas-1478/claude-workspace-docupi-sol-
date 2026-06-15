@@ -52,11 +52,13 @@
 - DB: /home/docucontrol/docupi/data/docupi.db (protocols-Tabelle: id, timestamp, device_name, raw_data, pdf_path, pdf_filename, file_size, status, charge_nr_int, program — 851 Eintraege Stand 2026-06-13, letzte Charge CH022773)
 - PDFs: /home/docucontrol/docupi/data/pdfs/ (Dateiname-Format ab 2026-06-11: DATUM_ZEIT_CHxxxxxx_MaschinNr_Geraet.pdf)
 - Port-Redirect: nftables /etc/nftables-docucontrol.conf (80 -> 5000, Regeln: iif eth0 + iif eth1, beide IPs erreichbar)
-- Drucker: Epson XP-4150 als "DocuPrinter" via CUPS IPP Everywhere
-- Web: Dashboard v3 + Settings vollstaendig (Maschinennummer-Feld, iface2Badge, USB-Formatieren) + Dateien vollstaendig (Mode-Toggle PDF/Rohdaten, SQL-Paginierung 50/Seite)
+- Drucker: Epson XP-4150 als "DocuPrinter" via CUPS **IPP-over-USB** (`ipp://EPSON%20XP-4150%20Series%20(USB)._ipp._tcp.local/`) — Druck verifiziert 2026-06-15, Sudoers fuer lpadmin+lpinfo gesetzt
+- Web: Dashboard v3 + Settings vollstaendig (Maschinennummer-Feld, iface2Badge, USB-Formatieren, Button "USB einrichten") + Dateien vollstaendig (Mode-Toggle PDF/Rohdaten, SQL-Paginierung 50/Seite)
 - Drucker-Settings: zeigt "EPSON XP-4150 Series" (echter Modellname via sysfs), "kein Drucker verbunden" wenn offline
 - USB: Auto-Sync via udev + storage_manager.py, Mount: /media/usbstick, Trigger: /var/lib/docucontrol/usb.trigger
-- Naechster Schritt: Sample-Druckauftrag Tierlabor analysieren, Installation vor Ort
+- Abteilung in Test-Chargen + config.json Default: "ZTL" (war "AEMP") — 2026-06-15
+- eth0 DHCP-Problem: nach Reboot manchmal kein IP — Workaround: `nmcli con down/up docucontrol-eth0`; Langfrist-Fix: eth0 statisch auf .171 konfigurieren (noch offen)
+- Naechster Schritt: Sample-Druckauftrag Tierlabor analysieren, Installation vor Ort; eth0 statisch konfigurieren
 - Geplanter Einsatz: Tierlabor Uni Essen — Maschinentyp bestätigt: Belimed PST 14-8-12 HS1
 
 ### Ziel-Hardware (langfristig)

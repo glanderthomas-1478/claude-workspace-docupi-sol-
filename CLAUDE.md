@@ -343,6 +343,16 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
   mit `After=`/`Wants=sys-subsystem-net-devices-eth1.device` + `ExecStartPre=/bin/sleep 2`,
   `systemctl daemon-reload` ausgefuehrt und verifiziert
 
+**Drucker USB-Setup (2026-06-15 gefixt):**
+- Problem: DocuPrinter war als `ipps://EPSON41D474.local:631/ipp/print` (WiFi) konfiguriert — druckte nicht wenn Drucker nur per USB angeschlossen
+- Epson XP-4150 nutzt auf modernem Debian **IPP-over-USB** via `ipp-usb`-Dienst (kein klassisches `usb://`-Backend)
+- `print_manager.py`: `setup_usb_printer()` erkennt jetzt beide URI-Typen: `direct usb://` (klassisch) und `network ipp://...(USB)._ipp._tcp.local` (IPP-over-USB)
+- Verwendet `sudo /usr/sbin/lpinfo` (nicht im PATH, braucht root)
+- Sudoers: `/etc/sudoers.d/docucontrol-cups` mit `NOPASSWD: /usr/sbin/lpadmin, /usr/sbin/lpinfo`
+- Startup-Auto-Setup: beim Service-Start wird USB-Drucker automatisch konfiguriert
+- Settings-Button "USB einrichten" fuer manuellen Reset
+- Verifiziert: DocuPrinter jetzt auf `ipp://EPSON%20XP-4150%20Series%20(USB)._ipp._tcp.local/`, Druck funktioniert
+
 **Naechster Schritt (Tierlabor):** Echten Druckauftrag vom Tierlabor-Geraet (Belimed PST 14-8-12 HS1) empfangen, Maschinennummer des Tierlabor-Geraets in Settings eintragen, Installation vor Ort vorbereiten
 
 ---

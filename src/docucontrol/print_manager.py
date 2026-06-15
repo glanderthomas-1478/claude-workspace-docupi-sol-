@@ -402,23 +402,30 @@ def setup_usb_printer(printer_name="DocuPrinter"):
 
     Returns: (success: bool, message: str)
     """
-    # 1. USB-URI ermitteln
+    # 1. USB-URI ermitteln (klassisch usb:// oder IPP-over-USB via ipp-usb)
     try:
         result = subprocess.run(
-            ['lpinfo', '-v'],
+            ['sudo', '/usr/sbin/lpinfo', '-v'],
             capture_output=True, text=True, timeout=10
         )
         usb_uri = None
+        ipp_usb_uri = None
         for line in result.stdout.splitlines():
             line = line.strip()
+            # Klassisches CUPS USB-Backend
             if line.startswith('direct usb://'):
                 usb_uri = line.split(' ', 1)[1].strip()
                 break
+            # IPP-over-USB (ipp-usb Dienst, modernes Debian/Pi OS)
+            if 'USB' in line and '_ipp._tcp.local' in line:
+                ipp_usb_uri = line.split(' ', 1)[1].strip()
+        if not usb_uri:
+            usb_uri = ipp_usb_uri
     except Exception as e:
         return False, f"lpinfo fehlgeschlagen: {e}"
 
     if not usb_uri:
-        return False, "Kein USB-Drucker gefunden (lpinfo -v liefert keine usb://-URI)"
+        return False, "Kein USB-Drucker gefunden (lpinfo -v liefert keine USB-URI)"
 
     # 2. Alten Eintrag entfernen (Fehler ignorieren — existiert vielleicht nicht)
     subprocess.run(

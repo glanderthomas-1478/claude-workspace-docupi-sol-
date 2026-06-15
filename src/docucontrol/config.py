@@ -29,7 +29,8 @@ DEFAULT_CONFIG = {
         "header_text": "DocuControl Protokoll",
         "device_name": "Sterilisator / RDG",
         "font_size": 8,
-        "page_format": "A4"
+        "page_format": "A4",
+        "abteilung": "ZTL"
     },
     "web": {
         "host": "0.0.0.0",

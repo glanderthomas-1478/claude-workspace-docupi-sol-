@@ -84,6 +84,13 @@
                 </div>
                 <div class="set-row">
                     <div class="info">
+                        <div class="name">Als USB-Drucker einrichten</div>
+                        <div class="desc">Legt DocuPrinter neu als USB-Drucker an (löscht alten Netzwerk-Eintrag)</div>
+                    </div>
+                    <button class="btn btn-glass" id="setupUsbBtn" onclick="setupUsbPrinter()"><i class="bi bi-usb-symbol"></i> USB einrichten</button>
+                </div>
+                <div class="set-row">
+                    <div class="info">
                         <div class="name">Testdruck</div>
                         <div class="desc">Eine Testseite ausgeben</div>
                     </div>
@@ -1025,6 +1032,24 @@
     };
 
     // ── Drucker ─────────────────────────────────────────────────────────
+
+    window.setupUsbPrinter = function() {
+        var btn = document.getElementById('setupUsbBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> …';
+        fetch('/api/printer/setup', {method: 'POST'})
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-usb-symbol"></i> USB einrichten';
+                alert(d.message);
+                if (d.success) loadDeviceSettings();
+            }).catch(function() {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-usb-symbol"></i> USB einrichten';
+                alert('Fehler beim Einrichten');
+            });
+    };
 
     window.detectPrinter = function() {
         fetch('/api/printer/detect', {method: 'POST'})

@@ -387,6 +387,70 @@ def auto_print_pdf(pdf_path):
     t.start()
 
 
+def setup_usb_printer(printer_name="DocuPrinter"):
+    """Legt DocuPrinter als USB-Drucker in CUPS an (loescht alten Eintrag falls vorhanden).
+
+    Ablauf:
+    1. USB-URI per lpinfo -v ermitteln
+    2. Alten CUPS-Eintrag entfernen (sudo lpadmin -x)
+    3. Neu anlegen mit USB-URI (sudo lpadmin -p ... -v usb://... -m everywhere -E)
+    4. Als Standard-Drucker setzen
+
+    Voraussetzung: docucontrol darf lpadmin ohne Passwort ausfuehren:
+      echo 'docucontrol ALL=(ALL) NOPASSWD: /usr/sbin/lpadmin' \
+        | sudo tee /etc/sudoers.d/docucontrol-cups
+
+    Returns: (success: bool, message: str)
+    """
+    # 1. USB-URI ermitteln
+    try:
+        result = subprocess.run(
+            ['lpinfo', '-v'],
+            capture_output=True, text=True, timeout=10
+        )
+        usb_uri = None
+        for line in result.stdout.splitlines():
+            line = line.strip()
+            if line.startswith('direct usb://'):
+                usb_uri = line.split(' ', 1)[1].strip()
+                break
+    except Exception as e:
+        return False, f"lpinfo fehlgeschlagen: {e}"
+
+    if not usb_uri:
+        return False, "Kein USB-Drucker gefunden (lpinfo -v liefert keine usb://-URI)"
+
+    # 2. Alten Eintrag entfernen (Fehler ignorieren — existiert vielleicht nicht)
+    subprocess.run(
+        ['sudo', 'lpadmin', '-x', printer_name],
+        capture_output=True, timeout=10
+    )
+
+    # 3. Neu anlegen mit USB-URI
+    try:
+        r = subprocess.run(
+            ['sudo', 'lpadmin', '-p', printer_name,
+             '-v', usb_uri,
+             '-m', 'everywhere',
+             '-E',
+             '-o', 'printer-is-shared=false'],
+            capture_output=True, text=True, timeout=15
+        )
+        if r.returncode != 0:
+            return False, f"lpadmin fehlgeschlagen: {r.stderr.strip() or r.stdout.strip()}"
+    except Exception as e:
+        return False, f"lpadmin Fehler: {e}"
+
+    # 4. Als Standard-Drucker setzen
+    subprocess.run(
+        ['sudo', 'lpadmin', '-d', printer_name],
+        capture_output=True, timeout=10
+    )
+
+    logger.info(f"USB-Drucker eingerichtet: {printer_name} -> {usb_uri}")
+    return True, f"Drucker als USB eingerichtet ({usb_uri})"
+
+
 def get_status():
     """Get printer subsystem status for API."""
     config = load_print_config()

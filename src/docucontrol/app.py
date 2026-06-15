@@ -16,7 +16,8 @@ from network_manager import (load_network_config, save_network_config,
 from print_manager import (
     get_printers, print_pdf, test_print as printer_test_print,
     get_print_queue, cancel_job, get_status as get_printer_status,
-    load_print_config, save_print_config, auto_print_pdf, is_cups_available
+    load_print_config, save_print_config, auto_print_pdf, is_cups_available,
+    setup_usb_printer, is_usb_printer_present
 )
 from watchdog_manager import start_watchdog_thread, get_status as get_watchdog_status, stop_watchdog_thread
 from tcp_print_capture import start_capture_server, get_capture_status, load_capture_config, save_capture_config
@@ -1096,6 +1097,15 @@ def api_printer_detect():
     return jsonify({'success': True, 'printer': printer_model, 'model': printer_model, 'count': len(printers)})
 
 
+@app.route('/api/printer/setup', methods=['POST'])
+def api_printer_setup():
+    """Legt DocuPrinter als USB-Drucker neu an."""
+    if not is_usb_printer_present():
+        return jsonify({'success': False, 'message': 'Kein USB-Drucker angeschlossen'})
+    ok, msg = setup_usb_printer()
+    return jsonify({'success': ok, 'message': msg})
+
+
 @app.route('/api/printer/test', methods=['POST'])
 def api_printer_test_alias():
     d = request.get_json(silent=True) or {}
@@ -1952,6 +1962,15 @@ if __name__ == "__main__":
     # Auto-Sync starten
     start_auto_sync()
     start_network_sync()
+    # USB-Drucker beim Start konfigurieren (stellt sicher dass DocuPrinter immer USB nutzt)
+    try:
+        if is_usb_printer_present():
+            ok, msg = setup_usb_printer()
+            logger.info(f"Drucker-Setup beim Start: {msg}")
+        else:
+            logger.info("Drucker-Setup beim Start: kein USB-Drucker angeschlossen")
+    except Exception as e:
+        logger.warning(f"Drucker-Setup beim Start fehlgeschlagen: {e}")
 
     # Start hardware watchdog (Waveshare RTC Watchdog HAT B)
     try:

@@ -45,6 +45,179 @@
 
 <footer>DocuControl 2026 &copy; <b>GeTmatic</b> &mdash; Krefeld</footer>
 
+<!-- Virtuelle Tastatur -->
+<div id="vkb" class="vkb" style="display:none">
+  <div class="vkb-rows" id="vkbRows"></div>
+</div>
+
+<style>
+.vkb {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 9000;
+    background: rgba(20,30,48,.96);
+    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    border-top: 1px solid rgba(255,255,255,.12);
+    padding: 10px 8px 14px;
+    box-shadow: 0 -8px 32px rgba(0,0,0,.5);
+}
+.vkb-rows { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+.vkb-row  { display: flex; gap: 5px; }
+.vk {
+    min-width: 42px; height: 44px; padding: 0 8px;
+    background: rgba(255,255,255,.10);
+    border: 1px solid rgba(255,255,255,.18);
+    border-radius: 8px;
+    color: #e8eef6; font-size: 15px; font-weight: 500;
+    cursor: pointer; user-select: none;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .1s;
+}
+.vk:active, .vk.pressed { background: rgba(255,255,255,.28); }
+.vk.wide   { min-width: 80px; }
+.vk.space  { min-width: 240px; }
+.vk.action { background: rgba(37,99,235,.5); border-color: rgba(37,99,235,.7); }
+.vk.shift-on { background: rgba(255,255,255,.25); }
+</style>
+
+<script>
+(function(){
+    var ROWS_LOWER = [
+        ['1','2','3','4','5','6','7','8','9','0','-','.','@'],
+        ['q','w','e','r','t','z','u','i','o','p','ü'],
+        ['a','s','d','f','g','h','j','k','l','ö','ä'],
+        ['⇧','y','x','c','v','b','n','m','ß','_','/','⌫'],
+        ['SPACE','↵']
+    ];
+    var ROWS_UPPER = [
+        ['1','2','3','4','5','6','7','8','9','0','-','.','@'],
+        ['Q','W','E','R','T','Z','U','I','O','P','Ü'],
+        ['A','S','D','F','G','H','J','K','L','Ö','Ä'],
+        ['⇧','Y','X','C','V','B','N','M','ß','_','/','⌫'],
+        ['SPACE','↵']
+    ];
+
+    var shifted = false;
+    var activeEl = null;
+    var vkb = document.getElementById('vkb');
+    var vkbRows = document.getElementById('vkbRows');
+    var hideTimer = null;
+
+    function buildKeyboard() {
+        var rows = shifted ? ROWS_UPPER : ROWS_LOWER;
+        vkbRows.innerHTML = '';
+        rows.forEach(function(row) {
+            var div = document.createElement('div');
+            div.className = 'vkb-row';
+            row.forEach(function(k) {
+                var btn = document.createElement('button');
+                btn.className = 'vk';
+                btn.type = 'button';
+                if (k === 'SPACE') { btn.className += ' space'; btn.textContent = ''; }
+                else if (k === '↵') { btn.className += ' action wide'; btn.textContent = '↵'; }
+                else if (k === '⌫') { btn.className += ' action'; btn.textContent = '⌫'; }
+                else if (k === '⇧') { btn.className += ' wide' + (shifted ? ' shift-on' : ''); btn.textContent = '⇧'; }
+                else { btn.textContent = k; }
+                btn.addEventListener('mousedown', function(e){ e.preventDefault(); });
+                btn.addEventListener('click', function(){ handleKey(k); });
+                div.appendChild(btn);
+            });
+            vkbRows.appendChild(div);
+        });
+    }
+
+    function handleKey(k) {
+        if (!activeEl) return;
+        if (k === '⇧') { shifted = !shifted; buildKeyboard(); return; }
+        if (k === '⌫') {
+            var s = activeEl.selectionStart, e = activeEl.selectionEnd;
+            if (s === e && s > 0) {
+                activeEl.value = activeEl.value.slice(0,s-1) + activeEl.value.slice(e);
+                activeEl.selectionStart = activeEl.selectionEnd = s-1;
+            } else if (s !== e) {
+                activeEl.value = activeEl.value.slice(0,s) + activeEl.value.slice(e);
+                activeEl.selectionStart = activeEl.selectionEnd = s;
+            }
+        } else if (k === '↵') {
+            activeEl.blur();
+            hide();
+        } else {
+            var ch = k === 'SPACE' ? ' ' : k;
+            var s = activeEl.selectionStart, e = activeEl.selectionEnd;
+            activeEl.value = activeEl.value.slice(0,s) + ch + activeEl.value.slice(e);
+            activeEl.selectionStart = activeEl.selectionEnd = s + ch.length;
+            if (shifted && k !== 'SPACE') { shifted = false; buildKeyboard(); }
+        }
+        activeEl.dispatchEvent(new Event('input', {bubbles:true}));
+    }
+
+    function show(el) {
+        clearTimeout(hideTimer);
+        activeEl = el;
+        buildKeyboard();
+        vkb.style.display = 'block';
+        /* Verhindert dass das Feld hinter der Tastatur verschwindet */
+        document.body.style.paddingBottom = vkb.offsetHeight + 'px';
+    }
+
+    function hide() {
+        hideTimer = setTimeout(function(){
+            vkb.style.display = 'none';
+            document.body.style.paddingBottom = '';
+            activeEl = null;
+        }, 120);
+    }
+
+    function isTextInput(t) {
+        return t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA') &&
+            t.type !== 'checkbox' && t.type !== 'radio' &&
+            t.type !== 'date' && t.type !== 'file' &&
+            !t.readOnly && !t.disabled;
+    }
+
+    /* inputmode=none verhindert dass Chromium die System-Tastatur oeffnet */
+    function patchInputs() {
+        document.querySelectorAll('input, textarea').forEach(function(el) {
+            if (isTextInput(el)) el.setAttribute('inputmode', 'none');
+        });
+    }
+
+    /* MutationObserver fuer dynamisch erzeugte Inputs (z.B. Protokolltabelle) */
+    var mo = new MutationObserver(function(muts) {
+        muts.forEach(function(m) {
+            m.addedNodes.forEach(function(n) {
+                if (n.nodeType !== 1) return;
+                if (isTextInput(n)) n.setAttribute('inputmode', 'none');
+                n.querySelectorAll && n.querySelectorAll('input, textarea').forEach(function(el) {
+                    if (isTextInput(el)) el.setAttribute('inputmode', 'none');
+                });
+            });
+        });
+    });
+    mo.observe(document.body, {childList: true, subtree: true});
+
+    /* Patch sofort + nach DOMContentLoaded (falls Script vor Inhalt laeuft) */
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', patchInputs);
+    } else {
+        patchInputs();
+    }
+
+    /* Tastatur oeffnen per touchstart (zuverlaessiger als focusin auf Touch-Geraeten) */
+    document.addEventListener('touchstart', function(e) {
+        var t = e.target;
+        if (isTextInput(t)) { clearTimeout(hideTimer); t.focus(); show(t); }
+        else if (!vkb.contains(t)) { hide(); }
+    }, {passive: true});
+
+    document.addEventListener('focusin', function(e) {
+        if (isTextInput(e.target)) show(e.target);
+    });
+
+    document.addEventListener('focusout', function(e) {
+        if (isTextInput(e.target)) hide();
+    });
+})();
+</script>
+
 <script>
 (function() {
     /* Live-Uhr */

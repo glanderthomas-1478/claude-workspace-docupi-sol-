@@ -434,13 +434,19 @@ def setup_usb_printer(printer_name="DocuPrinter"):
     )
 
     # 3. Neu anlegen mit USB-URI
+    # IPP-over-USB (ipp-usb) braucht "-m everywhere", klassisches usb:// braucht PCL-PPD
+    if usb_uri.startswith('usb://'):
+        ppd_model = 'drv:///sample.drv/generpcl.ppd'
+    else:
+        ppd_model = 'everywhere'
     try:
         r = subprocess.run(
             ['sudo', 'lpadmin', '-p', printer_name,
              '-v', usb_uri,
-             '-m', 'everywhere',
+             '-m', ppd_model,
              '-E',
-             '-o', 'printer-is-shared=false'],
+             '-o', 'printer-is-shared=false',
+             '-o', 'media=iso_a4_210x297mm'],
             capture_output=True, text=True, timeout=15
         )
         if r.returncode != 0:

@@ -7,6 +7,47 @@
 @keyframes slideInToast { from { transform: translateX(120%); opacity:0; } to { transform: translateX(0); opacity:1; } }
 @keyframes fadeOutToast { to { transform: translateX(120%); opacity:0; } }
 
+/* PDF-Modal */
+.pdf-modal-bg {
+    display: none;
+    position: fixed; inset: 0; z-index: 2000;
+    background: rgba(0,0,0,.72);
+    align-items: center; justify-content: center;
+}
+.pdf-modal-bg.open { display: flex; }
+.pdf-modal {
+    background: var(--card-bg);
+    border-radius: 16px;
+    box-shadow: 0 24px 64px rgba(0,0,0,.5);
+    width: 90vw; height: 90vh;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+}
+.pdf-modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+.pdf-modal-header span { font-weight: 600; font-size: 15px; }
+.pdf-modal-close {
+    cursor: pointer; font-size: 22px; opacity: .7; line-height: 1;
+    background: none; border: none; color: inherit;
+}
+.pdf-modal-close:hover { opacity: 1; }
+.pdf-modal-body {
+    flex: 1; overflow-y: auto;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 12px; padding: 16px; background: #555;
+}
+.pdf-modal-body img {
+    max-width: 100%; border-radius: 4px;
+    box-shadow: 0 4px 16px rgba(0,0,0,.4);
+}
+.pdf-modal-loading {
+    color: #fff; font-size: 14px; margin: auto;
+}
+
 .print-toast {
     display: none;
     position: fixed; bottom: 28px; right: 28px; z-index: 1000;
@@ -36,6 +77,19 @@
         <div class="over">Übersicht</div>
         <h1>Chargenprotokolle</h1>
         <div class="lede">Gespeicherte Sterilisations-Chargen ansehen, filtern und drucken.</div>
+    </div>
+</div>
+
+<!-- PDF-Modal -->
+<div class="pdf-modal-bg" id="pdfModalBg" onclick="if(event.target===this)closePdfModal()">
+    <div class="pdf-modal">
+        <div class="pdf-modal-header">
+            <span id="pdfModalTitle"><i class="bi bi-file-earmark-pdf"></i> Protokoll</span>
+            <button class="pdf-modal-close" onclick="closePdfModal()"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div class="pdf-modal-body" id="pdfModalBody">
+            <div class="pdf-modal-loading">Wird geladen …</div>
+        </div>
     </div>
 </div>
 
@@ -347,7 +401,7 @@
 
             var actions = '<div class="act">';
             if (p.pdf_filename) {
-                actions += '<button class="icon-btn" title="PDF herunterladen" onclick="dlPdf(' + p.id + ')"><i class="bi bi-file-earmark-pdf"></i></button>';
+                actions += '<button class="icon-btn" title="PDF anzeigen" onclick="viewPdf(' + p.id + ')"><i class="bi bi-file-earmark-pdf"></i></button>';
                 if (printerReady) {
                     actions += '<button class="icon-btn" title="Drucken" onclick="printPdf(this,' + p.id + ')"><i class="bi bi-printer"></i></button>';
                 }
@@ -427,7 +481,27 @@
 
     window.goPage = function(p) { loadProtocols(p); };
 
-    window.dlPdf = function(id) { window.location.href = '/download/' + id; };
+    window.viewPdf = function(id) {
+        var body = document.getElementById('pdfModalBody');
+        body.innerHTML = '<div class="pdf-modal-loading">Wird geladen …</div>';
+        document.getElementById('pdfModalBg').classList.add('open');
+        fetch('/pdf-info/' + id)
+            .then(function(r){ return r.json(); })
+            .then(function(d){
+                body.innerHTML = '';
+                for (var p = 1; p <= d.pages; p++) {
+                    var img = document.createElement('img');
+                    img.src = '/pdf-page/' + id + '/' + p;
+                    body.appendChild(img);
+                }
+                if (!d.pages) body.innerHTML = '<div class="pdf-modal-loading">Keine Seiten gefunden.</div>';
+            })
+            .catch(function(){ body.innerHTML = '<div class="pdf-modal-loading">Fehler beim Laden.</div>'; });
+    };
+    window.closePdfModal = function() {
+        document.getElementById('pdfModalBg').classList.remove('open');
+        document.getElementById('pdfModalBody').innerHTML = '';
+    };
 
     window.printPdf = function(btn, id) {
         if (btn.disabled) return;

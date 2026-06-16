@@ -21,6 +21,7 @@ from print_manager import (
 )
 from watchdog_manager import start_watchdog_thread, get_status as get_watchdog_status, stop_watchdog_thread
 from tcp_print_capture import start_capture_server, get_capture_status, load_capture_config, save_capture_config
+from lpd_server import start_lpd_server, get_lpd_status
 from health_check import run_health_check, backup_config_on_save
 from storage_manager import (
     get_usb_info, mount_usb, unmount_usb, format_usb_fat32,
@@ -107,6 +108,39 @@ def view_pdf(pid):
     if row and row["pdf_path"] and os.path.exists(row["pdf_path"]):
         return send_file(row["pdf_path"], mimetype="application/pdf")
     return "PDF nicht gefunden", 404
+
+
+@app.route("/pdf-info/<int:pid>")
+def pdf_info(pid):
+    conn = get_db(); row = conn.execute("SELECT * FROM protocols WHERE id=?", (pid,)).fetchone(); conn.close()
+    if not row or not row["pdf_path"] or not os.path.exists(row["pdf_path"]):
+        return jsonify({"pages": 0}), 404
+    import subprocess
+    r = subprocess.run(["pdfinfo", row["pdf_path"]], capture_output=True, text=True)
+    pages = 1
+    for line in r.stdout.splitlines():
+        if line.startswith("Pages:"):
+            try: pages = int(line.split(":")[1].strip())
+            except: pass
+    return jsonify({"pages": pages, "id": pid})
+
+@app.route("/pdf-page/<int:pid>/<int:page>")
+def pdf_page(pid, page):
+    conn = get_db(); row = conn.execute("SELECT * FROM protocols WHERE id=?", (pid,)).fetchone(); conn.close()
+    if not row or not row["pdf_path"] or not os.path.exists(row["pdf_path"]):
+        return "", 404
+    import subprocess, tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        subprocess.run(["pdftoppm", "-r", "150", "-f", str(page), "-l", str(page),
+                        "-png", "-singlefile", row["pdf_path"], f"{tmp}/p"],
+                       capture_output=True)
+        img = f"{tmp}/p.png"
+        if not os.path.exists(img):
+            return "", 404
+        with open(img, "rb") as fh:
+            data = fh.read()
+    from flask import Response
+    return Response(data, mimetype="image/png")
 
 @app.route("/settings", methods=["GET", "POST"])
 def settings():
@@ -1954,6 +1988,11 @@ if __name__ == "__main__":
             logger.info("TCP-Capture deaktiviert (capture_config.json)")
     except Exception as e:
         logger.warning(f"TCP capture Init-Fehler: {e}")
+    try:
+        start_lpd_server()
+        logger.info("LPD-Server gestartet")
+    except Exception as e:
+        logger.warning(f"LPD-Server Init-Fehler: {e}")
     # USB beim Boot mounten (nach Stromausfall/Reboot)
     try:
         try_mount_usb_on_boot()

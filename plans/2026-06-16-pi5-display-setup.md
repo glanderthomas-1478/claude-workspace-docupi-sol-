@@ -122,6 +122,8 @@ ssh docucontrol2 "cd /home/docucontrol/docupi && sudo docker-compose build --no-
 - **URL:** `http://localhost:5000` (Dashboard-Seite)
 - **Autostart:** `kiosk.service` (enabled, startet nach `docucontrol.service`)
 - **Xwrapper:** `/etc/X11/Xwrapper.config` → `allowed_users=anybody`
+- **Cursor ausgeblendet:** udev-Regel `/etc/udev/rules.d/99-vc4-hdmi-noinput.rules` setzt `LIBINPUT_IGNORE_DEVICE=1` auf den HDMI-CEC-Virtualgeräten (`platform-107c701400.hdmi` + `platform-107c706400.hdmi`) — diese wurden von cage als Pointer erkannt und haben den Cursor verursacht
+- **Touchscreen:** QDTECH MPI7002 USB (Vendor 0484, Product 5750) via `/etc/udev/rules.d/99-qdtech-touch.rules` als Touch-Only klassifiziert
 
 ---
 
@@ -132,6 +134,7 @@ ssh docucontrol2 "cd /home/docucontrol/docupi && sudo docker-compose build --no-
 - [ ] **Drucker** anschließen und `USB einrichten` in Settings klicken
 - [ ] **nftables autostart** sauber konfigurieren (Port 80 → 5000 für externe Geräte)
 - [ ] **eth0 statisch** konfigurieren (aktuell DHCP → IP kann nach Reboot wechseln)
+- [x] **Cursor ausgeblendet** — udev `LIBINPUT_IGNORE_DEVICE=1` auf vc4-hdmi Geräten (2026-06-16)
 - [ ] **Kiosk testen** nach Reboot (Display zeigt Dashboard?)
 - [ ] **Deploy-Script** erweitern (`deploy_docucontrol_win.ps1`) für .218
 

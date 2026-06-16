@@ -11,9 +11,14 @@ RUN apt-get update && apt-get install -y \
     tzdata \
     sudo \
     dosfstools \
+    poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 
 ENV TZ=Europe/Berlin
+
+# Hardcodierte Pfade im App-Code zeigen auf /home/docucontrol/docupi/
+# Symlink damit DB, Configs und Logs am richtigen Ort landen
+RUN mkdir -p /home/docucontrol && ln -s /app /home/docucontrol/docupi
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt

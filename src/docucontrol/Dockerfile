@@ -9,6 +9,8 @@ RUN apt-get update && apt-get install -y \
     fonts-dejavu \
     fonts-liberation \
     tzdata \
+    sudo \
+    dosfstools \
     && rm -rf /var/lib/apt/lists/*
 
 ENV TZ=Europe/Berlin

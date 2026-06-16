@@ -12,6 +12,8 @@ RUN apt-get update && apt-get install -y \
     sudo \
     dosfstools \
     poppler-utils \
+    iproute2 \
+    network-manager \
     && rm -rf /var/lib/apt/lists/*
 
 ENV TZ=Europe/Berlin

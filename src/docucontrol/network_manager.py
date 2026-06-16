@@ -265,6 +265,8 @@ def get_available_interfaces():
             continue
         if name.startswith('wlan'):
             continue
+        if name.startswith('docker') or name.startswith('br-') or name.startswith('veth'):
+            continue
         if '.' in name:  # VLAN-Sub-Interface
             continue
         ifaces.append(name)

@@ -132,7 +132,7 @@ ssh docucontrol2 "cd /home/docucontrol/docupi && sudo docker-compose build --no-
 - [ ] **Maschinennummer + Name** in Settings eintragen (Einstellungen → Anlage)
 - [ ] **Netzwerk-Speicherort** konfigurieren falls gewünscht (SMB wie bei .171)
 - [ ] **Drucker** anschließen und `USB einrichten` in Settings klicken
-- [ ] **nftables autostart** sauber konfigurieren (Port 80 → 5000 für externe Geräte)
+- [x] **nftables autostart** konfiguriert — `/etc/nftables-docucontrol.conf` + `nftables-docucontrol.service` (2026-06-16)
 - [ ] **eth0 statisch** konfigurieren (aktuell DHCP → IP kann nach Reboot wechseln)
 - [x] **Cursor ausgeblendet** — udev `LIBINPUT_IGNORE_DEVICE=1` auf vc4-hdmi Geräten (2026-06-16)
 - [ ] **Kiosk testen** nach Reboot (Display zeigt Dashboard?)
@@ -146,7 +146,7 @@ ssh docucontrol2 "cd /home/docucontrol/docupi && sudo docker-compose build --no-
 |---|---|---|
 | **Betrieb** | systemd direkt | Docker + systemd |
 | **Display** | keines | HDMI Kiosk |
-| **Netzwerk** | eth0 + eth1 (USB-Ethernet) | eth0 (einfach) |
+| **Netzwerk** | eth0 + eth1 (USB-Ethernet) | eth0 DHCP (.218) + eth1 statisch (.107) |
 | **RTC** | DS3231 | (noch nicht geprüft) |
 | **WLAN** | hardware-deaktiviert | Status unbekannt |
 | **SMB-Sync** | 192.168.0.99 (gland) | noch nicht konfiguriert |

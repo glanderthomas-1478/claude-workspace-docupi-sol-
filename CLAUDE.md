@@ -377,16 +377,29 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 ## Pi5_Display (dritte Hardware-Linie) — IN BETRIEB SEIT 2026-06-16
 
 Zweiter unabhaengiger DocuControl-Pi mit HDMI-Kiosk-Display.
-- IP: 192.168.0.218 (DHCP, eth0), SSH: `ssh docucontrol2`, Passwort: Xtend1478 (sudo)
+- IP: eth0 192.168.0.218 (DHCP), eth1 192.168.0.107 (statisch), SSH: `ssh docucontrol2`, Passwort: Xtend1478 (sudo)
 - OS: Debian Trixie aarch64, Kernel 6.12.75, Pi 5 (8 GB)
 - Betrieb: **Docker** (`docker-compose up`, Image `docupi-docucontrol`)
 - Architektur: identisch DocuControl — TCP/9100 -> Parse -> PDF -> DB, Flask :5000
 - Display: HDMI + cage (Wayland-Kiosk) + Chromium → http://localhost:5000
-- Services: `docucontrol.service` (Docker), `kiosk.service` (cage+Chromium), `cups.service`, `seatd.service`
+- Webzugriff extern: http://192.168.0.218 oder http://192.168.0.107 (nftables Port 80→5000)
+- Services: `docucontrol.service` (Docker), `kiosk.service` (cage+Chromium), `cups.service`, `seatd.service`, `nftables-docucontrol.service`
 - App-Pfad auf Pi: `/home/docucontrol/docupi/` (Volume-gemountet in Container als `/app`)
-- Docker-Befehle: `sudo docker-compose restart` (kein Rebuild noetig — Volume-Mount)
-- Noch offen: Maschinennummer/Name in Settings, Drucker anschliessen, eth0 statisch, nftables Autostart
+- Docker-Befehle: `sudo docker-compose restart` (kein Rebuild noetig), `sudo docker-compose build --no-cache` (nach Dockerfile-Aenderung)
+- Docker-Image enthaelt: poppler-utils (PDF→PNG), iproute2 + network-manager (nmcli), sudo, dosfstools
+- Cursor: udev `99-vc4-hdmi-noinput.rules` unterdrueckt HDMI-CEC-Pointer; Touchscreen: `99-qdtech-touch.rules`
+- Virtuelle Tastatur: JS-Keyboard in `base.html` oeffnet sich bei jedem Input-Fokus (QWERTZ, Umlaute)
+- PDF-Viewer: Modal mit pdftoppm-Rendering (PNG pro Seite), kein Browser-PDF-Plugin noetig
+- Noch offen: Maschinennummer/Name in Settings, Drucker anschliessen, eth0 statisch
 - Projektdokumentation: `plans/2026-06-16-pi5-display-setup.md`
+
+**Pi5_Display-spezifische Aenderungen (2026-06-16):**
+- `app.py`: `/pdf-info/<id>` + `/pdf-page/<id>/<page>` — PDF-Seiten als PNG via pdftoppm
+- `dashboard.html`: PDF-Modal-Viewer (Bilder statt iframe), PDF-Button oeffnet Modal
+- `base.html`: Virtuelle Tastatur (QWERTZ+Umlaute), touchstart + inputmode=none + MutationObserver
+- `network_manager.py`: docker0/br-*/veth* aus get_available_interfaces() gefiltert
+- `Dockerfile`: poppler-utils + iproute2 + network-manager
+- `docker-compose.yml`: /var/run/dbus gemountet fuer nmcli-Zugriff auf Host-NetworkManager
 
 ---
 

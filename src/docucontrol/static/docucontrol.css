@@ -3,6 +3,9 @@
    v3: Liquid Glass, Machine-Bar, Square-Font, neue Stat-Karten
 */
 
+/* Kiosk-Display: Mauszeiger ausblenden */
+* { cursor: none !important; }
+
 @font-face {
   font-family: 'Square';
   src: url('fonts/Square.ttf') format('truetype');

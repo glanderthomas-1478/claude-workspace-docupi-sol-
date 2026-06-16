@@ -104,8 +104,9 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 
 ## Wichtiger Kontext
 
-- Hardware: Raspberry Pi — DocuPi-3000 (SSH: belimed@192.168.178.83, zu Hause) | DocuControl (SSH: docucontrol@192.168.0.171, bei getmatic)
-- SSH fuer DocuControl: Alias `ssh docucontrol` (Host 192.168.0.171, User docucontrol, IdentityFile `~/.ssh/docucontrol_id`, siehe `~/.ssh/config`), Passwort: Xtend1478 (fuer sudo)
+- Hardware: Raspberry Pi — DocuPi-3000 (SSH: belimed@192.168.178.83, zu Hause) | DocuControl (SSH: docucontrol@192.168.0.171, bei getmatic) | Pi5_Display (SSH: `ssh docucontrol2`, 192.168.0.218)
+- SSH fuer DocuControl: Alias `ssh docucontrol` (Host 192.168.0.171, User docucontrol, IdentityFile `~/.ssh/docucontrol_id`), Passwort: Xtend1478 (fuer sudo)
+- SSH fuer Pi5_Display: Alias `ssh docucontrol2` (Host 192.168.0.218, User docucontrol, IdentityFile `~/.ssh/docucontrol_id`), Passwort: Xtend1478 (fuer sudo)
 - Langfristiges Ziel: CE-zertifizierte Linux-Controller (Unipi Neuron / RevPi Connect)
 - Geschaeftsmodell: Softwarelizenz + Sensor-Kit
 - Erster Feldtest abgeschlossen: 3 Wochen, 140 Chargen, Helios Krefeld (Belimed 9-6-18 HS2)
@@ -370,6 +371,22 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 - Verwendung: `--sequence 3`
 
 **Naechster Schritt (Tierlabor):** Echten Druckauftrag vom Tierlabor-Geraet (Belimed PST 14-8-12 HS1) empfangen, Maschinennummer des Tierlabor-Geraets in Settings eintragen, Installation vor Ort vorbereiten
+
+---
+
+## Pi5_Display (dritte Hardware-Linie) — IN BETRIEB SEIT 2026-06-16
+
+Zweiter unabhaengiger DocuControl-Pi mit HDMI-Kiosk-Display.
+- IP: 192.168.0.218 (DHCP, eth0), SSH: `ssh docucontrol2`, Passwort: Xtend1478 (sudo)
+- OS: Debian Trixie aarch64, Kernel 6.12.75, Pi 5 (8 GB)
+- Betrieb: **Docker** (`docker-compose up`, Image `docupi-docucontrol`)
+- Architektur: identisch DocuControl — TCP/9100 -> Parse -> PDF -> DB, Flask :5000
+- Display: HDMI + cage (Wayland-Kiosk) + Chromium → http://localhost:5000
+- Services: `docucontrol.service` (Docker), `kiosk.service` (cage+Chromium), `cups.service`, `seatd.service`
+- App-Pfad auf Pi: `/home/docucontrol/docupi/` (Volume-gemountet in Container als `/app`)
+- Docker-Befehle: `sudo docker-compose restart` (kein Rebuild noetig — Volume-Mount)
+- Noch offen: Maschinennummer/Name in Settings, Drucker anschliessen, eth0 statisch, nftables Autostart
+- Projektdokumentation: `plans/2026-06-16-pi5-display-setup.md`
 
 ---
 

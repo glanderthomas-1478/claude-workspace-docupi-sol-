@@ -1,0 +1,16 @@
+services:
+  docucontrol:
+    build: .
+    network_mode: host
+    volumes:
+      - .:/app
+      - /home/docucontrol/docupi/logs:/home/docucontrol/docupi/logs
+      - /sys:/sys:ro
+      - /dev:/dev
+      - /var/run/cups:/var/run/cups
+      - /media:/media
+      - /mnt:/mnt
+    environment:
+      - PYTHONUNBUFFERED=1
+      - TZ=Europe/Berlin
+    restart: unless-stopped

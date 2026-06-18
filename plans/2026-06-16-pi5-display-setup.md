@@ -130,7 +130,7 @@ ssh docucontrol2 "cd /home/docucontrol/docupi && sudo docker-compose build --no-
 ## Was noch offen ist
 
 - [ ] **Maschinennummer + Name** in Settings eintragen (Einstellungen → Anlage)
-- [ ] **Netzwerk-Speicherort** konfigurieren falls gewünscht (SMB wie bei .171)
+- [x] **Netzwerk-Speicherort** konfiguriert — SMB zu `\\192.168.0.86\temp` (Konto `docucontrol`), `mounted:true`, Sofort-Sync verifiziert (2026-06-18, siehe CLAUDE.md "Netzwerk-Speicherort SMB-Mount im Docker-Container gefixt")
 - [ ] **Drucker** anschließen und `USB einrichten` in Settings klicken
 - [x] **nftables autostart** konfiguriert — `/etc/nftables-docucontrol.conf` + `nftables-docucontrol.service` (2026-06-16)
 - [ ] **eth0 statisch** konfigurieren (aktuell DHCP → IP kann nach Reboot wechseln)
@@ -149,4 +149,4 @@ ssh docucontrol2 "cd /home/docucontrol/docupi && sudo docker-compose build --no-
 | **Netzwerk** | eth0 + eth1 (USB-Ethernet) | eth0 DHCP (.218) + eth1 statisch (.107) |
 | **RTC** | DS3231 | (noch nicht geprüft) |
 | **WLAN** | hardware-deaktiviert | Status unbekannt |
-| **SMB-Sync** | 192.168.0.99 (gland) | noch nicht konfiguriert |
+| **SMB-Sync** | 192.168.0.99 (gland) | 192.168.0.86 (Thomas' PC), produktiv seit 2026-06-18 |

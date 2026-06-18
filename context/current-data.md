@@ -68,6 +68,13 @@
 - Naechster Schritt: Sample-Druckauftrag Tierlabor analysieren, Installation vor Ort; eth0 statisch konfigurieren
 - Geplanter Einsatz: Tierlabor Uni Essen — Maschinentyp bestätigt: Belimed PST 14-8-12 HS1
 
+### Pi5_Display (dritte Hardware-Linie, in Betrieb seit 2026-06-16)
+- Eigenstaendiger DocuControl-Pi mit HDMI-Kiosk-Display, Betrieb via Docker
+- SSH: docucontrol@192.168.0.107 (eth1, statisch) bzw. 192.168.0.218 (eth0, DHCP) — aktuell ueber .107 erreichbar
+- Netzwerk-Speicherort (SMB) zu \\192.168.0.86\temp (Konto docucontrol) seit 2026-06-18 produktiv
+- Offen: Maschinennummer/Name in Settings, Drucker anschliessen, eth0 statisch
+- Details: CLAUDE.md Abschnitt "Pi5_Display", plans/2026-06-16-pi5-display-setup.md
+
 ### Ziel-Hardware (langfristig)
 - Unipi Neuron / RevPi Connect (CE-zertifiziert)
 

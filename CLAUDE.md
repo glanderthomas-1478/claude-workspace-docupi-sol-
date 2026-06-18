@@ -73,7 +73,8 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 ├── reference/              # Dokumentation, Konzepte
 │   ├── design_handoff_docucontrol/   # hifi Design-Handoff v1/v2 (GeTmatic)
 │   ├── design_handoff_docucontrol_v3/  # hifi Design-Handoff v3 (2026-06-08) — Liquid Glass, Machine-Bar, 6-Tab-Settings
-│   └── neues Design recap/  # Screenshots des laufenden DocuControl-Interface (laufend aktualisiert, zuletzt 2026-06-12)
+│   ├── neues Design recap/  # Screenshots des laufenden DocuControl-Interface (laufend aktualisiert, zuletzt 2026-06-12)
+│   └── 3D Druck/            # Raspberry Pi 5 Geekworm X1001 NVMe-Gehaeuse (STL/STEP/3MF) — Basis fuer DocuControl-Branding-Variante (weiss, getmatic-Logo + "DocuControl"-Schriftzug), getmatic_logo.jpeg als Logo-Quelle
 ├── plans/                  # Implementierungsplaene
 ├── outputs/                # Arbeitsergebnisse (Konzeptpapiere, generierte PDFs)
 │   └── docupi-3000_konzept_getmatic.{md,pdf}  # Vertriebs-Konzept fuer getmatic
@@ -414,6 +415,24 @@ Zweiter unabhaengiger DocuControl-Pi mit HDMI-Kiosk-Display.
   `mounted:true`, Sofort-Sync getestet (3 PDFs uebertragen)
 - Lehre: Bei Docker-Containern mit `mount`-Funktionalitaet immer pruefen, ob die noetigen Userspace-Helper
   (hier `cifs-utils`) im Image installiert sind — der nackte `mount`-Befehl aus util-linux reicht nicht
+
+---
+
+## Offene Aufgabe: DocuControl-Gehaeuse-Branding (3D-Druck) — IN ARBEIT
+
+Basis: Raspberry Pi 5 Geekworm X1001 NVMe-SSD-Case (`reference/3D Druck/`, v14/v15-Dateien).
+Ziel: Gehaeuse-Variante in weiss mit getmatic-Logo + "DocuControl"-Schriftzug im Firmenstyle auf dem Deckel.
+
+- FreeCAD 1.1.1 wurde lokal installiert (`C:\Users\tomto\AppData\Local\Programs\FreeCAD 1.1`), da keine
+  CAD-Software (FreeCAD/OpenSCAD/Blender) und kein Python/ImageMagick auf dem Rechner vorhanden waren
+- Logo-Quelle: `reference/3D Druck/getmatic_logo.jpeg` (niedrig aufgeloeste JPEG mit grauem Hintergrund,
+  von `claude-workspace-docucontrol/reference/design_handoff_docucontrol/assets/GeTmatic_Logo.jpeg`
+  kopiert) — User hat sich bewusst fuer "mit JPEG weiterarbeiten" entschieden statt eine bessere Quelle
+  zu suchen; Hintergrund muss noch freigestellt werden
+- Naechste Schritte: (1) Logo freistellen/fuer Gravur aufbereiten, (2) `caseupper-v14.stl` bzw.
+  `rpi5-x1001-case-v15-heat-inserts.step` in FreeCAD per Skript laden, Logo + Schriftzug als
+  Relief/Gravur auf die Deckelflaeche aufbringen, Materialfarbe weiss setzen, als neue STEP/STL exportieren
+- Noch nicht begonnen: eigentliche FreeCAD-Bearbeitung (Step 3 der Aufgabe)
 
 ---
 

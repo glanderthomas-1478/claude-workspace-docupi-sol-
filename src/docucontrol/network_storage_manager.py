@@ -136,7 +136,7 @@ def mount_network_share(cfg=None):
     _run(["sudo", "/usr/bin/mkdir", "-p", NETWORK_MOUNT_POINT])
 
     unc = f"//{cfg['server']}/{cfg['share']}"
-    options = f"credentials={CRED_FILE},uid=1000,gid=1000,iocharset=utf8,_netdev,file_mode=0644,dir_mode=0755"
+    options = f"credentials={CRED_FILE},uid=1000,gid=1000,iocharset=utf8,_netdev,file_mode=0644,dir_mode=0755,vers=3.0"
     ok, out, err = _run(["sudo", "/usr/bin/mount", "-t", "cifs", unc, NETWORK_MOUNT_POINT, "-o", options], timeout=30)
 
     if ok:
@@ -189,7 +189,7 @@ def test_network_connection(server, share, username, password, domain):
 
     try:
         _run(["sudo", "/usr/bin/mkdir", "-p", NETWORK_MOUNT_POINT])
-        options = f"credentials={test_cred},uid=1000,gid=1000,iocharset=utf8"
+        options = f"credentials={test_cred},uid=1000,gid=1000,iocharset=utf8,vers=3.0"
         ok, out, err = _run(["sudo", "/usr/bin/mount", "-t", "cifs", unc, NETWORK_MOUNT_POINT, "-o", options], timeout=15)
         if ok:
             _run(["sudo", "/usr/bin/umount", NETWORK_MOUNT_POINT])

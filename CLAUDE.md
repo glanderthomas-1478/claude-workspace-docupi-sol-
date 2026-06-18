@@ -401,6 +401,20 @@ Zweiter unabhaengiger DocuControl-Pi mit HDMI-Kiosk-Display.
 - `Dockerfile`: poppler-utils + iproute2 + network-manager
 - `docker-compose.yml`: /var/run/dbus gemountet fuer nmcli-Zugriff auf Host-NetworkManager
 
+**Netzwerk-Speicherort SMB-Mount im Docker-Container gefixt (2026-06-18):**
+- Root-Cause: `cifs-utils` (mount.cifs-Helper) fehlte im Docker-Image — bare `mount -t cifs` im Container
+  kennt die Option `credentials=...` nicht (das ist reine mount.cifs-Funktionalitaet), der Kernel bekam
+  dadurch keine echten Zugangsdaten und verband sich quasi anonym → `STATUS_ACCESS_DENIED` vom SMB-Server,
+  obwohl Username/Passwort korrekt waren und der identische Mount-Befehl auf dem Host (ausserhalb des
+  Containers) einwandfrei funktionierte
+- Fix: `Dockerfile` um `cifs-utils` ergaenzt, Image neu gebaut (`docker-compose build --no-cache`)
+- Zusaetzlich `network_storage_manager.py`: `vers=3.0` explizit in den Mount-Optionen ergaenzt (automatische
+  SMB-Dialekt-Aushandlung schlug mit diesem Windows-Server fehl, explizite Versionsangabe behebt es)
+- Verifiziert: Pi5_Display SMB-Sync zu `\\192.168.0.86\temp` (Konto `docucontrol`) laeuft jetzt produktiv,
+  `mounted:true`, Sofort-Sync getestet (3 PDFs uebertragen)
+- Lehre: Bei Docker-Containern mit `mount`-Funktionalitaet immer pruefen, ob die noetigen Userspace-Helper
+  (hier `cifs-utils`) im Image installiert sind — der nackte `mount`-Befehl aus util-linux reicht nicht
+
 ---
 
 ## Kritische Anweisung: Diese Datei pflegen

@@ -126,11 +126,48 @@
     </div>
 
 </div>
+
+<!-- Rohdaten-Textvorschau (Kiosk) -->
+<div class="modal-overlay" id="txtOverlay" onclick="txtClose(event)">
+  <div class="modal modal-lg" style="max-width:900px;display:flex;flex-direction:column;max-height:calc(100dvh - 32px)">
+    <div class="modal-head">
+      <div class="mi"><i class="bi bi-file-earmark-text"></i></div>
+      <div><h3 id="txtModalTitle">Rohdaten</h3></div>
+    </div>
+    <div class="modal-body" style="flex:1;overflow:auto">
+      <pre id="txtModalContent" style="white-space:pre-wrap;word-break:break-word;font-family:monospace;font-size:13px;margin:0"></pre>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="txtClose()">Schliessen</button>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
 (function() {
+    window.isKiosk = function() {
+        return location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+    };
+
+    window.viewTxt = function(url, title) {
+        var overlay = document.getElementById('txtOverlay');
+        var content = document.getElementById('txtModalContent');
+        document.getElementById('txtModalTitle').textContent = title || 'Rohdaten';
+        content.textContent = 'Lade …';
+        overlay.classList.add('show');
+        fetch(url).then(function(r) { return r.text(); })
+            .then(function(t) { content.textContent = t; })
+            .catch(function() { content.textContent = 'Fehler beim Laden.'; });
+    };
+
+    window.txtClose = function(e) {
+        if (e && e.target !== document.getElementById('txtOverlay')) return;
+        document.getElementById('txtOverlay').classList.remove('show');
+    };
+
 
     function escHtml(s) {
         return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -337,6 +374,10 @@
         var binBtn = hasBin
             ? '<a class="icon-btn" title=".bin laden" href="/api/tcp_capture/captures/' + encodeURIComponent(base + '.bin') + '" download="' + escHtml(base + '.bin') + '"><i class="bi bi-file-earmark-code"></i></a>'
             : '';
+        var txtUrl = '/api/tcp_capture/captures/' + encodeURIComponent(f.name);
+        var txtBtn = isKiosk()
+            ? '<button class="icon-btn" title="Ansehen" onclick="viewTxt(\'' + txtUrl + '\',\'' + escHtml(f.name) + '\')"><i class="bi bi-eye"></i></button>'
+            : '<a class="icon-btn" title=".txt laden" href="' + txtUrl + '" download="' + escHtml(f.name) + '"><i class="bi bi-download"></i></a>';
         return '<tr>'
             + '<td><input type="checkbox" class="file-cb" data-id="' + escHtml(base) + '" onchange="onIntFileCbChange()"></td>'
             + '<td style="max-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
@@ -347,7 +388,7 @@
             + '<td class="muted" style="white-space:nowrap">' + escHtml(ts) + '</td>'
             + '<td class="muted">' + escHtml(size) + '</td>'
             + '<td class="right"><div class="act">'
-            + '<a class="icon-btn" title=".txt laden" href="/api/tcp_capture/captures/' + encodeURIComponent(f.name) + '" download="' + escHtml(f.name) + '"><i class="bi bi-download"></i></a>'
+            + txtBtn
             + binBtn
             + '<button class="icon-btn danger" title="Löschen" onclick="delCapture(\'' + escHtml(base) + '\')"><i class="bi bi-trash"></i></button>'
             + '</div></td>'
@@ -366,6 +407,10 @@
             var usbBinBtn = hasBin
                 ? '<a class="icon-btn" title=".bin laden" href="/api/storage/file/usb_captures?path=' + binPath + '&download=1" download="' + escHtml(fn.replace(/\.txt$/, '.bin')) + '"><i class="bi bi-file-earmark-code"></i></a>'
                 : '';
+            var usbTxtUrl = '/api/storage/file/usb_captures?path=' + encodeURIComponent(f.path || fn);
+            var usbTxtBtn = isKiosk()
+                ? '<button class="icon-btn" title="Ansehen" onclick="viewTxt(\'' + usbTxtUrl + '\',\'' + escHtml(fn) + '\')"><i class="bi bi-eye"></i></button>'
+                : '<a class="icon-btn" title=".txt laden" href="' + usbTxtUrl + '&download=1" download="' + escHtml(fn) + '"><i class="bi bi-download"></i></a>';
             return '<tr>'
                 + '<td style="max-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
                 +   '<div class="fn" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
@@ -375,7 +420,7 @@
                 + '<td class="muted" style="white-space:nowrap">' + escHtml(date) + '</td>'
                 + '<td class="muted">' + escHtml(size) + '</td>'
                 + '<td class="right"><div class="act">'
-                + '<a class="icon-btn" title=".txt laden" href="/api/storage/file/usb_captures?path=' + encodeURIComponent(f.path || fn) + '&download=1" download="' + escHtml(fn) + '"><i class="bi bi-download"></i></a>'
+                + usbTxtBtn
                 + usbBinBtn
                 + '</div></td>'
                 + '</tr>';

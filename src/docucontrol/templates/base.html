@@ -51,27 +51,74 @@
 <footer>DocuControl 2026 &copy; <b>GeTmatic</b> &mdash; Krefeld</footer>
 
 <div id="screensaverOverlay">
-    <img src="/static/screensaver-logo.jpg" alt="GeTmatic">
+    <img id="screensaverLogo" src="/static/screensaver-logo.png" alt="GeTmatic">
 </div>
 
 <script>
 (function() {
     var SCREENSAVER_IDLE_MS = 5 * 60 * 1000;
+    var BOUNCE_SPEED_PX_S = 90;
     var overlay = document.getElementById('screensaverOverlay');
+    var logo = document.getElementById('screensaverLogo');
     var idleTimer = null;
+    var bouncing = false;
+    var rafId = null;
+    var x, y, vx, vy, lastTs;
 
     function showScreensaver() {
         overlay.classList.add('show');
+        startBounce();
     }
 
     function hideScreensaver() {
         overlay.classList.remove('show');
+        stopBounce();
     }
 
     function resetIdleTimer() {
         if (overlay.classList.contains('show')) hideScreensaver();
         clearTimeout(idleTimer);
         idleTimer = setTimeout(showScreensaver, SCREENSAVER_IDLE_MS);
+    }
+
+    function startBounce() {
+        if (bouncing) return;
+        bouncing = true;
+        var w = overlay.clientWidth, h = overlay.clientHeight;
+        x = Math.random() * Math.max(w - logo.offsetWidth, 0);
+        y = Math.random() * Math.max(h - logo.offsetHeight, 0);
+        var angle = Math.random() * Math.PI * 2;
+        vx = Math.cos(angle) * BOUNCE_SPEED_PX_S;
+        vy = Math.sin(angle) * BOUNCE_SPEED_PX_S;
+        lastTs = null;
+        rafId = requestAnimationFrame(bounceStep);
+    }
+
+    function stopBounce() {
+        bouncing = false;
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = null;
+    }
+
+    function bounceStep(ts) {
+        if (!bouncing) return;
+        if (lastTs === null) lastTs = ts;
+        var dt = (ts - lastTs) / 1000;
+        lastTs = ts;
+
+        var w = overlay.clientWidth, h = overlay.clientHeight;
+        var lw = logo.offsetWidth, lh = logo.offsetHeight;
+
+        x += vx * dt;
+        y += vy * dt;
+
+        if (x <= 0) { x = 0; vx = Math.abs(vx); }
+        else if (x + lw >= w) { x = w - lw; vx = -Math.abs(vx); }
+        if (y <= 0) { y = 0; vy = Math.abs(vy); }
+        else if (y + lh >= h) { y = h - lh; vy = -Math.abs(vy); }
+
+        logo.style.transform = 'translate(' + x + 'px, ' + y + 'px)';
+        rafId = requestAnimationFrame(bounceStep);
     }
 
     overlay.addEventListener('pointerdown', function() {

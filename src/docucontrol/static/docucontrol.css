@@ -6,11 +6,16 @@
 /* ============ BILDSCHIRMSCHONER ============ */
 #screensaverOverlay {
   position: fixed; inset: 0; background: #0b0f14;
-  display: none; align-items: center; justify-content: center;
+  display: none; overflow: hidden;
   z-index: 9999; cursor: pointer;
 }
-#screensaverOverlay.show { display: flex; animation: fade .4s ease; }
-#screensaverOverlay img { max-width: 60vw; max-height: 60vh; opacity: 0; animation: ssFadeIn 1s ease forwards; }
+#screensaverOverlay.show { display: block; animation: fade .4s ease; }
+#screensaverOverlay img {
+  position: absolute; top: 0; left: 0;
+  width: 260px; max-width: 40vw; height: auto;
+  opacity: 0; animation: ssFadeIn 1s ease forwards;
+  will-change: transform;
+}
 @keyframes ssFadeIn { from { opacity: 0; } to { opacity: .92; } }
 
 @font-face {

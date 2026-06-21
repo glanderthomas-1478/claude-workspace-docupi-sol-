@@ -67,11 +67,13 @@
 
     function showScreensaver() {
         overlay.classList.add('show');
+        document.body.classList.add('screensaver-active');
         startBounce();
     }
 
     function hideScreensaver() {
         overlay.classList.remove('show');
+        document.body.classList.remove('screensaver-active');
         stopBounce();
     }
 

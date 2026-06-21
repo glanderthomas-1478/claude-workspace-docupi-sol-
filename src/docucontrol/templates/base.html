@@ -839,7 +839,7 @@
     var el = e.target;
     if (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA') return;
     if (el.type === 'checkbox' || el.type === 'radio' || el.type === 'date') return;
-    if (el.closest && el.closest('#abModal')) kbdShow(el);
+    if (el.closest && (el.closest('#abModal') || el.closest('#authLoginOverlay'))) kbdShow(el);
   });
 
   window.kbdHide = kbdHide;

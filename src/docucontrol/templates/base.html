@@ -30,6 +30,11 @@
 <nav class="navstrip">
     <a href="/" class="tab {% if request.path == '/' %}active{% endif %}">
         <i class="bi bi-collection"></i> Chargen
+        {% if pending_count > 0 %}
+        <span class="pending-badge" id="navPendingBadge">{{ pending_count }}</span>
+        {% else %}
+        <span class="pending-badge" id="navPendingBadge" style="display:none">0</span>
+        {% endif %}
     </a>
     <a href="/files" class="tab {% if request.path.startswith('/files') %}active{% endif %}">
         <i class="bi bi-folder2-open"></i> Dateien
@@ -44,179 +49,6 @@
 </main>
 
 <footer>DocuControl 2026 &copy; <b>GeTmatic</b> &mdash; Krefeld</footer>
-
-<!-- Virtuelle Tastatur -->
-<div id="vkb" class="vkb" style="display:none">
-  <div class="vkb-rows" id="vkbRows"></div>
-</div>
-
-<style>
-.vkb {
-    position: fixed; bottom: 0; left: 0; right: 0; z-index: 9000;
-    background: rgba(20,30,48,.96);
-    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
-    border-top: 1px solid rgba(255,255,255,.12);
-    padding: 10px 8px 14px;
-    box-shadow: 0 -8px 32px rgba(0,0,0,.5);
-}
-.vkb-rows { display: flex; flex-direction: column; gap: 6px; align-items: center; }
-.vkb-row  { display: flex; gap: 5px; }
-.vk {
-    min-width: 42px; height: 44px; padding: 0 8px;
-    background: rgba(255,255,255,.10);
-    border: 1px solid rgba(255,255,255,.18);
-    border-radius: 8px;
-    color: #e8eef6; font-size: 15px; font-weight: 500;
-    cursor: pointer; user-select: none;
-    display: flex; align-items: center; justify-content: center;
-    transition: background .1s;
-}
-.vk:active, .vk.pressed { background: rgba(255,255,255,.28); }
-.vk.wide   { min-width: 80px; }
-.vk.space  { min-width: 240px; }
-.vk.action { background: rgba(37,99,235,.5); border-color: rgba(37,99,235,.7); }
-.vk.shift-on { background: rgba(255,255,255,.25); }
-</style>
-
-<script>
-(function(){
-    var ROWS_LOWER = [
-        ['1','2','3','4','5','6','7','8','9','0','-','.','@'],
-        ['q','w','e','r','t','z','u','i','o','p','ü'],
-        ['a','s','d','f','g','h','j','k','l','ö','ä'],
-        ['⇧','y','x','c','v','b','n','m','ß','_','/','⌫'],
-        ['SPACE','↵']
-    ];
-    var ROWS_UPPER = [
-        ['1','2','3','4','5','6','7','8','9','0','-','.','@'],
-        ['Q','W','E','R','T','Z','U','I','O','P','Ü'],
-        ['A','S','D','F','G','H','J','K','L','Ö','Ä'],
-        ['⇧','Y','X','C','V','B','N','M','ß','_','/','⌫'],
-        ['SPACE','↵']
-    ];
-
-    var shifted = false;
-    var activeEl = null;
-    var vkb = document.getElementById('vkb');
-    var vkbRows = document.getElementById('vkbRows');
-    var hideTimer = null;
-
-    function buildKeyboard() {
-        var rows = shifted ? ROWS_UPPER : ROWS_LOWER;
-        vkbRows.innerHTML = '';
-        rows.forEach(function(row) {
-            var div = document.createElement('div');
-            div.className = 'vkb-row';
-            row.forEach(function(k) {
-                var btn = document.createElement('button');
-                btn.className = 'vk';
-                btn.type = 'button';
-                if (k === 'SPACE') { btn.className += ' space'; btn.textContent = ''; }
-                else if (k === '↵') { btn.className += ' action wide'; btn.textContent = '↵'; }
-                else if (k === '⌫') { btn.className += ' action'; btn.textContent = '⌫'; }
-                else if (k === '⇧') { btn.className += ' wide' + (shifted ? ' shift-on' : ''); btn.textContent = '⇧'; }
-                else { btn.textContent = k; }
-                btn.addEventListener('mousedown', function(e){ e.preventDefault(); });
-                btn.addEventListener('click', function(){ handleKey(k); });
-                div.appendChild(btn);
-            });
-            vkbRows.appendChild(div);
-        });
-    }
-
-    function handleKey(k) {
-        if (!activeEl) return;
-        if (k === '⇧') { shifted = !shifted; buildKeyboard(); return; }
-        if (k === '⌫') {
-            var s = activeEl.selectionStart, e = activeEl.selectionEnd;
-            if (s === e && s > 0) {
-                activeEl.value = activeEl.value.slice(0,s-1) + activeEl.value.slice(e);
-                activeEl.selectionStart = activeEl.selectionEnd = s-1;
-            } else if (s !== e) {
-                activeEl.value = activeEl.value.slice(0,s) + activeEl.value.slice(e);
-                activeEl.selectionStart = activeEl.selectionEnd = s;
-            }
-        } else if (k === '↵') {
-            activeEl.blur();
-            hide();
-        } else {
-            var ch = k === 'SPACE' ? ' ' : k;
-            var s = activeEl.selectionStart, e = activeEl.selectionEnd;
-            activeEl.value = activeEl.value.slice(0,s) + ch + activeEl.value.slice(e);
-            activeEl.selectionStart = activeEl.selectionEnd = s + ch.length;
-            if (shifted && k !== 'SPACE') { shifted = false; buildKeyboard(); }
-        }
-        activeEl.dispatchEvent(new Event('input', {bubbles:true}));
-    }
-
-    function show(el) {
-        clearTimeout(hideTimer);
-        activeEl = el;
-        buildKeyboard();
-        vkb.style.display = 'block';
-        /* Verhindert dass das Feld hinter der Tastatur verschwindet */
-        document.body.style.paddingBottom = vkb.offsetHeight + 'px';
-    }
-
-    function hide() {
-        hideTimer = setTimeout(function(){
-            vkb.style.display = 'none';
-            document.body.style.paddingBottom = '';
-            activeEl = null;
-        }, 120);
-    }
-
-    function isTextInput(t) {
-        return t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA') &&
-            t.type !== 'checkbox' && t.type !== 'radio' &&
-            t.type !== 'date' && t.type !== 'file' &&
-            !t.readOnly && !t.disabled;
-    }
-
-    /* inputmode=none verhindert dass Chromium die System-Tastatur oeffnet */
-    function patchInputs() {
-        document.querySelectorAll('input, textarea').forEach(function(el) {
-            if (isTextInput(el)) el.setAttribute('inputmode', 'none');
-        });
-    }
-
-    /* MutationObserver fuer dynamisch erzeugte Inputs (z.B. Protokolltabelle) */
-    var mo = new MutationObserver(function(muts) {
-        muts.forEach(function(m) {
-            m.addedNodes.forEach(function(n) {
-                if (n.nodeType !== 1) return;
-                if (isTextInput(n)) n.setAttribute('inputmode', 'none');
-                n.querySelectorAll && n.querySelectorAll('input, textarea').forEach(function(el) {
-                    if (isTextInput(el)) el.setAttribute('inputmode', 'none');
-                });
-            });
-        });
-    });
-    mo.observe(document.body, {childList: true, subtree: true});
-
-    /* Patch sofort + nach DOMContentLoaded (falls Script vor Inhalt laeuft) */
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', patchInputs);
-    } else {
-        patchInputs();
-    }
-
-    /* Tastatur oeffnen per touchstart (zuverlaessiger als focusin auf Touch-Geraeten) */
-    document.addEventListener('touchstart', function(e) {
-        var t = e.target;
-        if (isTextInput(t)) { clearTimeout(hideTimer); t.focus(); show(t); }
-        else if (!vkb.contains(t)) { hide(); }
-    }, {passive: true});
-
-    document.addEventListener('focusin', function(e) {
-        if (isTextInput(e.target)) show(e.target);
-    });
-
-    document.addEventListener('focusout', function(e) {
-        if (isTextInput(e.target)) hide();
-    });
-})();
-</script>
 
 <script>
 (function() {
@@ -236,5 +68,562 @@
 })();
 </script>
 {% block extra_js %}{% endblock %}
+
+<!-- SocketIO -->
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+<!-- Autoklavenbuch Modal -->
+<div class="modal-overlay" id="abOverlay">
+  <div class="modal modal-lg" id="abModal">
+    <div class="modal-head">
+      <div class="mi warn"><i class="bi bi-journal-text"></i></div>
+      <div>
+        <h3>Autoklavenbuch — Chargendokumentation</h3>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">
+          Charge <span id="abChargeNr" style="font-weight:700"></span> &middot;
+          <span id="abDeviceName"></span> &middot; <span id="abTimestamp"></span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-body">
+      <form id="abForm" autocomplete="off">
+        <input type="hidden" id="abProtocolId" value="">
+        <input type="hidden" id="abPreselectedProgram" value="">
+
+        <div class="ab-body-grid">
+
+          <!-- LINKE SPALTE: Kopfdaten · Abfall · Sicherheit -->
+          <div class="ab-col-left">
+
+            <!-- Kopfdaten -->
+            <div class="ab-section">
+              <div class="ab-section-title">Kopfdaten</div>
+              <div class="ab-field-row">
+                <div class="ab-fld">
+                  <label>Standort / Location</label>
+                  <input type="text" class="ctrl" id="abStandort" placeholder="z.B. Tierlabor Uni Essen">
+                </div>
+                <div class="ab-fld">
+                  <label>Datum</label>
+                  <input type="date" class="ctrl" id="abDatum">
+                </div>
+              </div>
+              <div class="ab-field-row">
+                <div class="ab-fld">
+                  <label>Zyklus / Charge-Nr. *</label>
+                  <input type="text" class="ctrl" id="abZyklus" required>
+                </div>
+                <div class="ab-fld"></div>
+              </div>
+              <div class="ab-field-row">
+                <div class="ab-fld">
+                  <label>Durchführender *</label>
+                  <input type="text" class="ctrl" id="abOperatorName" placeholder="Vor- und Nachname" required>
+                </div>
+                <div class="ab-fld">
+                  <label>Kürzel *</label>
+                  <input type="text" class="ctrl" id="abOperatorInitials" placeholder="z.B. MM" maxlength="8" required>
+                </div>
+              </div>
+            </div>
+
+            <!-- Abfall stammt aus -->
+            <div class="ab-section">
+              <div class="ab-section-title">Abfall stammt aus</div>
+              <div class="ab-checkgroup">
+                <label class="ab-check"><input type="checkbox" name="waste_origin" value="Tierhaltung"> Tierhaltung</label>
+                <label class="ab-check"><input type="checkbox" name="waste_origin" value="Labor"> Labor</label>
+                <label class="ab-check"><input type="checkbox" name="waste_origin" value="Andere Anlage"> Andere Anlage</label>
+              </div>
+              <div class="ab-field-row" style="margin-top:10px">
+                <div class="ab-fld">
+                  <label>OP-Raum Nr.</label>
+                  <input type="text" class="ctrl" id="abOpRaum" placeholder="Nr.">
+                </div>
+                <div class="ab-fld">
+                  <label>Welche andere Anlage?</label>
+                  <input type="text" class="ctrl" id="abAndereAnlage" placeholder="Bezeichnung">
+                </div>
+              </div>
+            </div>
+
+            <!-- Sicherheitsstufe -->
+            <div class="ab-section">
+              <div class="ab-section-title">Sicherheitsstufe</div>
+              <div class="ab-radio-group">
+                <label class="ab-radio"><input type="radio" name="safety_level" value="S1"> S1</label>
+                <label class="ab-radio"><input type="radio" name="safety_level" value="S2"> S2</label>
+                <label class="ab-radio"><input type="radio" name="safety_level" value="Keine GVO"> Keine GVO</label>
+              </div>
+            </div>
+
+          </div><!-- /ab-col-left -->
+
+          <!-- RECHTE SPALTE: Autoklaviergut · Programm -->
+          <div class="ab-col-right">
+
+            <!-- Art des Autoklaviergutes -->
+            <div class="ab-section">
+              <div class="ab-section-title">Art des Autoklaviergutes</div>
+              <div class="ab-checkgroup">
+                <label class="ab-check"><input type="checkbox" name="autoklaviergut" value="Käfigmaterial / Käfiggestelle"> Käfigmaterial / Käfiggestelle</label>
+                <label class="ab-check"><input type="checkbox" name="autoklaviergut" value="Einstreu / Futter"> Einstreu / Futter</label>
+                <label class="ab-check"><input type="checkbox" name="autoklaviergut" value="Flüssigkeiten"> Flüssigkeiten</label>
+                <label class="ab-check"><input type="checkbox" name="autoklaviergut" value="Tierkörper"> Tierkörper</label>
+                <label class="ab-check"><input type="checkbox" name="autoklaviergut" value="Papier / Wäsche"> Papier / Wäsche</label>
+                <label class="ab-check"><input type="checkbox" name="autoklaviergut" value="OP-/Sektions-Besteck"> OP-/Sektions-Besteck</label>
+                <label class="ab-check"><input type="checkbox" name="autoklaviergut" value="Laborabfälle"> Laborabfälle</label>
+                <label class="ab-check"><input type="checkbox" name="autoklaviergut" value="Leercharge / Testcharge"> Leercharge / Testcharge</label>
+              </div>
+            </div>
+
+            <!-- Autoklavenprogramm -->
+            <div class="ab-section">
+              <div class="ab-section-title">
+                Autoklavenprogramm
+                <span id="abPreselNote" style="display:none" class="ab-presel-badge" title="Automatisch vorausgewählt basierend auf Maschinenprogramm">Vorauswahl</span>
+              </div>
+              <div class="ab-program-grid" id="abProgramGrid">
+                <div class="ab-program-cat-label">Käfige</div>
+                <label class="ab-program-opt" data-key="kaefige_normal"><input type="radio" name="autoclave_program" value="kaefige_normal" style="display:none"> Käfige Normalprogramm</label>
+                <label class="ab-program-opt" data-key="kaefige_121"><input type="radio" name="autoclave_program" value="kaefige_121" style="display:none"> 121 °C</label>
+                <label class="ab-program-opt" data-key="kaefige_134"><input type="radio" name="autoclave_program" value="kaefige_134" style="display:none"> 134 °C</label>
+                <div class="ab-program-cat-label">Einstreu</div>
+                <label class="ab-program-opt" data-key="einstreu_75"><input type="radio" name="autoclave_program" value="einstreu_75" style="display:none"> 75 °C</label>
+                <label class="ab-program-opt" data-key="einstreu_121"><input type="radio" name="autoclave_program" value="einstreu_121" style="display:none"> 121 °C</label>
+                <label class="ab-program-opt" data-key="einstreu_134"><input type="radio" name="autoclave_program" value="einstreu_134" style="display:none"> 134 °C</label>
+                <div class="ab-program-cat-label">Futter</div>
+                <label class="ab-program-opt" data-key="futter_75"><input type="radio" name="autoclave_program" value="futter_75" style="display:none"> 75 °C</label>
+                <label class="ab-program-opt" data-key="futter_121"><input type="radio" name="autoclave_program" value="futter_121" style="display:none"> 121 °C</label>
+                <label class="ab-program-opt" data-key="futter_134"><input type="radio" name="autoclave_program" value="futter_134" style="display:none"> 134 °C</label>
+                <div class="ab-program-cat-label">Flüssigkeiten</div>
+                <label class="ab-program-opt" data-key="fluessigkeiten_121"><input type="radio" name="autoclave_program" value="fluessigkeiten_121" style="display:none"> 121 °C</label>
+                <label class="ab-program-opt" data-key="fluessigkeiten_134"><input type="radio" name="autoclave_program" value="fluessigkeiten_134" style="display:none"> 134 °C</label>
+                <div class="ab-program-cat-label">Tierkörper</div>
+                <label class="ab-program-opt" data-key="tierkoerper_121"><input type="radio" name="autoclave_program" value="tierkoerper_121" style="display:none"> 121 °C</label>
+                <label class="ab-program-opt" data-key="tierkoerper_134"><input type="radio" name="autoclave_program" value="tierkoerper_134" style="display:none"> 134 °C</label>
+                <div class="ab-program-cat-label">Sonstige</div>
+                <label class="ab-program-opt" data-key="schleusen"><input type="radio" name="autoclave_program" value="schleusen" style="display:none"> Schleusenprogramm</label>
+                <div class="ab-program-cat-label">Vakuumtest</div>
+                <label class="ab-program-opt" data-key="vakuumtest"><input type="radio" name="autoclave_program" value="vakuumtest" style="display:none"> Vakuumtest</label>
+                <div class="ab-program-cat-label">Aufheizprogramm</div>
+                <label class="ab-program-opt" data-key="aufheizprogramm"><input type="radio" name="autoclave_program" value="aufheizprogramm" style="display:none"> Aufheizprogramm</label>
+              </div>
+            </div>
+
+          </div><!-- /ab-col-right -->
+
+          <!-- FULL WIDTH: Ergebnis · Statische Info · Bestätigung -->
+          <div class="ab-row-full">
+
+            <!-- Ergebnis -->
+            <div class="ab-section">
+              <div class="ab-section-title">Ergebnis</div>
+              <div class="ab-result-row">
+                <div class="ab-result-opt ok" data-val="ok">
+                  <i class="bi bi-check-circle-fill"></i> Ablauf OK
+                  <input type="radio" name="result" value="ok" style="display:none">
+                </div>
+                <div class="ab-result-opt err" data-val="err">
+                  <i class="bi bi-exclamation-triangle-fill"></i> Störung
+                  <input type="radio" name="result" value="err" style="display:none">
+                </div>
+              </div>
+              <div class="ab-fld" style="margin-top:10px;display:none" id="abCommentWrap">
+                <label>Störung Bemerkung</label>
+                <input type="text" class="ctrl" id="abResultComment" placeholder="Beschreibung der Störung">
+              </div>
+            </div>
+
+            <!-- Statische Formularinfos -->
+            <div class="ab-static-info">
+              Letzte Wartung / Filterwechsel: <b>22.07.2025</b> &nbsp;&middot;&nbsp;
+              Letzte Überprüfung mit Bioindikatoren: <b>19.03.2026</b> &nbsp;&middot;&nbsp;
+              Formular-Nr.: <b>268627</b> &nbsp;&middot;&nbsp; Rev.: <b>004/01.2024</b>
+            </div>
+
+            <!-- Bestätigung -->
+            <div class="ab-section" style="margin-top:16px">
+              <label class="ab-confirm-banner" id="abConfirmBanner">
+                <input type="checkbox" id="abConfirmCheck">
+                <span>Ich bestätige, dass die eingegebenen Daten korrekt und vollständig sind und der Autoklaviervorgang ordnungsgemäß durchgeführt wurde.</span>
+              </label>
+            </div>
+
+          </div><!-- /ab-row-full -->
+
+        </div><!-- /ab-body-grid -->
+
+      </form>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-skip" id="abBtnSkip">
+        <span><i class="bi bi-clock"></i> Später ausfüllen</span>
+        <span style="font-size:11px;opacity:0.55">Formular bleibt offen</span>
+      </button>
+      <button class="btn btn-primary" id="abBtnConfirm" disabled>
+        <span><i class="bi bi-check-lg"></i> Bestätigen &amp; PDF erstellen</span>
+        <span class="abConfirmSub" id="abPendingCount"></span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  var _abQueue = [];
+  var _abCurrentPid = null;
+  var _abPreselectedKey = '';
+  var _abDirty = false;
+  var _autosaveTimer = null;
+
+  function abOpen(pid) {
+    fetch('/api/pending-charges/' + pid)
+      .then(function(r) { return r.json(); })
+      .then(function(d) { abPopulate(d); })
+      .catch(function(e) { console.warn('abOpen Fehler:', e); });
+  }
+
+  function abPopulate(d) {
+    _abCurrentPid = d.id;
+    _abPreselectedKey = d.preselected_program || '';
+    document.getElementById('abProtocolId').value = d.id;
+    document.getElementById('abPreselectedProgram').value = _abPreselectedKey;
+    document.getElementById('abChargeNr').textContent = d.charge_nr_int ? 'CH' + d.charge_nr_int : '#' + d.id;
+    document.getElementById('abDeviceName').textContent = d.device_name || '';
+    var ts = (d.timestamp || '').replace('T', ' ').substring(0, 16);
+    document.getElementById('abTimestamp').textContent = ts;
+
+    var today = new Date().toISOString().split('T')[0];
+    document.getElementById('abDatum').value = (d.form_draft && d.form_draft.datum) || today;
+    document.getElementById('abZyklus').value = (d.form_draft && d.form_draft.zyklus) || (d.charge_nr_int ? String(d.charge_nr_int) : '');
+    document.getElementById('abOperatorName').value = (d.form_draft && d.form_draft.operator_name) || '';
+    document.getElementById('abOperatorInitials').value = (d.form_draft && d.form_draft.operator_initials) || '';
+    var standortVal = (d.form_draft && d.form_draft.standort) || '';
+    if (standortVal) {
+      document.getElementById('abStandort').value = standortVal;
+    } else {
+      document.getElementById('abStandort').value = '';
+      fetch('/api/machine/config')
+        .then(function(r) { return r.json(); })
+        .then(function(cfg) {
+          var el = document.getElementById('abStandort');
+          if (el && !el.value && cfg.location) el.value = cfg.location;
+        }).catch(function() {});
+    }
+    document.getElementById('abOpRaum').value = (d.form_draft && d.form_draft.op_raum_nr) || '';
+    document.getElementById('abAndereAnlage').value = (d.form_draft && d.form_draft.waste_other_anlage) || '';
+    document.getElementById('abResultComment').value = (d.form_draft && d.form_draft.result_comment) || '';
+
+    var wos = (d.form_draft && d.form_draft.waste_origin) || [];
+    document.querySelectorAll('[name=waste_origin]').forEach(function(cb) { cb.checked = wos.indexOf(cb.value) !== -1; });
+    var ags = (d.form_draft && d.form_draft.autoklaviergut) || [];
+    document.querySelectorAll('[name=autoklaviergut]').forEach(function(cb) { cb.checked = ags.indexOf(cb.value) !== -1; });
+    var sl = (d.form_draft && d.form_draft.safety_level) || '';
+    document.querySelectorAll('[name=safety_level]').forEach(function(r) { r.checked = r.value === sl; });
+    var res = (d.form_draft && d.form_draft.result) || '';
+    abUpdateResultUI(res);
+
+    var progKey = (d.form_draft && d.form_draft.autoclave_program) || _abPreselectedKey;
+    abSelectProgram(progKey, _abPreselectedKey);
+
+    document.getElementById('abConfirmCheck').checked = false;
+    document.getElementById('abBtnConfirm').disabled = true;
+    _abDirty = false;
+
+    var cnt = document.getElementById('abPendingCount');
+    if (cnt) cnt.textContent = _abQueue.length > 0 ? '(' + _abQueue.length + ' weitere ausstehend)' : '';
+
+    document.getElementById('abOverlay').classList.add('show');
+  }
+
+  function abSelectProgram(key, preselKey) {
+    document.querySelectorAll('.ab-program-opt').forEach(function(opt) {
+      var k = opt.getAttribute('data-key');
+      opt.classList.remove('selected', 'preselected-hint');
+      if (k === key) { opt.classList.add('selected'); opt.querySelector('input').checked = true; }
+      if (k === preselKey && k !== key) { opt.classList.add('preselected-hint'); }
+    });
+    var preselNote = document.getElementById('abPreselNote');
+    if (preselKey) { preselNote.style.display = ''; } else { preselNote.style.display = 'none'; }
+  }
+
+  function abUpdateResultUI(val) {
+    document.querySelectorAll('.ab-result-opt').forEach(function(el) {
+      el.classList.remove('selected');
+      if (el.getAttribute('data-val') === val) { el.classList.add('selected'); }
+    });
+    var inp = document.querySelector('[name=result][value="' + val + '"]');
+    if (inp) inp.checked = true;
+    document.getElementById('abCommentWrap').style.display = (val === 'err') ? '' : 'none';
+  }
+
+  function abCollectFormData() {
+    var waste = [];
+    document.querySelectorAll('[name=waste_origin]:checked').forEach(function(cb) { waste.push(cb.value); });
+    var aut = [];
+    document.querySelectorAll('[name=autoklaviergut]:checked').forEach(function(cb) { aut.push(cb.value); });
+    var sl = document.querySelector('[name=safety_level]:checked');
+    var res = document.querySelector('[name=result]:checked');
+    var prog = document.querySelector('[name=autoclave_program]:checked');
+    return {
+      standort: document.getElementById('abStandort').value.trim(),
+      datum: document.getElementById('abDatum').value,
+      zyklus: document.getElementById('abZyklus').value.trim(),
+      operator_name: document.getElementById('abOperatorName').value.trim(),
+      operator_initials: document.getElementById('abOperatorInitials').value.trim(),
+      waste_origin: waste,
+      op_raum_nr: document.getElementById('abOpRaum').value.trim(),
+      waste_other_anlage: document.getElementById('abAndereAnlage').value.trim(),
+      safety_level: sl ? sl.value : '',
+      autoklaviergut: aut,
+      autoclave_program: prog ? prog.value : '',
+      result: res ? res.value : '',
+      result_comment: document.getElementById('abResultComment').value.trim(),
+    };
+  }
+
+  function abValidate(data) {
+    if (!data.operator_name) return 'Name des Durchführenden ist Pflichtfeld.';
+    if (!data.operator_initials) return 'Kürzel ist Pflichtfeld.';
+    if (!data.zyklus) return 'Zyklus / Charge-Nr. ist Pflichtfeld.';
+    if (!document.getElementById('abConfirmCheck').checked) return 'Bitte Bestätigungs-Checkbox anhaken.';
+    return null;
+  }
+
+  function abAutosave() {
+    if (!_abCurrentPid || !_abDirty) return;
+    var data = abCollectFormData();
+    fetch('/api/pending-charges/' + _abCurrentPid + '/form', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(data)
+    }).catch(function() {});
+    _abDirty = false;
+  }
+
+  function abClose() {
+    document.getElementById('abOverlay').classList.remove('show');
+    clearTimeout(_autosaveTimer);
+    _abCurrentPid = null;
+    if (typeof kbdHide === 'function') kbdHide();
+    if (_abQueue.length > 0) {
+      var next = _abQueue.shift();
+      setTimeout(function() { abOpen(next); }, 400);
+    }
+  }
+
+  document.getElementById('abBtnSkip').addEventListener('click', function() {
+    abAutosave();
+    abClose();
+    updatePendingBadge();
+  });
+
+  document.getElementById('abBtnConfirm').addEventListener('click', function() {
+    var data = abCollectFormData();
+    var err = abValidate(data);
+    if (err) { alert(err); return; }
+    var btn = this; btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> PDF wird erstellt …';
+    var pid = _abCurrentPid;
+    var presel = document.getElementById('abPreselectedProgram').value;
+    fetch('/api/pending-charges/' + pid + '/confirm', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        form_data: data,
+        confirmed_by: data.operator_name,
+        confirmed_initials: data.operator_initials,
+        preselected_program: presel,
+      })
+    }).then(function(r) { return r.json(); }).then(function(resp) {
+      if (resp.ok) {
+        abClose();
+        updatePendingBadge();
+        if (typeof loadProtocols === 'function') setTimeout(loadProtocols, 4000);
+      } else {
+        alert('Fehler: ' + (resp.error || 'Unbekannt'));
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check-lg"></i> Bestätigen &amp; PDF erstellen';
+      }
+    }).catch(function() {
+      alert('Verbindungsfehler — bitte erneut versuchen.');
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-check-lg"></i> Bestätigen &amp; PDF erstellen';
+    });
+  });
+
+  document.getElementById('abConfirmCheck').addEventListener('change', function() {
+    document.getElementById('abBtnConfirm').disabled = !this.checked;
+  });
+
+  document.querySelectorAll('.ab-program-opt').forEach(function(opt) {
+    opt.addEventListener('click', function() {
+      abSelectProgram(this.getAttribute('data-key'), _abPreselectedKey);
+      _abDirty = true;
+    });
+  });
+
+  document.querySelectorAll('.ab-result-opt').forEach(function(opt) {
+    opt.addEventListener('click', function() {
+      abUpdateResultUI(this.getAttribute('data-val'));
+      _abDirty = true;
+    });
+  });
+
+  document.getElementById('abForm').addEventListener('input', function() {
+    _abDirty = true;
+    clearTimeout(_autosaveTimer);
+    _autosaveTimer = setTimeout(abAutosave, 4000);
+  });
+
+  function updatePendingBadge() {
+    fetch('/api/pending-charges')
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        var badge = document.getElementById('navPendingBadge');
+        if (!badge) return;
+        var count = d.count || 0;
+        badge.textContent = count;
+        badge.style.display = count > 0 ? '' : 'none';
+        if (typeof renderPendingSection === 'function') renderPendingSection(d.pending || []);
+      }).catch(function() {});
+  }
+
+  var _socket = null;
+  try {
+    _socket = io();
+    _socket.on('new_pending_charge', function(data) {
+      updatePendingBadge();
+      var pid = data.protocol_id;
+      if (_abCurrentPid === null) {
+        abOpen(pid);
+      } else {
+        _abQueue.push(pid);
+        var cnt = document.getElementById('abPendingCount');
+        if (cnt) cnt.textContent = '(' + _abQueue.length + ' weitere ausstehend)';
+      }
+    });
+    _socket.on('charge_completed', function() { updatePendingBadge(); });
+    _socket.on('charge_pdf_error', function(data) {
+      console.warn('PDF-Fehler pid=' + data.protocol_id + ': ' + data.error);
+    });
+  } catch(e) { console.warn('SocketIO nicht verfügbar:', e); }
+
+  updatePendingBadge();
+
+  fetch('/api/pending-charges')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.pending && d.pending.length > 0) {
+        for (var i = d.pending.length - 1; i >= 1; i--) {
+          _abQueue.push(d.pending[i].id);
+        }
+      }
+    }).catch(function() {});
+
+  setInterval(updatePendingBadge, 30000);
+
+  window.abOpen = abOpen;
+  window.updatePendingBadge = updatePendingBadge;
+})();
+</script>
+
+<!-- Soft Keyboard (HTML/JS, kein System-Dependency) -->
+<div id="softKbd"></div>
+<script>
+(function() {
+  var ROWS = [
+    ['1','2','3','4','5','6','7','8','9','0','ß',{l:'⌫',a:'back',c:'kbd-wide kbd-action'}],
+    ['q','w','e','r','t','z','u','i','o','p','ü'],
+    ['a','s','d','f','g','h','j','k','l','ö','ä',{l:'↵',a:'enter',c:'kbd-wide kbd-action'}],
+    [{l:'⇧',a:'shift',c:'kbd-wide kbd-action'},'y','x','c','v','b','n','m',',','.','-'],
+    ['@','_','/',' ',{l:'✕',a:'close',c:'kbd-wide kbd-action kbd-close'}]
+  ];
+  var SHIFT = {ä:'Ä',ö:'Ö',ü:'Ü',ß:'ẞ'};
+  function sh(c) { return SHIFT[c] || (c.match(/^[a-z]$/) ? c.toUpperCase() : c); }
+
+  var _tgt = null, _shift = false, _built = false;
+
+  function build() {
+    var el = document.getElementById('softKbd');
+    ROWS.forEach(function(row) {
+      var rd = document.createElement('div'); rd.className = 'kbd-row';
+      row.forEach(function(k) {
+        var isObj = typeof k === 'object';
+        var lbl = isObj ? k.l : k;
+        var act = isObj ? k.a : null;
+        var cls = isObj && k.c ? k.c : '';
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'kbd-key' + (cls ? ' ' + cls : '') + (lbl === ' ' ? ' kbd-space' : '');
+        btn.dataset.lbl = lbl;
+        if (act) btn.dataset.act = act;
+        btn.textContent = lbl === ' ' ? 'Leertaste' : lbl;
+        btn.addEventListener('pointerdown', function(e) { e.preventDefault(); });
+        btn.addEventListener('click', function() { onKey(this); });
+        rd.appendChild(btn);
+      });
+      el.appendChild(rd);
+    });
+    _built = true;
+  }
+
+  function onKey(btn) {
+    if (!_tgt) return;
+    var act = btn.dataset.act, lbl = btn.dataset.lbl;
+    if (act === 'close') { kbdHide(); return; }
+    if (act === 'shift') { _shift = !_shift; applyShift(); return; }
+    if (act === 'enter') {
+      var ins = Array.from(document.querySelectorAll('#abModal input[type=text],#abModal input[type=number]'));
+      var i = ins.indexOf(_tgt);
+      if (i >= 0 && i < ins.length - 1) ins[i + 1].focus();
+      return;
+    }
+    if (act === 'back') {
+      var s = _tgt.selectionStart, e = _tgt.selectionEnd, v = _tgt.value;
+      if (s === e && s > 0) { _tgt.value = v.slice(0,s-1)+v.slice(s); _tgt.setSelectionRange(s-1,s-1); }
+      else if (s !== e)     { _tgt.value = v.slice(0,s)+v.slice(e);   _tgt.setSelectionRange(s,s); }
+      _tgt.dispatchEvent(new Event('input',{bubbles:true}));
+      return;
+    }
+    var ch = (lbl === ' ') ? ' ' : (_shift ? sh(lbl) : lbl);
+    var s = _tgt.selectionStart, e = _tgt.selectionEnd, v = _tgt.value;
+    _tgt.value = v.slice(0,s) + ch + v.slice(e);
+    _tgt.setSelectionRange(s+ch.length, s+ch.length);
+    _tgt.dispatchEvent(new Event('input',{bubbles:true}));
+    if (_shift) { _shift = false; applyShift(); }
+  }
+
+  function applyShift() {
+    document.querySelectorAll('#softKbd .kbd-key').forEach(function(btn) {
+      var act = btn.dataset.act, lbl = btn.dataset.lbl;
+      if (act === 'shift') { btn.classList.toggle('kbd-active', _shift); return; }
+      if (!act && lbl !== ' ') btn.textContent = _shift ? sh(lbl) : lbl;
+    });
+  }
+
+  function kbdShow(inp) {
+    _tgt = inp;
+    if (!_built) build();
+    document.getElementById('softKbd').classList.add('show');
+    document.body.classList.add('kbd-open');
+    setTimeout(function() { inp.scrollIntoView({block:'nearest',behavior:'smooth'}); }, 120);
+  }
+
+  function kbdHide() {
+    document.getElementById('softKbd').classList.remove('show');
+    document.body.classList.remove('kbd-open');
+    _tgt = null;
+  }
+
+  document.addEventListener('focusin', function(e) {
+    var el = e.target;
+    if (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA') return;
+    if (el.type === 'checkbox' || el.type === 'radio' || el.type === 'date') return;
+    if (el.closest && el.closest('#abModal')) kbdShow(el);
+  });
+
+  window.kbdHide = kbdHide;
+})();
+</script>
 </body>
 </html>

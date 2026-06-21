@@ -6,7 +6,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # Machine identity kommt aus config.json (machine.name / machine.protocol)
 
 from config import load_config, save_config
-from database import get_protocols, get_protocol_count, get_today_count, get_system_logs, log_event, get_db
+from database import (get_protocols, get_protocol_count, get_today_count, get_system_logs, log_event, get_db,
+    get_pending_protocols, get_pending_protocol, save_form_draft, confirm_form, discard_pending,
+    set_pdf_failed, get_form_confirmed_protocols)
 from serial_receiver import SerialReceiver
 from network_manager import (load_network_config, save_network_config,
     start_hotspot, stop_hotspot, update_hotspot_config, get_hotspot_status,
@@ -20,8 +22,8 @@ from print_manager import (
     setup_usb_printer, is_usb_printer_present
 )
 from watchdog_manager import start_watchdog_thread, get_status as get_watchdog_status, stop_watchdog_thread
-from tcp_print_capture import start_capture_server, get_capture_status, load_capture_config, save_capture_config
-from lpd_server import start_lpd_server, get_lpd_status
+from tcp_print_capture import (start_capture_server, get_capture_status, load_capture_config, save_capture_config,
+    set_pending_charge_callback, _finalize_charge_pdf)
 from health_check import run_health_check, backup_config_on_save
 from storage_manager import (
     get_usb_info, mount_usb, unmount_usb, format_usb_fat32,
@@ -45,6 +47,16 @@ app = Flask(__name__)
 app.config["SECRET_KEY"] = "docucontrol-secret"
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 receiver = SerialReceiver(socketio=socketio)
+
+
+def _on_pending_charge(protocol_id, metadata):
+    """Callback aus tcp_print_capture._process_job (Daemon-Thread)."""
+    try:
+        socketio.emit('new_pending_charge', metadata)
+    except Exception as e:
+        logger.warning("SocketIO emit new_pending_charge fehlgeschlagen: %s", e)
+
+set_pending_charge_callback(_on_pending_charge)
 
 @app.after_request
 def add_no_cache_headers(response):
@@ -108,39 +120,6 @@ def view_pdf(pid):
     if row and row["pdf_path"] and os.path.exists(row["pdf_path"]):
         return send_file(row["pdf_path"], mimetype="application/pdf")
     return "PDF nicht gefunden", 404
-
-
-@app.route("/pdf-info/<int:pid>")
-def pdf_info(pid):
-    conn = get_db(); row = conn.execute("SELECT * FROM protocols WHERE id=?", (pid,)).fetchone(); conn.close()
-    if not row or not row["pdf_path"] or not os.path.exists(row["pdf_path"]):
-        return jsonify({"pages": 0}), 404
-    import subprocess
-    r = subprocess.run(["pdfinfo", row["pdf_path"]], capture_output=True, text=True)
-    pages = 1
-    for line in r.stdout.splitlines():
-        if line.startswith("Pages:"):
-            try: pages = int(line.split(":")[1].strip())
-            except: pass
-    return jsonify({"pages": pages, "id": pid})
-
-@app.route("/pdf-page/<int:pid>/<int:page>")
-def pdf_page(pid, page):
-    conn = get_db(); row = conn.execute("SELECT * FROM protocols WHERE id=?", (pid,)).fetchone(); conn.close()
-    if not row or not row["pdf_path"] or not os.path.exists(row["pdf_path"]):
-        return "", 404
-    import subprocess, tempfile
-    with tempfile.TemporaryDirectory() as tmp:
-        subprocess.run(["pdftoppm", "-r", "150", "-f", str(page), "-l", str(page),
-                        "-png", "-singlefile", row["pdf_path"], f"{tmp}/p"],
-                       capture_output=True)
-        img = f"{tmp}/p.png"
-        if not os.path.exists(img):
-            return "", 404
-        with open(img, "rb") as fh:
-            data = fh.read()
-    from flask import Response
-    return Response(data, mimetype="image/png")
 
 @app.route("/settings", methods=["GET", "POST"])
 def settings():
@@ -1200,7 +1179,8 @@ def api_machine_config():
             'name': cfg.get('name', ''),
             'machine_nr': cfg.get('machine_nr', ''),
             'ip': cfg.get('ip', ''),
-            'protocol': cfg.get('protocol', '')
+            'protocol': cfg.get('protocol', ''),
+            'location': cfg.get('location', '')
         })
     d = request.get_json(silent=True) or {}
     config = load_config()
@@ -1212,6 +1192,8 @@ def api_machine_config():
         config['machine']['machine_nr'] = d['machine_nr'].strip()
     if 'ip' in d:
         config['machine']['ip'] = d['ip'].strip()
+    if 'location' in d:
+        config['machine']['location'] = d['location'].strip()
     save_config(config)
     return jsonify({'success': True})
 
@@ -1742,10 +1724,21 @@ def inject_tcp_status():
     try:
         status = get_capture_status()
         _mcfg = load_config().get('machine', {})
-        return {'tcp_connected': bool(status.get('enabled', False)), 'machine_name': _mcfg.get('name', 'Anlage'), 'machine_protocol': _mcfg.get('protocol', '')}
+        pending = len(get_pending_protocols())
+        return {
+            'tcp_connected': bool(status.get('enabled', False)),
+            'machine_name': _mcfg.get('name', 'Anlage'),
+            'machine_protocol': _mcfg.get('protocol', ''),
+            'pending_count': pending,
+        }
     except Exception:
         _mcfg = load_config().get('machine', {})
-        return {'tcp_connected': False, 'machine_name': _mcfg.get('name', 'Anlage'), 'machine_protocol': _mcfg.get('protocol', '')}
+        return {
+            'tcp_connected': False,
+            'machine_name': _mcfg.get('name', 'Anlage'),
+            'machine_protocol': _mcfg.get('protocol', ''),
+            'pending_count': 0,
+        }
 
 
 # ─────────────────────────────────────────────────────────────
@@ -1761,11 +1754,13 @@ def inject_tcp_status():
 #      { total, page, per_page, pages, protocols: [...] }
 # ─────────────────────────────────────────────────────────────
 
-_CHARGE_RE = _re.compile(r'Laufende\s+Nr\.?\s*:\s*0*(\d+)', _re.IGNORECASE)
-_PROG_RE   = _re.compile(r'Programm\s*[:\.]?\s*(.+)',       _re.IGNORECASE)
-_START_RE  = _re.compile(r'Beginn\s*[:\.]?\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})', _re.IGNORECASE)
-_END_RE    = _re.compile(r'Ende\s*[:\.]?\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})',   _re.IGNORECASE)
-_PROG_ENDE_RE = _re.compile(r'^\s*(\d+):(\d+)\s+Programm\s+Ende', _re.MULTILINE | _re.IGNORECASE)
+_CHARGE_RE     = _re.compile(r'Laufende\s+Nr\.?\s*:\s*0*(\d+)', _re.IGNORECASE)
+_CHARGE_PST_RE = _re.compile(r'Lfd\.Nr\.\s+(\d+)',             _re.IGNORECASE)
+_PROG_RE       = _re.compile(r'Programm\s*[:\.]?\s*(.+)',       _re.IGNORECASE)
+_START_RE      = _re.compile(r'Beginn\s*[:\.]?\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})', _re.IGNORECASE)
+_END_RE        = _re.compile(r'Ende\s*[:\.]?\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})',   _re.IGNORECASE)
+_PROG_ENDE_RE  = _re.compile(r'^\s*(\d+):(\d+)\s+Programm\s+Ende', _re.MULTILINE | _re.IGNORECASE)
+_DAUER_PST_RE  = _re.compile(r'Chargendauer\s+([\d.,]+)\s+min', _re.IGNORECASE)
 
 
 def _extract_protocol_fields(row):
@@ -1773,17 +1768,34 @@ def _extract_protocol_fields(row):
     raw = row['raw_data'] or ''
 
     cm = _CHARGE_RE.search(raw)
-    charge_nr_num = int(cm.group(1)) if cm else None
-    charge_nr = ('CH0' + cm.group(1)) if cm else ''
+    if cm:
+        charge_nr_num = int(cm.group(1))
+        charge_nr = 'CH0' + cm.group(1)
+    else:
+        cm_pst = _CHARGE_PST_RE.search(raw)
+        if cm_pst:
+            charge_nr_num = int(cm_pst.group(1))
+            charge_nr = 'CH' + cm_pst.group(1)
+        else:
+            charge_nr_num = None
+            charge_nr = ''
 
     pm = _PROG_RE.search(raw)
     prog = pm.group(1).strip()[:60] if pm else ''
 
-    # Dauer: aus verstrichener Zeit "MM:SS Programm Ende" (primaer) oder ISO Beginn/Ende (Fallback)
+    # Dauer: PST "Chargendauer X.X min" → primaer; alt: "MM:SS Programm Ende"; Fallback ISO diff
     duration = ''
     try:
+        dm_pst = _DAUER_PST_RE.search(raw)
         em_ende = _PROG_ENDE_RE.search(raw)
-        if em_ende:
+        if dm_pst:
+            total_sec = int(round(float(dm_pst.group(1).replace(',', '.')) * 60))
+            duration = '{:02d}:{:02d}:{:02d}'.format(
+                total_sec // 3600,
+                (total_sec % 3600) // 60,
+                total_sec % 60
+            )
+        elif em_ende:
             total_sec = int(em_ende.group(1)) * 60 + int(em_ende.group(2))
             duration = '{:02d}:{:02d}:{:02d}'.format(
                 total_sec // 3600,
@@ -1804,7 +1816,12 @@ def _extract_protocol_fields(row):
     except Exception:
         pass
 
-    row_status = 'Bestanden' if row['status'] == 'completed' else 'Fehlgeschlagen'
+    if row['status'] == 'completed':
+        row_status = 'Bestanden'
+    elif row['status'] == 'pending_form':
+        row_status = 'Wartet auf Formular'
+    else:
+        row_status = 'Fehlgeschlagen'
 
     return {
         'id':           row['id'],
@@ -1814,6 +1831,7 @@ def _extract_protocol_fields(row):
         'program':      prog,
         'duration':     duration,
         'status':       row_status,
+        'db_status':    row['status'],
         'pdf_filename': row['pdf_filename'] or '',
         'file_size':    row['file_size'] or 0,
     }
@@ -1837,8 +1855,10 @@ def api_protocols():
 
     if status_f == 'Bestanden':
         where_clauses.append("status = 'completed'")
+    elif status_f == 'Wartet auf Formular':
+        where_clauses.append("status = 'pending_form'")
     elif status_f == 'Fehlgeschlagen':
-        where_clauses.append("(status IS NULL OR status != 'completed')")
+        where_clauses.append("(status IS NULL OR (status != 'completed' AND status != 'pending_form'))")
 
     if date_from:
         where_clauses.append("date(timestamp) >= ?")
@@ -1973,6 +1993,158 @@ def api_collector_set():
     return jsonify({'collector_mode': enabled, 'ok': True})
 
 
+# ─────────────────────────────────────────────────────────────
+# AUTOKLAVENBUCH WORKFLOW — Pending Charges API
+# ─────────────────────────────────────────────────────────────
+
+import json as _json
+
+
+@app.route('/api/pending-charges')
+def api_pending_charges():
+    rows = get_pending_protocols()
+    result = []
+    for r in rows:
+        form_json = r.get('form_data_json') or '{}'
+        try:
+            form = _json.loads(form_json)
+        except Exception:
+            form = {}
+        result.append({
+            'id': r['id'],
+            'timestamp': r['timestamp'],
+            'device_name': r.get('device_name', ''),
+            'charge_nr_int': r.get('charge_nr_int'),
+            'program': r.get('program', ''),
+            'preselected_program': r.get('preselected_program', ''),
+            'form_draft': form,
+            'confirmed_at': r.get('confirmed_at'),
+        })
+    return jsonify({'pending': result, 'count': len(result)})
+
+
+@app.route('/api/pending-charges/<int:pid>')
+def api_pending_charge_detail(pid):
+    row = get_pending_protocol(pid)
+    if not row:
+        return jsonify({'error': 'Nicht gefunden oder nicht mehr pending'}), 404
+    form_json = row.get('form_data_json') or '{}'
+    try:
+        form = _json.loads(form_json)
+    except Exception:
+        form = {}
+    presel = row.get('preselected_program', '')
+    if not presel and row.get('program'):
+        from protocol_parser import preselect_autoclave_program
+        presel_data = preselect_autoclave_program(row['program'], row.get('raw_data', ''))
+        presel = presel_data.get('program_key', '')
+    return jsonify({
+        'id': row['id'],
+        'timestamp': row['timestamp'],
+        'device_name': row.get('device_name', ''),
+        'charge_nr_int': row.get('charge_nr_int'),
+        'program': row.get('program', ''),
+        'preselected_program': presel,
+        'form_draft': form,
+        'confirmed_at': row.get('confirmed_at'),
+        'raw_data_preview': (row.get('raw_data') or '')[:400],
+    })
+
+
+@app.route('/api/pending-charges/<int:pid>/form', methods=['POST'])
+def api_pending_form_save(pid):
+    data = request.get_json(silent=True) or {}
+    form_json = _json.dumps(data, ensure_ascii=False)
+    save_form_draft(pid, form_json)
+    return jsonify({'ok': True})
+
+
+@app.route('/api/pending-charges/<int:pid>/confirm', methods=['POST'])
+def api_pending_form_confirm(pid):
+    body = request.get_json(silent=True) or {}
+    form_data = body.get('form_data', {})
+    confirmed_by = (body.get('confirmed_by') or '').strip()
+    confirmed_initials = (body.get('confirmed_initials') or '').strip()
+    preselected_program = (body.get('preselected_program') or '').strip()
+    selected_program = (form_data.get('autoclave_program') or '').strip()
+    program_was_changed = 1 if selected_program and selected_program != preselected_program else 0
+
+    if not confirmed_by or not confirmed_initials:
+        return jsonify({'error': 'Name und Kürzel des Bedieners sind Pflichtfelder'}), 400
+
+    row = get_pending_protocol(pid)
+    if not row:
+        return jsonify({'error': 'Charge nicht gefunden oder bereits abgeschlossen'}), 404
+
+    confirmed_at = datetime.now().isoformat()
+    form_data['confirmed_at'] = confirmed_at
+    form_data['confirmed_by'] = confirmed_by
+    form_data['confirmed_initials'] = confirmed_initials
+
+    confirm_form(
+        pid,
+        _json.dumps(form_data, ensure_ascii=False),
+        confirmed_by, confirmed_initials, confirmed_at,
+        preselected_program, program_was_changed
+    )
+
+    import threading as _thr
+
+    def _gen():
+        ok, result = _finalize_charge_pdf(pid, form_data)
+        if ok:
+            log_event("INFO", f"Autoklavenbuch bestätigt + PDF erstellt: {result} (pid={pid})")
+            socketio.emit('charge_completed', {'protocol_id': pid, 'pdf_filename': result})
+        else:
+            log_event("ERROR", f"PDF-Generierung fehlgeschlagen (pid={pid}): {result}")
+            socketio.emit('charge_pdf_error', {'protocol_id': pid, 'error': result})
+
+    _thr.Thread(target=_gen, daemon=True).start()
+    log_event("INFO", f"Autoklavenbuch Formular bestätigt von {confirmed_by} ({confirmed_initials}), pid={pid}")
+    return jsonify({'ok': True, 'confirmed_at': confirmed_at})
+
+
+@app.route('/api/pending-charges/<int:pid>', methods=['DELETE'])
+def api_pending_charge_discard(pid):
+    discard_pending(pid)
+    log_event("WARN", f"Pending Charge pid={pid} verworfen (kein Formular ausgefüllt)")
+    return jsonify({'ok': True})
+
+
+@app.route('/api/charges/<int:pid>/retry-pdf', methods=['POST'])
+def api_retry_pdf(pid):
+    """PDF-Generierung für fehlgeschlagene Chargen (pdf_failed) nochmal versuchen."""
+    rows = get_form_confirmed_protocols()
+    row = next((r for r in rows if r['id'] == pid), None)
+    if not row:
+        return jsonify({'ok': False, 'error': 'Charge nicht gefunden oder Status nicht pdf_failed'}), 404
+
+    form_data_json = row.get('form_data_json') or '{}'
+    try:
+        import json as _json
+        form_data = _json.loads(form_data_json)
+    except Exception:
+        form_data = {}
+
+    if row.get('confirmed_by'):
+        form_data['confirmed_by'] = row['confirmed_by']
+    if row.get('confirmed_at'):
+        form_data['confirmed_at'] = row['confirmed_at']
+
+    import threading as _thr
+    def _gen():
+        ok, result = _finalize_charge_pdf(pid, form_data)
+        if ok:
+            socketio.emit('pdf_ready', {'pid': pid, 'filename': result})
+            log_event("INFO", f"PDF-Retry erfolgreich: pid={pid}, {result}")
+        else:
+            log_event("ERROR", f"PDF-Retry fehlgeschlagen: pid={pid}, {result}")
+
+    _thr.Thread(target=_gen, daemon=True).start()
+    log_event("INFO", f"PDF-Retry gestartet: pid={pid}")
+    return jsonify({'ok': True, 'message': 'PDF-Generierung läuft'})
+
+
 if __name__ == "__main__":
     config = load_config()
     log_event("INFO", "DocuControl gestartet")
@@ -1988,11 +2160,6 @@ if __name__ == "__main__":
             logger.info("TCP-Capture deaktiviert (capture_config.json)")
     except Exception as e:
         logger.warning(f"TCP capture Init-Fehler: {e}")
-    try:
-        start_lpd_server()
-        logger.info("LPD-Server gestartet")
-    except Exception as e:
-        logger.warning(f"LPD-Server Init-Fehler: {e}")
     # USB beim Boot mounten (nach Stromausfall/Reboot)
     try:
         try_mount_usb_on_boot()

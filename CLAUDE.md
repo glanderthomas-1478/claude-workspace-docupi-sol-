@@ -418,6 +418,88 @@ Zweiter unabhaengiger DocuControl-Pi mit HDMI-Kiosk-Display.
 
 ---
 
+## docucontrol3 (vierte Hardware-Linie) — Autoklavenbuch-Testgeraet, IN BETRIEB SEIT 2026-06-22
+
+Dritter/vierter DocuControl-Pi, urspruenglich als "neuer Pi" vorbereitet, stellte sich aber als
+**dieselbe physische Hardware wie Pi5_Display heraus** (SD-Karte wurde im Rahmen der SSD-Migration
+neu geflasht, alte Pi5_Display-Konfiguration dadurch ueberschrieben/verloren). Laeuft jetzt komplett
+von einer NVMe-SSD (Geekworm X1001), SD-Karte ist entfernt.
+
+- IP: eth0 192.168.0.218 (DHCP), eth1 192.168.0.11 (DHCP), SSH: `ssh docucontrol@192.168.0.11` (oder .218),
+  Passwort: Xtend1478 (sudo)
+- Port 80 → 5000 Weiterleitung per eigenem nftables-Table `docucontrol_redirect`
+  (`/etc/nftables-docucontrol.conf` + `nftables-docucontrol.service`, interface-basiert `iif eth0`/`iif eth1`,
+  System-only nicht im Repo)
+- RTC: **eingebaute Pi5-Onboard-RTC** (`rpi-rtc`, `/dev/rtc0`) + nachgeruestete Batterie (CR1632) —
+  kein externes DS3231-Modul wie bei anderen Pis
+
+**SD→NVMe-Migration (2026-06-21):**
+- `scripts/migrate_sd_to_nvme.sh` als manuelles Referenzskript erstellt; tatsaechliche Migration lief
+  ueber ein on-the-fly geschriebenes Firstboot-Skript (cloud-init `user-data` + systemd-Service),
+  da die SD-Karte nur per Windows-Kartenleser zugaenglich war
+- EEPROM-Bootreihenfolge erfolgreich auf `BOOT_ORDER=0xf416` (NVMe vor SD) gesetzt — funktioniert
+  trotz `dtoverlay=nospi10` (SPI deaktiviert), da `rpi-eeprom-update` das Update als Staged-File
+  hinterlegt und der Bootloader es beim naechsten Boot selbst flasht (kein Live-SPI-Zugriff noetig)
+- **Overlay-Root bewusst deaktiviert**: Das Basisimage hatte `overlayroot=tmpfs` (RAM-Schutz fuer
+  SD-Karten-Verschleiss) aktiv. Zwei fundamentale Inkompatibilitaeten mit unserem Docker-Setup:
+  1. Docker's `overlay2`-Storage-Driver kann nicht auf einem bereits ueberlagerten (overlayfs)
+     Root-Dateisystem mounten ("failed to mount overlay: invalid argument" / "driver not supported") —
+     verschachteltes OverlayFS wird vom Kernel nicht unterstuetzt
+  2. Selbst mit anderem Storage-Driver wuerden Protokoll-Datenbank/PDFs bei jedem Reboot auf den
+     letzten "eingefrorenen" Stand zurueckgesetzt, da Overlay-Root das gesamte Root-FS inkl. `/home`
+     schuetzt, nicht nur Systemdateien
+  - Fix: `overlayroot=tmpfs` dauerhaft aus `/boot/firmware/cmdline.txt` entfernt, `/etc/fstab` auf
+    einen normalen (nicht-Overlay) Eintrag zurueckgesetzt, Docker auf Storage-Driver `vfs`
+    (`/etc/docker/daemon.json: {"storage-driver":"vfs"}`) umgestellt — laeuft jetzt wie das
+    produktive DocuControl (.171), das ebenfalls ohne Overlay-Schutz auskommt
+
+**Autoklavenbuch-Workflow aus separatem Repo uebernommen (2026-06-22):**
+- Quelle: `github.com/lordboombastic/DocuControl-Belimed-Autoklav-Uni-Essen` (privat, Entwickler: Felix,
+  Collaborator: Thomas Glander) — eigenstaendige Weiterentwicklung speziell fuer die Uni-Essen-Maschine
+  (Belimed PST 14-8-12 HS1), deutlich weiter als unser bisheriger `src/docucontrol`-Stand
+- Neue Funktionalitaet: Chargen landen erst im Status `pending_form` ("Wartet auf Formular") statt
+  direkt als PDF — am Touchscreen erscheint per SocketIO-Push ein Modal, in dem der Bediener
+  Pflichtfelder ausfuellen muss (Name + Kuerzel, Autoklaviergut, Sicherheits-/Abfallangaben,
+  ggf. Programmkorrektur). Erst nach Bestaetigung wird das kombinierte PDF erzeugt
+  (Maschinenprotokoll + Autoklavenbuch-Seite, Formular 268627 Rev. 004/01.2024)
+- Neue DB-Tabelle `charge_forms`, Status-Flow `pending_form` → `form_confirmed`/`completed`
+- Eigener PST-Format-Parser (`protocol_parser.py`) fuer UNIKLINIK_ESSEN_10980-Maschinenformat
+  (6-Sensor-Spalten T1-T6, Vakuumtest, mehrseitige Protokolle) zusaetzlich zum alten BELIMED-Format
+- `scripts/send_test_charges.py` aktualisiert: jetzt `--format pst|old` + `--via-lpd`-Flag,
+  5 PST-Test-Templates (Aufheizprogramm, Vakuumtest, Kaefige, Passage, Futter)
+- Im Felix-Repo fehlende Module (nie committed, nur live auf seinem Pi): `lpd_server.py`,
+  `serial_receiver.py`, `watchdog_manager.py`, `health_check.py`, `chart_generator.py` — aus dem
+  bereits vorhandenen `src/docucontrol`-Stand wiederverwendet. `lpd_server.py` ist eine **eigene,
+  generische RFC1179-Implementierung** (nicht Felix' Original, das eine Linksys-PSUS4-Emulation
+  auf Port 515→5150 macht und nur live auf seinem Pi existiert)
+- `scripts/setup_kiosk_display.sh` als Referenz uebernommen (dokumentiert Pi5-Dual-DRM-Problem:
+  X.org kann ohne BusID nicht zwischen card0=vc4-Display und card1=V3D-GPU unterscheiden → cage
+  als Wayland-Kiosk-Compositor loest das auf KMS-Ebene)
+
+**Bugs in Felix' Code gefunden + gefixt:**
+- `storage_manager.py get_usb_info()`: `findmnt -rno TARGET {dev}` kann bei Mehrfach-Mounts mehrere
+  Zeilen liefern, `out.strip()` entfernte nur aeussere Whitespaces, nicht den eingebetteten Zeilenumbruch
+  → kaputter `mount_point`-String ("/media/usbstick\n/media/usbstick") → Datei-Listing lieferte immer
+  leer. Fix: `out.strip().splitlines()[0]`
+- `network_manager.py set_manual_time()`: nutzte `timedatectl set-time`, das in **jeder** Docker-
+  Container-Umgebung fehlschlaegt ("System has not been booted with systemd as init system") —
+  auf `date -s` + `hwclock --systohc` umgestellt
+- `Dockerfile`: `hwclock`-Binary fehlte — liegt unter Debian Trixie nicht in `util-linux`, sondern im
+  separaten Paket `util-linux-extra`
+- `docucontrol.css`: `.two-col` (Datei-Manager Intern/USB-Spalten) hatte `align-items:start` →
+  Spalten ungleich hoch je nach Zeilenanzahl; zusaetzlich liess das zweizeilige USB-Karten-Header
+  (Titel + Status-Badges) die Kopfzeilen nicht fluchten. Fix: `align-items:stretch` +
+  `.card`/`.card-body` als Flex-Column + einheitliche `min-height` auf `.card-head`
+- `dashboard.html` PDF-Modal: Sidebar/Seitenuebersicht im Chromium-PDF-Viewer per `#pagemode=none`
+  ausgeblendet, Zoom-Default auf `89%` (optimal fuer das Kiosk-Display), Modal auf echtes Vollbild
+  (`100vw`/`100vh`, kein Rand) umgestellt
+
+**Wichtig bei jeder Code-Aenderung:** Nach Deployment IMMER beide Caches leeren —
+`docker-compose restart` (Flask cached Templates im Speicher bei `debug=off`) UND
+`systemctl restart kiosk.service` (Chromium cached CSS/JS) — sonst zeigt das Display den alten Stand.
+
+---
+
 ## Offene Aufgabe: DocuControl-Gehaeuse-Branding (3D-Druck) — IN ARBEIT
 
 Basis: Raspberry Pi 5 Geekworm X1001 NVMe-SSD-Case (`reference/3D Druck/`, v14/v15-Dateien).

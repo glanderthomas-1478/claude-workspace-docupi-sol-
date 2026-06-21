@@ -265,8 +265,6 @@ def get_available_interfaces():
             continue
         if name.startswith('wlan'):
             continue
-        if name.startswith('docker') or name.startswith('br-') or name.startswith('veth'):
-            continue
         if '.' in name:  # VLAN-Sub-Interface
             continue
         ifaces.append(name)
@@ -630,16 +628,25 @@ def set_ntp(server, enabled=True):
 
 
 def set_manual_time(datetime_str):
-    """Setzt Systemzeit manuell (nur wenn NTP deaktiviert). Aktualisiert auch RTC."""
+    """Setzt Systemzeit manuell. Aktualisiert auch RTC.
+
+    Nutzt 'date -s' statt 'timedatectl set-time', da timedatectl in einer
+    Docker-Container-Umgebung (PID 1 ist nicht systemd) generell fehlschlaegt.
+    """
     if not re.match(r'^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2})?$', datetime_str):
         return False, "Ungültiges Datumsformat (erwartet: YYYY-MM-DD HH:MM)"
     # Normalisieren: T -> Leerzeichen
     dt_clean = datetime_str.replace('T', ' ')
-    ok, _, err = _run(f'sudo timedatectl set-time "{dt_clean}"')
+    if len(dt_clean) == 16:  # ohne Sekunden
+        dt_clean += ':00'
+    ok, _, err = _run(f'sudo date -s "{dt_clean}"')
     if ok:
-        _run("sudo hwclock --systohc 2>/dev/null")
-        logger.info(f"Zeit manuell gesetzt: {dt_clean}, RTC aktualisiert")
-        return True, "Zeit gesetzt und RTC aktualisiert"
+        ok2, _, err2 = _run("sudo hwclock --systohc")
+        if ok2:
+            logger.info(f"Zeit manuell gesetzt: {dt_clean}, RTC aktualisiert")
+            return True, "Zeit gesetzt und RTC aktualisiert"
+        logger.warning(f"Zeit gesetzt, aber RTC-Sync fehlgeschlagen: {err2}")
+        return True, "Zeit gesetzt (RTC-Sync fehlgeschlagen)"
     return False, err
 
 

@@ -19,7 +19,7 @@
     </div>
 </div>
 
-<div class="two-col">
+<div class="two-col file-grid">
 
     <!-- Interner Speicher -->
     <div class="card">
@@ -68,7 +68,7 @@
         </div>
     </div>
 
-    <!-- USB / HDD -->
+    <!-- USB / Externer Speicher -->
     <div class="card">
         <div class="card-head">
             <span><i class="bi bi-usb-drive"></i> USB / HDD</span>
@@ -195,7 +195,7 @@
             + '</tr>';
     }
 
-    var PAGE_SIZE = 20;
+    var PAGE_SIZE = 25;
     var intPage = 1;
     var capPage = 1;
     var usbPage = 1;
@@ -240,7 +240,7 @@
 
     function loadInternalFiles(page) {
         intPage = page || intPage;
-        fetch('/api/protocols?per_page=20&page=' + intPage + '&sort_by=timestamp&sort_dir=desc')
+        fetch('/api/protocols?per_page=25&page=' + intPage + '&sort_by=timestamp&sort_dir=desc')
             .then(function(r) { return r.json(); })
             .then(function(d) {
                 var files = d.protocols || [];
@@ -406,6 +406,7 @@
                 var btnSync = document.getElementById('btnSync');
                 var btnSyncEl = document.getElementById('btnSync');
 
+                statusEl.style.display = '';
                 statusEl.className = 'usb-status' + (connected ? '' : ' absent');
                 statusText.textContent = 'USB: ' + (connected ? 'Verbunden' : 'Nicht verbunden');
                 btnSync.disabled = !connected;
@@ -618,9 +619,14 @@
         fetch('/api/storage/network/status')
             .then(function(r) { return r.json(); })
             .then(function(d) {
-                var connected = !!(d.enabled && d.mounted);
                 var statusEl = document.getElementById('netStorageStatus');
+                if (!d.enabled) {
+                    statusEl.style.display = 'none';
+                    return;
+                }
+                var connected = !!d.mounted;
                 var statusText = document.getElementById('netStorageStatusText');
+                statusEl.style.display = '';
                 statusEl.className = 'usb-status' + (connected ? '' : ' absent');
                 statusText.textContent = 'Netzwerk: ' + (connected ? 'Verbunden' : 'Nicht verbunden');
             }).catch(function() {});

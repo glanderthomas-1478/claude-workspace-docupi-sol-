@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y \
     iproute2 \
     network-manager \
     cifs-utils \
+    util-linux-extra \
     && rm -rf /var/lib/apt/lists/*
 
 ENV TZ=Europe/Berlin

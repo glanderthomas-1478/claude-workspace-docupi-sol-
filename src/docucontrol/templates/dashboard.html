@@ -7,47 +7,6 @@
 @keyframes slideInToast { from { transform: translateX(120%); opacity:0; } to { transform: translateX(0); opacity:1; } }
 @keyframes fadeOutToast { to { transform: translateX(120%); opacity:0; } }
 
-/* PDF-Modal */
-.pdf-modal-bg {
-    display: none;
-    position: fixed; inset: 0; z-index: 2000;
-    background: rgba(0,0,0,.72);
-    align-items: center; justify-content: center;
-}
-.pdf-modal-bg.open { display: flex; }
-.pdf-modal {
-    background: var(--card-bg);
-    border-radius: 16px;
-    box-shadow: 0 24px 64px rgba(0,0,0,.5);
-    width: 90vw; height: 90vh;
-    display: flex; flex-direction: column;
-    overflow: hidden;
-}
-.pdf-modal-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 14px 18px;
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-}
-.pdf-modal-header span { font-weight: 600; font-size: 15px; }
-.pdf-modal-close {
-    cursor: pointer; font-size: 22px; opacity: .7; line-height: 1;
-    background: none; border: none; color: inherit;
-}
-.pdf-modal-close:hover { opacity: 1; }
-.pdf-modal-body {
-    flex: 1; overflow-y: auto;
-    display: flex; flex-direction: column; align-items: center;
-    gap: 12px; padding: 16px; background: #555;
-}
-.pdf-modal-body img {
-    max-width: 100%; border-radius: 4px;
-    box-shadow: 0 4px 16px rgba(0,0,0,.4);
-}
-.pdf-modal-loading {
-    color: #fff; font-size: 14px; margin: auto;
-}
-
 .print-toast {
     display: none;
     position: fixed; bottom: 28px; right: 28px; z-index: 1000;
@@ -80,17 +39,13 @@
     </div>
 </div>
 
-<!-- PDF-Modal -->
-<div class="pdf-modal-bg" id="pdfModalBg" onclick="if(event.target===this)closePdfModal()">
-    <div class="pdf-modal">
-        <div class="pdf-modal-header">
-            <span id="pdfModalTitle"><i class="bi bi-file-earmark-pdf"></i> Protokoll</span>
-            <button class="pdf-modal-close" onclick="closePdfModal()"><i class="bi bi-x-lg"></i></button>
-        </div>
-        <div class="pdf-modal-body" id="pdfModalBody">
-            <div class="pdf-modal-loading">Wird geladen …</div>
-        </div>
-    </div>
+<!-- Ausstehende Chargen-Dokumentation -->
+<div class="pending-section card" id="pendingSection" style="display:none">
+  <div class="card-head">
+    <span class="ttl"><i class="bi bi-exclamation-triangle-fill"></i> Ausstehende Dokumentation</span>
+    <span style="font-size:12px;color:#92400e" id="pendingSubTitle"></span>
+  </div>
+  <div id="pendingList"></div>
 </div>
 
 <!-- Machine-Bar -->
@@ -146,6 +101,7 @@
         <select class="ctrl" id="fStatus">
             <option value="">Alle</option>
             <option value="Bestanden">Bestanden</option>
+            <option value="Wartet auf Formular">Wartet auf Formular</option>
             <option value="Fehlgeschlagen">Fehlgeschlagen</option>
         </select>
     </div>
@@ -391,20 +347,26 @@
 
         var rows = data.protocols.map(function(p) {
             var ts = formatTs(p.timestamp);
-            var isOk = p.status === 'Bestanden';
-            var badge = isOk
-                ? '<span class="badge ok"><span class="bdot"></span> Bestanden</span>'
-                : '<span class="badge fail"><span class="bdot"></span> Fehlgeschlagen</span>';
+            var badge;
+            if (p.status === 'Bestanden') {
+                badge = '<span class="badge ok"><span class="bdot"></span> Bestanden</span>';
+            } else if (p.status === 'Wartet auf Formular') {
+                badge = '<span class="badge warn"><span class="bdot"></span> Wartet auf Formular</span>';
+            } else {
+                badge = '<span class="badge fail"><span class="bdot"></span> Fehlgeschlagen</span>';
+            }
             var progIcon = getProgramIcon(p.program);
             var prog = '<span class="prog-tag"><i class="bi ' + progIcon + ' ic"></i> ' + escHtml(p.program) + '</span>';
             var dur = escHtml(p.duration || '—');
 
             var actions = '<div class="act">';
             if (p.pdf_filename) {
-                actions += '<button class="icon-btn" title="PDF anzeigen" onclick="viewPdf(' + p.id + ')"><i class="bi bi-file-earmark-pdf"></i></button>';
+                actions += '<button class="icon-btn" title="PDF anzeigen" onclick="pdfOpen(' + p.id + ',\'' + escHtml(p.pdf_filename) + '\')"><i class="bi bi-file-earmark-pdf"></i></button>';
                 if (printerReady) {
                     actions += '<button class="icon-btn" title="Drucken" onclick="printPdf(this,' + p.id + ')"><i class="bi bi-printer"></i></button>';
                 }
+            } else if (p.db_status === 'pdf_failed') {
+                actions += '<button class="icon-btn retry-pdf-btn" title="PDF erneut generieren" onclick="retryPdf(this,' + p.id + ')"><i class="bi bi-arrow-clockwise"></i></button>';
             } else {
                 actions += '<button class="icon-btn" disabled title="Kein PDF"><i class="bi bi-file-earmark"></i></button>';
             }
@@ -481,26 +443,38 @@
 
     window.goPage = function(p) { loadProtocols(p); };
 
-    window.viewPdf = function(id) {
-        var body = document.getElementById('pdfModalBody');
-        body.innerHTML = '<div class="pdf-modal-loading">Wird geladen …</div>';
-        document.getElementById('pdfModalBg').classList.add('open');
-        fetch('/pdf-info/' + id)
-            .then(function(r){ return r.json(); })
-            .then(function(d){
-                body.innerHTML = '';
-                for (var p = 1; p <= d.pages; p++) {
-                    var img = document.createElement('img');
-                    img.src = '/pdf-page/' + id + '/' + p;
-                    body.appendChild(img);
-                }
-                if (!d.pages) body.innerHTML = '<div class="pdf-modal-loading">Keine Seiten gefunden.</div>';
-            })
-            .catch(function(){ body.innerHTML = '<div class="pdf-modal-loading">Fehler beim Laden.</div>'; });
+    window.dlPdf = function(id) { window.pdfOpen(id); };
+
+    window.pdfOpen = function(id, title) {
+        document.getElementById('pdfFrame').src = '/view/' + id + '#zoom=89&pagemode=none';
+        document.getElementById('pdfModalTitle').textContent = title || 'Protokoll';
+        document.getElementById('pdfOverlay').classList.add('show');
     };
-    window.closePdfModal = function() {
-        document.getElementById('pdfModalBg').classList.remove('open');
-        document.getElementById('pdfModalBody').innerHTML = '';
+
+    window.pdfClose = function(e) {
+        if (e && e.target !== document.getElementById('pdfOverlay')) return;
+        document.getElementById('pdfOverlay').classList.remove('show');
+        setTimeout(function() { document.getElementById('pdfFrame').src = ''; }, 200);
+    };
+
+    window.retryPdf = function(btn, id) {
+        if (btn.disabled) return;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split" style="animation:spin .8s linear infinite"></i>';
+        fetch('/api/charges/' + id + '/retry-pdf', { method: 'POST' })
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (d.ok) {
+                    btn.innerHTML = '<i class="bi bi-check-lg" style="color:var(--success)"></i>';
+                    setTimeout(function() { loadProtocols(currentPage); }, 4000);
+                } else {
+                    btn.innerHTML = '<i class="bi bi-x-lg" style="color:var(--danger)"></i>';
+                    setTimeout(function() { btn.innerHTML = '<i class="bi bi-arrow-clockwise"></i>'; btn.disabled = false; }, 3000);
+                }
+            }).catch(function() {
+                btn.innerHTML = '<i class="bi bi-x-lg" style="color:var(--danger)"></i>';
+                setTimeout(function() { btn.innerHTML = '<i class="bi bi-arrow-clockwise"></i>'; btn.disabled = false; }, 3000);
+            });
     };
 
     window.printPdf = function(btn, id) {
@@ -605,6 +579,61 @@
     }, 30000);
 
     setInterval(updateMachineStatus, 60000);
+
+    // ── Pending Charges Sektion ───────────────────────────────────────────────
+
+    window.renderPendingSection = function(pendingList) {
+        var section = document.getElementById('pendingSection');
+        var listEl = document.getElementById('pendingList');
+        var subtitle = document.getElementById('pendingSubTitle');
+        if (!section) return;
+        if (!pendingList || pendingList.length === 0) {
+            section.style.display = 'none';
+            return;
+        }
+        section.style.display = '';
+        var n = pendingList.length;
+        subtitle.textContent = n + ' Charge' + (n !== 1 ? 'n' : '') + ' warte' + (n !== 1 ? 'n' : 't') + ' auf Formular';
+        listEl.innerHTML = '';
+        pendingList.forEach(function(p) {
+            var ts = (p.timestamp || '').replace('T', ' ').substring(0, 16);
+            var chargeLabel = p.charge_nr_int ? 'CH' + p.charge_nr_int : '#' + p.id;
+            var progLabel = (p.program || '').substring(0, 60);
+            var item = document.createElement('div');
+            item.className = 'pending-item';
+            item.innerHTML =
+                '<div class="pi-icon"><i class="bi bi-journal-text"></i></div>' +
+                '<div class="pi-main">' +
+                  '<div class="pi-charge">' + escHtml(chargeLabel) + '</div>' +
+                  '<div class="pi-meta">' + escHtml(p.device_name || '') + ' &middot; ' + escHtml(ts) + ' &middot; ' + escHtml(progLabel) + '</div>' +
+                '</div>' +
+                '<div class="pi-actions">' +
+                  '<button class="btn btn-primary" onclick="abOpen(' + p.id + ')">' +
+                  '<i class="bi bi-pencil-fill"></i> Formular ausfüllen</button>' +
+                '</div>';
+            listEl.appendChild(item);
+        });
+    };
+
+    // Initial laden
+    (function() {
+        fetch('/api/pending-charges')
+            .then(function(r) { return r.json(); })
+            .then(function(d) { if (window.renderPendingSection) window.renderPendingSection(d.pending || []); })
+            .catch(function() {});
+    })();
+
 })();
 </script>
+
+<!-- PDF-Viewer Modal -->
+<div class="modal-overlay" id="pdfOverlay" onclick="pdfClose(event)">
+  <div class="modal modal-pdf" id="pdfModal">
+    <div class="pdf-modal-head">
+      <span class="pdf-title" id="pdfModalTitle">Protokoll</span>
+      <button class="pdf-close" onclick="pdfClose()" title="Schließen">&#x2715;</button>
+    </div>
+    <iframe class="pdf-modal-frame" id="pdfFrame" src="" title="PDF-Ansicht"></iframe>
+  </div>
+</div>
 {% endblock %}

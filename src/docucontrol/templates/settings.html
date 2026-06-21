@@ -34,7 +34,7 @@
                         <div class="desc">Angezeigter Name im Dashboard</div>
                     </div>
                     <div style="display:flex;gap:6px;align-items:center">
-                        <input type="text" class="ctrl" id="machineNameInput" placeholder="z.B. Belimed PST 14-8-12 HS1" style="width:140px" maxlength="64">
+                        <input type="text" class="ctrl" id="machineNameInput" placeholder="z.B. Belimed PST 14-8-12 HS1" style="width:220px" maxlength="64">
                         <button class="btn btn-outline" onclick="saveMachineConfig()"><i class="bi bi-check-lg"></i> Setzen</button>
                     </div>
                 </div>
@@ -55,6 +55,16 @@
                     </div>
                     <div style="display:flex;gap:6px;align-items:center">
                         <input type="text" class="ctrl mono-ip" id="machineIpInput" placeholder="192.168.0.x" style="width:140px" maxlength="15">
+                        <button class="btn btn-outline" onclick="saveMachineConfig()"><i class="bi bi-check-lg"></i> Setzen</button>
+                    </div>
+                </div>
+                <div class="set-row">
+                    <div class="info">
+                        <div class="name">Standort / Location</div>
+                        <div class="desc">Wird im Autoklavenbuch automatisch vorausgefüllt</div>
+                    </div>
+                    <div style="display:flex;gap:6px;align-items:center">
+                        <input type="text" class="ctrl" id="machineLocationInput" placeholder="z.B. Tierlabor Uni Essen" style="width:220px" maxlength="100">
                         <button class="btn btn-outline" onclick="saveMachineConfig()"><i class="bi bi-check-lg"></i> Setzen</button>
                     </div>
                 </div>
@@ -669,6 +679,7 @@
                 document.getElementById('machineNameInput').value = d.name || '';
                 document.getElementById('machineNrInput').value = d.machine_nr || '';
                 document.getElementById('machineIpInput').value = d.ip || '';
+                document.getElementById('machineLocationInput').value = d.location || '';
             }).catch(function() {});
     }
 
@@ -676,10 +687,11 @@
         var name = document.getElementById('machineNameInput').value.trim();
         var machineNr = document.getElementById('machineNrInput').value.trim();
         var ip   = document.getElementById('machineIpInput').value.trim();
+        var location = document.getElementById('machineLocationInput').value.trim();
         fetch('/api/machine/config', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({name: name, machine_nr: machineNr, ip: ip})
+            body: JSON.stringify({name: name, machine_nr: machineNr, ip: ip, location: location})
         }).then(function(r) { return r.json(); })
           .then(function(d) {
               if (d.success) showToast('Gespeichert', 'Anlage-Konfiguration aktualisiert.');

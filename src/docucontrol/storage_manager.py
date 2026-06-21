@@ -105,9 +105,9 @@ def get_usb_info():
 
     # Mount status
     ok, out, _ = _run(f"findmnt -rno TARGET {dev}")
-    if ok and out:
+    if ok and out.strip():
         info["mounted"] = True
-        info["mount_point"] = out.strip()
+        info["mount_point"] = out.strip().splitlines()[0]
     elif os.path.ismount(USB_MOUNT_POINT):
         info["mounted"] = True
         info["mount_point"] = USB_MOUNT_POINT

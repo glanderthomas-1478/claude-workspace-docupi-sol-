@@ -3,8 +3,9 @@ import os
 from datetime import datetime
 import re as _re
 
-_CHARGE_RE = _re.compile(r'Laufende\s+Nr\.?\s*:\s*0*(\d+)', _re.IGNORECASE)
-_PROG_RE   = _re.compile(r'Programm\s*[:\.]?\s*(.+)',       _re.IGNORECASE)
+_CHARGE_RE    = _re.compile(r'Laufende\s+Nr\.?\s*:\s*0*(\d+)', _re.IGNORECASE)
+_LFD_NR_RE    = _re.compile(r'Lfd\.Nr\.\s+(\d+)',              _re.IGNORECASE)
+_PROG_RE      = _re.compile(r'Programm\s*[:\.]?\s*(.+)',        _re.IGNORECASE)
 
 DB_PATH = "/home/docucontrol/docupi/data/docupi.db"
 
@@ -41,6 +42,18 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_protocols_status ON protocols(status);
         CREATE INDEX IF NOT EXISTS idx_charge_nr_int ON protocols(charge_nr_int);
         CREATE INDEX IF NOT EXISTS idx_program ON protocols(program);
+        CREATE TABLE IF NOT EXISTS charge_forms (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            protocol_id INTEGER NOT NULL UNIQUE,
+            form_data_json TEXT DEFAULT '{}',
+            confirmed_at TEXT DEFAULT NULL,
+            confirmed_by TEXT DEFAULT '',
+            confirmed_initials TEXT DEFAULT '',
+            preselected_program TEXT DEFAULT '',
+            program_was_changed INTEGER DEFAULT 0,
+            FOREIGN KEY (protocol_id) REFERENCES protocols(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_charge_forms_protocol ON charge_forms(protocol_id);
     """)
     conn.commit()
     conn.close()
@@ -52,15 +65,19 @@ def log_event(level, message):
     conn.commit()
     conn.close()
 
-def save_protocol(raw_data, device_name=""):
-    cm = _CHARGE_RE.search(raw_data or '')
+def save_protocol(raw_data, device_name="", status="received"):
+    raw = raw_data or ''
+    cm = _CHARGE_RE.search(raw)
     charge_nr_int = int(cm.group(1)) if cm else None
-    pm = _PROG_RE.search(raw_data or '')
+    if charge_nr_int is None:
+        cm2 = _LFD_NR_RE.search(raw)
+        charge_nr_int = int(cm2.group(1)) if cm2 else None
+    pm = _PROG_RE.search(raw)
     program_val = pm.group(1).strip()[:60] if pm else None
     conn = get_db()
     cur = conn.execute(
         "INSERT INTO protocols (timestamp, device_name, raw_data, status, charge_nr_int, program) VALUES (?, ?, ?, ?, ?, ?)",
-        (datetime.now().isoformat(), device_name, raw_data, "received", charge_nr_int, program_val))
+        (datetime.now().isoformat(), device_name, raw_data, status, charge_nr_int, program_val))
     protocol_id = cur.lastrowid
     conn.commit()
     conn.close()
@@ -107,4 +124,105 @@ def get_system_logs(limit=100):
     conn.close()
     return [dict(r) for r in rows]
 
-init_db()
+
+# ─────────────────────────────────────────────────────────────
+# AUTOKLAVENBUCH WORKFLOW — Pending Charges
+# ─────────────────────────────────────────────────────────────
+
+def get_pending_protocols():
+    """Alle Chargen mit status='pending_form', neueste zuerst."""
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT p.*, cf.form_data_json, cf.confirmed_at, cf.preselected_program "
+        "FROM protocols p "
+        "LEFT JOIN charge_forms cf ON cf.protocol_id = p.id "
+        "WHERE p.status = 'pending_form' ORDER BY p.timestamp DESC"
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_pending_protocol(protocol_id):
+    """Eine Charge mit status='pending_form' samt Formulardaten."""
+    conn = get_db()
+    row = conn.execute(
+        "SELECT p.*, cf.form_data_json, cf.confirmed_at, cf.preselected_program "
+        "FROM protocols p "
+        "LEFT JOIN charge_forms cf ON cf.protocol_id = p.id "
+        "WHERE p.id = ?", (protocol_id,)
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def save_form_draft(protocol_id, form_data_json, preselected_program=""):
+    """Zwischenspeichert Formulardaten (Autosave, kein Confirm)."""
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO charge_forms (protocol_id, form_data_json, preselected_program) "
+        "VALUES (?, ?, ?) ON CONFLICT(protocol_id) DO UPDATE SET "
+        "form_data_json=excluded.form_data_json, "
+        "preselected_program=COALESCE(NULLIF(excluded.preselected_program,''), charge_forms.preselected_program)",
+        (protocol_id, form_data_json, preselected_program)
+    )
+    conn.commit()
+    conn.close()
+
+
+def confirm_form(protocol_id, form_data_json, confirmed_by, confirmed_initials, confirmed_at,
+                 preselected_program="", program_was_changed=0):
+    """Bestätigt Formular — setzt status auf form_confirmed."""
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO charge_forms (protocol_id, form_data_json, confirmed_at, confirmed_by, "
+        "confirmed_initials, preselected_program, program_was_changed) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(protocol_id) DO UPDATE SET "
+        "form_data_json=excluded.form_data_json, "
+        "confirmed_at=excluded.confirmed_at, "
+        "confirmed_by=excluded.confirmed_by, "
+        "confirmed_initials=excluded.confirmed_initials, "
+        "preselected_program=excluded.preselected_program, "
+        "program_was_changed=excluded.program_was_changed",
+        (protocol_id, form_data_json, confirmed_at, confirmed_by,
+         confirmed_initials, preselected_program, program_was_changed)
+    )
+    conn.execute(
+        "UPDATE protocols SET status='form_confirmed' WHERE id=?", (protocol_id,)
+    )
+    conn.commit()
+    conn.close()
+
+
+def discard_pending(protocol_id):
+    """Verwirft eine ausstehende Charge (status → skipped, kein PDF)."""
+    conn = get_db()
+    conn.execute("UPDATE protocols SET status='skipped' WHERE id=? AND status='pending_form'",
+                 (protocol_id,))
+    conn.commit()
+    conn.close()
+
+
+def set_pdf_failed(protocol_id):
+    conn = get_db()
+    conn.execute("UPDATE protocols SET status='pdf_failed' WHERE id=? AND status='form_confirmed'",
+                 (protocol_id,))
+    conn.commit()
+    conn.close()
+
+
+def get_form_confirmed_protocols():
+    """Gibt alle Chargen zurück, bei denen das PDF noch erzeugt werden muss (inkl. Retry)."""
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT p.*, cf.form_data_json, cf.confirmed_by, cf.confirmed_at, cf.preselected_program "
+        "FROM protocols p LEFT JOIN charge_forms cf ON cf.protocol_id = p.id "
+        "WHERE p.status IN ('form_confirmed', 'pdf_failed') ORDER BY p.timestamp DESC"
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+try:
+    init_db()
+except Exception:
+    pass

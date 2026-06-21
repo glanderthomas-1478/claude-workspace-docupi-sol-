@@ -3,6 +3,16 @@
    v3: Liquid Glass, Machine-Bar, Square-Font, neue Stat-Karten
 */
 
+/* ============ BILDSCHIRMSCHONER ============ */
+#screensaverOverlay {
+  position: fixed; inset: 0; background: #0b0f14;
+  display: none; align-items: center; justify-content: center;
+  z-index: 9999; cursor: pointer;
+}
+#screensaverOverlay.show { display: flex; animation: fade .4s ease; }
+#screensaverOverlay img { max-width: 60vw; max-height: 60vh; opacity: 0; animation: ssFadeIn 1s ease forwards; }
+@keyframes ssFadeIn { from { opacity: 0; } to { opacity: .92; } }
+
 @font-face {
   font-family: 'Square';
   src: url('fonts/Square.ttf') format('truetype');

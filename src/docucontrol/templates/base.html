@@ -50,6 +50,42 @@
 
 <footer>DocuControl 2026 &copy; <b>GeTmatic</b> &mdash; Krefeld</footer>
 
+<div id="screensaverOverlay">
+    <img src="/static/screensaver-logo.jpg" alt="GeTmatic">
+</div>
+
+<script>
+(function() {
+    var SCREENSAVER_IDLE_MS = 5 * 60 * 1000;
+    var overlay = document.getElementById('screensaverOverlay');
+    var idleTimer = null;
+
+    function showScreensaver() {
+        overlay.classList.add('show');
+    }
+
+    function hideScreensaver() {
+        overlay.classList.remove('show');
+    }
+
+    function resetIdleTimer() {
+        if (overlay.classList.contains('show')) hideScreensaver();
+        clearTimeout(idleTimer);
+        idleTimer = setTimeout(showScreensaver, SCREENSAVER_IDLE_MS);
+    }
+
+    overlay.addEventListener('pointerdown', function() {
+        resetIdleTimer();
+    });
+    ['pointerdown', 'touchstart', 'mousedown', 'keydown'].forEach(function(evt) {
+        document.addEventListener(evt, resetIdleTimer, { passive: true });
+    });
+
+    window._screensaverWake = resetIdleTimer;
+    resetIdleTimer();
+})();
+</script>
+
 <script>
 (function() {
     /* Live-Uhr */
@@ -492,6 +528,7 @@
   try {
     _socket = io();
     _socket.on('new_pending_charge', function(data) {
+      if (typeof window._screensaverWake === 'function') window._screensaverWake();
       updatePendingBadge();
       var pid = data.protocol_id;
       if (_abCurrentPid === null) {

@@ -134,6 +134,48 @@ a:hover { color: var(--primary); }
 .topbar-clock .bartime { font-family: var(--font-mono); font-weight: 700; color: #fff; letter-spacing: .5px; font-variant-numeric: tabular-nums; }
 @media (max-width: 640px) { .topbar-clock { display: none; } }
 
+/* ============ SERVICE-ANMELDUNG (Topbar) ============ */
+.auth-widget { display: inline-flex; align-items: center; }
+.auth-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.16);
+  color: #e2e8f0; border-radius: 8px; padding: 7px 13px; font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: background .15s;
+}
+.auth-btn:hover { background: rgba(255,255,255,0.16); }
+.auth-status {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(38,166,154,0.18); border: 1px solid rgba(38,166,154,0.4);
+  color: #4dd9d9; border-radius: 8px; padding: 6px 12px; font-size: 13px; font-weight: 600;
+}
+.auth-countdown { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: #cfeeee; }
+.auth-logout {
+  background: none; border: none; color: #cfeeee; cursor: pointer; display: flex;
+  align-items: center; padding: 0; font-size: 15px; margin-left: 2px;
+}
+.auth-logout:hover { color: #fff; }
+
+/* ============ GESPERRTE EINSTELLUNGEN-KARTEN ============ */
+.locked-card .card-body input:not([data-always-enabled]),
+.locked-card .card-body select:not([data-always-enabled]),
+.locked-card .card-body textarea:not([data-always-enabled]),
+.locked-card .card-body button:not([data-always-enabled]),
+.locked-card .card-body label.switch:not([data-always-enabled]) {
+  pointer-events: none; opacity: .45; filter: grayscale(.35);
+}
+.locked-card .lock-badge {
+  margin-left: auto; font-size: 11px; color: var(--muted);
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.locked-card.unlocked .card-body input:not([data-always-enabled]),
+.locked-card.unlocked .card-body select:not([data-always-enabled]),
+.locked-card.unlocked .card-body textarea:not([data-always-enabled]),
+.locked-card.unlocked .card-body button:not([data-always-enabled]),
+.locked-card.unlocked .card-body label.switch:not([data-always-enabled]) {
+  pointer-events: auto; opacity: 1; filter: none;
+}
+.locked-card.unlocked .lock-badge { display: none; }
+
 /* ============ NAV STRIP ============ */
 .navstrip {
   background: rgba(255,255,255,0.75);

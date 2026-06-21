@@ -1,6 +1,6 @@
-import os, sys, logging, shutil, subprocess, signal, atexit
+import os, sys, logging, shutil, subprocess, signal, atexit, time as _time
 from datetime import datetime
-from flask import Flask, render_template, request, jsonify, send_file, redirect, make_response, url_for, Response
+from flask import Flask, render_template, request, jsonify, send_file, redirect, make_response, url_for, Response, session
 from flask_socketio import SocketIO
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # Machine identity kommt aus config.json (machine.name / machine.protocol)
@@ -47,6 +47,62 @@ app = Flask(__name__)
 app.config["SECRET_KEY"] = "docucontrol-secret"
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 receiver = SerialReceiver(socketio=socketio)
+
+# --- Service-Anmeldung (Einstellungen-Sperre) ---
+SERVICE_PASSWORD = "Xtend1478"
+SERVICE_SESSION_TIMEOUT_S = 300
+
+
+def _service_logged_in():
+    if session.get("role") != "service":
+        return False
+    if (_time.time() - session.get("last_seen", 0)) > SERVICE_SESSION_TIMEOUT_S:
+        session.pop("role", None)
+        session.pop("last_seen", None)
+        return False
+    return True
+
+
+def _require_service():
+    if not _service_logged_in():
+        return jsonify({"ok": False, "success": False, "message": "Service-Anmeldung erforderlich"}), 403
+    return None
+
+
+@app.route("/api/auth/status")
+def api_auth_status():
+    if _service_logged_in():
+        remaining = max(0, SERVICE_SESSION_TIMEOUT_S - (_time.time() - session.get("last_seen", 0)))
+        return jsonify({"role": "service", "remaining_seconds": int(remaining)})
+    return jsonify({"role": "user", "remaining_seconds": 0})
+
+
+@app.route("/api/auth/login", methods=["POST"])
+def api_auth_login():
+    d = request.get_json(silent=True) or {}
+    pw = (d.get("password") or "").strip()
+    if pw == SERVICE_PASSWORD:
+        session["role"] = "service"
+        session["last_seen"] = _time.time()
+        log_event("INFO", "Service-Anmeldung erfolgreich")
+        return jsonify({"ok": True, "role": "service", "remaining_seconds": SERVICE_SESSION_TIMEOUT_S})
+    log_event("WARN", "Service-Anmeldung fehlgeschlagen (falsches Passwort)")
+    return jsonify({"ok": False, "message": "Falsches Passwort"}), 401
+
+
+@app.route("/api/auth/logout", methods=["POST"])
+def api_auth_logout():
+    session.pop("role", None)
+    session.pop("last_seen", None)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/auth/touch", methods=["POST"])
+def api_auth_touch():
+    if _service_logged_in():
+        session["last_seen"] = _time.time()
+        return jsonify({"ok": True, "remaining_seconds": SERVICE_SESSION_TIMEOUT_S})
+    return jsonify({"ok": False}), 401
 
 
 def _on_pending_charge(protocol_id, metadata):
@@ -216,6 +272,8 @@ def api_hotspot_stop():
 
 @app.route("/api/network/hotspot/config", methods=["POST"])
 def api_hotspot_config():
+    guard = _require_service()
+    if guard: return guard
     data = request.get_json()
     ok, msg = update_hotspot_config(
         ssid=data.get("ssid"), password=data.get("password"),
@@ -262,6 +320,8 @@ def api_iface_status(dev):
 
 @app.route("/api/network/iface/<dev>/static", methods=["POST"])
 def api_iface_static(dev):
+    guard = _require_service()
+    if guard: return guard
     d = request.get_json(silent=True) or {}
     ip = d.get("ip", "").strip()
     if not ip:
@@ -278,6 +338,8 @@ def api_iface_static(dev):
 
 @app.route("/api/network/iface/<dev>/dhcp", methods=["POST"])
 def api_iface_dhcp(dev):
+    guard = _require_service()
+    if guard: return guard
     ok, msg = set_interface_dhcp(dev)
     log_event("INFO" if ok else "ERROR", f"Iface {dev} DHCP: {msg}")
     return jsonify({"success": ok, "message": msg}), (200 if ok else 500)
@@ -288,6 +350,8 @@ def api_hostname_get():
 
 @app.route("/api/system/hostname", methods=["POST"])
 def api_hostname_set():
+    guard = _require_service()
+    if guard: return guard
     d = request.get_json(silent=True) or {}
     name = d.get("hostname", "").strip()
     ok, msg = set_hostname(name)
@@ -463,6 +527,8 @@ def api_sync_now():
 @app.route("/api/storage/network/config", methods=["GET", "POST"])
 def api_network_storage_config():
     if request.method == "POST":
+        guard = _require_service()
+        if guard: return guard
         data = request.get_json(silent=True) or {}
         cfg = load_network_config()
         if "enabled" in data:
@@ -1182,6 +1248,8 @@ def api_machine_config():
             'protocol': cfg.get('protocol', ''),
             'location': cfg.get('location', '')
         })
+    guard = _require_service()
+    if guard: return guard
     d = request.get_json(silent=True) or {}
     config = load_config()
     if 'machine' not in config:
@@ -1275,7 +1343,10 @@ def api_watchdog_status():
         return jsonify({"available": False, "error": str(e)})
 
 @app.route("/api/system/reboot", methods=["POST"])
-def api_reboot(): log_event("WARN","Reboot"); subprocess.Popen(["sudo","reboot"]); return jsonify({"status":"rebooting"})
+def api_reboot():
+    guard = _require_service()
+    if guard: return guard
+    log_event("WARN","Reboot"); subprocess.Popen(["sudo","reboot"]); return jsonify({"status":"rebooting"})
 
 @socketio.on("connect")
 def on_connect(): logger.info("WS Client verbunden")
@@ -1362,6 +1433,12 @@ def api_tcp_capture_config_get():
 @app.route("/api/tcp_capture/config", methods=["POST"])
 def api_tcp_capture_config_post():
     data = request.json or {}
+    # tcp_enabled/port gehoeren zur Karte "TCP-Empfang" (Service-gesperrt),
+    # auto_print gehoert zur Karte "Drucker" (immer bearbeitbar) - daher nur
+    # bei tcp_enabled/port pruefen, nicht den ganzen Endpunkt sperren.
+    if "tcp_enabled" in data or "port" in data:
+        guard = _require_service()
+        if guard: return guard
     cfg = load_capture_config()
     if "tcp_enabled" in data:
         cfg["tcp_enabled"] = bool(data["tcp_enabled"])
@@ -1985,6 +2062,8 @@ def api_collector_get():
 
 @app.route('/api/capture/collector', methods=['POST'])
 def api_collector_set():
+    guard = _require_service()
+    if guard: return guard
     data = request.get_json(silent=True) or {}
     enabled = bool(data.get('enabled', False))
     cfg = load_capture_config()

@@ -516,6 +516,22 @@ liegen im Initramfs, nicht nur im Dateisystem). `kiosk.service` hat einen zusaet
 4 Sekunden sichtbar bleibt, statt sofort vom Kiosk ueberschrieben zu werden (System-only,
 nicht im Repo, wie alle anderen `*.service`-Units).
 
+**Service-Anmeldung / Einstellungen-Sperre (2026-06-22):** Topbar (`base.html`) hat jetzt ein
+Login-Feld ("Anmelden"-Button bzw. "Service"-Badge mit Countdown + Abmelden). Flask-Session-basiert
+(`app.py`: `/api/auth/login|logout|status|touch`, Passwort `Xtend1478`, 5 Min. Inaktivitaets-Timeout,
+wird bei Touch/Tastatur/Klick per `/api/auth/touch` zurueckgesetzt — analog zum Bildschirmschoner).
+Standardmaessig (Rolle "user") sind in Einstellungen NUR die Karten **Drucker**, **Zeit & Uhr** und
+**USB-Synchronisation** bearbeitbar; alle anderen Karten (Anlage, TCP-Empfang, Schnittstelle 1/2,
+Geraetename, Netzwerk-Speicherort, Wartung) sind per `.locked-card`-CSS-Klasse ausgegraut/inaktiv
+(`pointer-events:none`) bis zur Service-Anmeldung. Ping- und Verbindungstest-Buttons bleiben ueber
+`data-always-enabled="1"` immer benutzbar, auch in gesperrten Karten. **Wichtig:** Die Sperre ist
+nicht nur kosmetisch — die zugehoerigen POST-Endpunkte (`/api/machine/config`, `/api/system/hostname`,
+`/api/network/iface/<dev>/static|dhcp`, `/api/network/hotspot/config`, `/api/storage/network/config`,
+`/api/system/reboot`, `/api/capture/collector`, sowie `tcp_enabled`/`port` auf `/api/tcp_capture/config`
+— NICHT aber `auto_print` auf demselben Endpunkt, der gehoert zur Karte "Drucker") pruefen serverseitig
+per `_require_service()`-Guard, geben sonst 403 zurueck. Reines Frontend-Verstecken waere durch direkte
+API-Aufrufe umgehbar gewesen.
+
 ---
 
 ## Offene Aufgabe: DocuControl-Gehaeuse-Branding (3D-Druck) — IN ARBEIT

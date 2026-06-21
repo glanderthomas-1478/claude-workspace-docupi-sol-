@@ -25,7 +25,7 @@
     <div class="set-grid">
 
         <!-- Anlage -->
-        <div class="card">
+        <div class="card locked-card">
             <div class="card-head"><span><i class="bi bi-safe2"></i> Anlage</span></div>
             <div class="card-body">
                 <div class="set-row">
@@ -75,7 +75,7 @@
                     </div>
                     <div style="display:flex;gap:8px;align-items:center">
                         <span class="value" id="machinePingResult" style="font-size:12.5px;color:var(--muted)">—</span>
-                        <button class="btn btn-outline" onclick="testMachinePing()"><i class="bi bi-wifi"></i> Ping</button>
+                        <button class="btn btn-outline" data-always-enabled="1" onclick="testMachinePing()"><i class="bi bi-wifi"></i> Ping</button>
                     </div>
                 </div>
             </div>
@@ -120,7 +120,7 @@
         </div>
 
         <!-- TCP-Empfang -->
-        <div class="card">
+        <div class="card locked-card">
             <div class="card-head"><span><i class="bi bi-reception-4"></i> TCP-Empfang</span></div>
             <div class="card-body">
                 <div class="set-row">
@@ -165,7 +165,7 @@
         </div>
 
         <!-- Schnittstelle 1 (Primär) -->
-        <div class="card">
+        <div class="card locked-card">
             <div class="card-head">
                 <span><i class="bi bi-hdd-network"></i> Schnittstelle 1 — Primär</span>
                 <span class="badge" id="iface1StatusBadge" style="font-size:11px;padding:2px 8px;border-radius:4px;background:var(--muted);color:#fff">—</span>
@@ -235,7 +235,7 @@
         </div>
 
         <!-- Schnittstelle 2 (Optional / USB-Ethernet) -->
-        <div class="card" id="iface2Card">
+        <div class="card locked-card" id="iface2Card">
             <div class="card-head">
                 <span><i class="bi bi-hdd-network"></i> Schnittstelle 2 — Optional (USB-Ethernet)</span>
                 <span class="badge" id="iface2StatusBadge" style="font-size:11px;padding:2px 8px;border-radius:4px;background:var(--muted);color:#fff">—</span>
@@ -303,7 +303,7 @@
         </div>
 
         <!-- Gerätename im Netzwerk -->
-        <div class="card">
+        <div class="card locked-card">
             <div class="card-head"><span><i class="bi bi-pc-display"></i> Gerätename im Netzwerk</span></div>
             <div class="card-body">
                 <div class="set-row">
@@ -418,7 +418,7 @@
         </div>
 
         <!-- Netzwerk-Speicherort (SMB) -->
-        <div class="card">
+        <div class="card locked-card">
             <div class="card-head">
                 <span><i class="bi bi-hdd-network-fill"></i> Netzwerk-Speicherort</span>
                 <span class="badge" id="netStorageStatusBadge" style="font-size:11px;padding:2px 8px;border-radius:4px;background:var(--muted);color:#fff">—</span>
@@ -457,7 +457,7 @@
                     <span class="value" id="netStorageLastSync" style="font-size:12.5px;color:var(--muted)">—</span>
                 </div>
                 <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
-                    <button class="btn btn-glass" onclick="testNetworkStorage()"><i class="bi bi-plug"></i> Verbindung testen</button>
+                    <button class="btn btn-glass" data-always-enabled="1" onclick="testNetworkStorage()"><i class="bi bi-plug"></i> Verbindung testen</button>
                     <button class="btn btn-glass" onclick="syncNetworkNow()"><i class="bi bi-arrow-repeat"></i> Jetzt sync.</button>
                     <button class="btn btn-primary" onclick="saveNetworkStorageConfig()"><i class="bi bi-save"></i> Speichern</button>
                 </div>
@@ -507,7 +507,7 @@
         </div>
 
         <!-- Wartung -->
-        <div class="card">
+        <div class="card locked-card">
             <div class="card-head"><span><i class="bi bi-gear-wide-connected"></i> Wartung</span></div>
             <div class="card-body">
                 <div class="set-row">
@@ -1425,6 +1425,28 @@
     loadCollectorMode();         // Sammelmodus-Toggle — einmalig, nicht im 30s-Interval
     setInterval(loadDeviceSettings, 30000);
     if (!ipPollInterval) ipPollInterval = setInterval(pollCurrentIPs, 5000);
+})();
+</script>
+
+<script>
+(function() {
+    // Lock-Badges einmalig in die Kopfzeilen der gesperrten Karten einfuegen
+    document.querySelectorAll('.locked-card .card-head').forEach(function(head) {
+        var badge = document.createElement('span');
+        badge.className = 'lock-badge';
+        badge.innerHTML = '<i class="bi bi-lock-fill"></i> Service';
+        head.appendChild(badge);
+    });
+
+    function applyLock(auth) {
+        var unlocked = auth.role === 'service';
+        document.querySelectorAll('.locked-card').forEach(function(card) {
+            card.classList.toggle('unlocked', unlocked);
+        });
+    }
+
+    if (window.onAuthChange) window.onAuthChange(applyLock);
+    if (window.AUTH) applyLock(window.AUTH);
 })();
 </script>
 {% endblock %}

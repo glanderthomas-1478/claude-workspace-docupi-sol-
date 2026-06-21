@@ -498,6 +498,24 @@ von einer NVMe-SSD (Geekworm X1001), SD-Karte ist entfernt.
 `docker-compose restart` (Flask cached Templates im Speicher bei `debug=off`) UND
 `systemctl restart kiosk.service` (Chromium cached CSS/JS) — sonst zeigt das Display den alten Stand.
 
+**Bildschirmschoner (2026-06-22):** Nach 5 Min. Inaktivitaet (kein Touch/Tastatur) erscheint ein
+Bildschirmschoner mit dem GeTmatic-Logo (`static/screensaver-logo.png`, generiert aus
+`reference/getmatic_logo_stacked.svg` per `rsvg-convert` — SVG nutzt `textLength`/`lengthAdjust`,
+damit "GeTMatic" und "AUTOMATISIERUNGSTECHNIK" exakt gleich breit gerendert werden, unabhaengig
+von Font-Groesse). Logo bewegt sich per `requestAnimationFrame` kreuz und quer und prallt an den
+Bildschirmraendern ab (DVD-Screensaver-Stil). Wird durch Touch ODER eine neu ankommende Charge
+(SocketIO `new_pending_charge`) sofort beendet, `body.screensaver-active{overflow:hidden}` blendet
+dabei den Scrollbalken aus. Code in `base.html` (`window._screensaverWake`).
+
+**Boot-Splash (2026-06-22):** `/usr/share/plymouth/themes/pix/splash.png` durch ein aus
+`reference/dokumentation.svg` gerendertes PNG (1024×600, via `rsvg-convert`) ersetzt — zeigt eine
+Illustration von Autoklav + Prozess-Recorder + digitalem/analogem Ausdruck waehrend des Bootens.
+Original als `splash.png.orig` gesichert, `update-initramfs -u` danach zwingend (Plymouth-Assets
+liegen im Initramfs, nicht nur im Dateisystem). `kiosk.service` hat einen zusaetzlichen
+`ExecStartPre=/bin/sleep 4` vor dem `cage`-Start, damit der Splash nach Boot-Abschluss noch
+4 Sekunden sichtbar bleibt, statt sofort vom Kiosk ueberschrieben zu werden (System-only,
+nicht im Repo, wie alle anderen `*.service`-Units).
+
 ---
 
 ## Offene Aufgabe: DocuControl-Gehaeuse-Branding (3D-Druck) — IN ARBEIT

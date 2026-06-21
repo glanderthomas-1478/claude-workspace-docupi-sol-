@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 140" width="400" height="140" role="img" aria-label="GeTMatic Automatisierungstechnik">
+  <style>
+    text { font-family: Arial, Helvetica, sans-serif; }
+  </style>
+  <rect width="400" height="140" fill="#3a3a3a"/>
+  <text x="200" y="78" font-size="52" font-weight="700" text-anchor="middle"
+        textLength="320" lengthAdjust="spacingAndGlyphs">
+    <tspan fill="#4dd9d9">Ge</tspan><tspan fill="#4dd9d9">T</tspan><tspan fill="#ffffff">Matic</tspan>
+  </text>
+  <text x="200" y="108" font-size="13" font-weight="500" fill="#e6e6e6" text-anchor="middle"
+        letter-spacing="2" textLength="320" lengthAdjust="spacing">AUTOMATISIERUNGSTECHNIK</text>
+</svg>

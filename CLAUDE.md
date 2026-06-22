@@ -575,16 +575,35 @@ zusaetzlichen `ExecStartPre=/bin/sleep 4` vor dem `cage`-Start, damit der Splash
 noch 4 Sekunden sichtbar bleibt, statt sofort vom Kiosk ueberschrieben zu werden (System-only,
 nicht im Repo, wie alle anderen `*.service`-Units).
 
-**Boot-Splash (2026-06-22, Update — nur noch Firmenlogo):** Auf Wunsch durch ein reines
-GeTmatic-Logo-Bild ersetzt (Vorbild `reference/getmatic_logo_stacked.svg`, dieselbe Optik wie der
-Screensaver) statt der Autoklav-Illustration — Quell-SVG `reference/boot_splash_logo.svg`
+**Boot-Splash (2026-06-22, Update — nur noch Firmenlogo, mehrere Iterationen):** Auf Wunsch durch
+ein reines GeTmatic-Logo-Bild ersetzt (Vorbild `reference/getmatic_logo_stacked.svg`, dieselbe Optik
+wie der Screensaver) statt der Autoklav-Illustration — Quell-SVG `reference/boot_splash_logo.svg`
 (1024×600, Logo zentriert auf dunklem `#3a3a3a`-Hintergrund), gerendert via `rsvg-convert`,
-`update-initramfs -u` erneut ausgefuehrt. Zusaetzlich `disable_splash=1` in
-`/boot/firmware/config.txt` ergaenzt, um die Raspberry-Pi-Firmware-Anzeige (Rainbow-Testbild +
-Raspberry-Logos in den Ecken vor Plymouth) zu unterdruecken — dadurch ist waehrend des gesamten
-Bootvorgangs nur noch das GeTmatic-Logo sichtbar, kein Raspberry-Branding mehr. Noch nicht per
-Reboot verifiziert (User testet selbst vor Ort, da das Geraet in der Vergangenheit gelegentlich
-nach Reboots haengen blieb).
+`update-initramfs -u` erneut ausgefuehrt.
+- Erster Versuch (`disable_splash=1` in config.txt) wirkungslos — per `vcgencmd get_config int`
+  bestaetigt, dass dieser Schluessel auf diesem Pi 5 ueberhaupt nicht von der Firmware erkannt wird
+  (legacy VC4-Option, nicht Teil der Pi5-Bootarchitektur) — wieder entfernt.
+- Zweiter Versuch (`logo.nologo` Kernel-Parameter in cmdline.txt, gegen das eingebaute
+  Kernel-Konsolen-Logo) ebenfalls wirkungslos, blieb aber drin (schadet nicht, korrekt fuer den
+  Fall dass der Konsolen-Logo-Pfad je aktiv wuerde).
+- **Tatsaechliche Ursache gefunden:** Plymouth beendet sich automatisch ca. 3s nach Bootstart, sobald
+  `systemd-user-sessions.service` aktiv wird (Standard-systemd-Verhalten, `plymouth-quit.service`).
+  `kiosk.service` (cage+chromium) startet aber erst, wenn der Docker-Container per
+  `curl --retry` antwortet — je nach Docker-Startzeit 15-30s spaeter. In dieser Luecke (Plymouth
+  bereits beendet, Kiosk noch nicht da) zeigte ein anderer Mechanismus kurzzeitig das grosse
+  zentrierte Raspberry-Pi-Logo (vermutlich `/usr/share/rpd-wallpaper/raspberry-pi-logo.png` ueber
+  einen TTY1-bezogenen Pfad — Ursache nicht abschliessend isoliert, aber durch Schliessen der Luecke
+  irrelevant geworden).
+- **Fix:** `/etc/systemd/system/plymouth-quit.service.d/override.conf` (System-only) mit
+  `ExecStartPre=/bin/sleep 40` + `TimeoutSec=60` als Sicherheits-Obergrenze, PLUS `kiosk.service`
+  bekommt ein zusaetzliches `ExecStartPre=-/usr/bin/plymouth quit` direkt vor dem `cage`-Start
+  (nach dem bestehenden curl-Wait + `sleep 4`) — Plymouth wird dadurch praezise erst beendet, wenn
+  Cage tatsaechlich startet, die 40s-Verzoegerung greift nur als Fallback falls Docker ungewoehnlich
+  lange braucht. Live per Reboot verifiziert (mehrere Iterationen, inkl. eines fehlgeschlagenen
+  Framebuffer-Diagnoseversuchs per `ffmpeg -f fbdev`, der selbst die Plymouth-Anzeige gestoert hatte
+  und sofort wieder entfernt wurde): GeTmatic-Logo jetzt durchgehend von Boot bis Kiosk-Start
+  sichtbar, kein Raspberry-Branding mehr, Kiosk startet weiterhin zuverlaessig (HTTP 200 nach jedem
+  Testreboot).
 
 **Service-Anmeldung / Einstellungen-Sperre (2026-06-22):** Topbar (`base.html`) hat jetzt ein
 Login-Feld ("Anmelden"-Button bzw. "Service"-Badge mit Countdown + Abmelden). Flask-Session-basiert

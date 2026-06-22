@@ -594,16 +594,27 @@ wie der Screensaver) statt der Autoklav-Illustration — Quell-SVG `reference/bo
   zentrierte Raspberry-Pi-Logo (vermutlich `/usr/share/rpd-wallpaper/raspberry-pi-logo.png` ueber
   einen TTY1-bezogenen Pfad — Ursache nicht abschliessend isoliert, aber durch Schliessen der Luecke
   irrelevant geworden).
-- **Fix:** `/etc/systemd/system/plymouth-quit.service.d/override.conf` (System-only) mit
-  `ExecStartPre=/bin/sleep 40` + `TimeoutSec=60` als Sicherheits-Obergrenze, PLUS `kiosk.service`
-  bekommt ein zusaetzliches `ExecStartPre=-/usr/bin/plymouth quit` direkt vor dem `cage`-Start
-  (nach dem bestehenden curl-Wait + `sleep 4`) — Plymouth wird dadurch praezise erst beendet, wenn
-  Cage tatsaechlich startet, die 40s-Verzoegerung greift nur als Fallback falls Docker ungewoehnlich
-  lange braucht. Live per Reboot verifiziert (mehrere Iterationen, inkl. eines fehlgeschlagenen
-  Framebuffer-Diagnoseversuchs per `ffmpeg -f fbdev`, der selbst die Plymouth-Anzeige gestoert hatte
-  und sofort wieder entfernt wurde): GeTmatic-Logo jetzt durchgehend von Boot bis Kiosk-Start
-  sichtbar, kein Raspberry-Branding mehr, Kiosk startet weiterhin zuverlaessig (HTTP 200 nach jedem
-  Testreboot).
+- **Fix (1. Versuch, verursachte Regression):** `/etc/systemd/system/plymouth-quit.service.d/override.conf`
+  (System-only) mit `ExecStartPre=/bin/sleep 40` + `TimeoutSec=60`, PLUS `kiosk.service` zusaetzliches
+  `ExecStartPre=-/usr/bin/plymouth quit` direkt vor dem `cage`-Start. Beide Trigger liefen aber
+  **parallel/race**, nicht sequenziell — der `kiosk.service`-eigene `plymouth quit`-Aufruf schlug
+  jedes Mal mit Exit-Code 1 fehl (vermutlich fehlende Rechte als `User=docucontrol`), der
+  Override-Aufruf (root, erfolgreich) kam dadurch teils erst **nach** dem Cage-Start — Cage konnte
+  in diesem Fenster keinen DRM-Master erhalten, Kiosk blieb komplett schwarz/eingefroren trotz
+  laufender Prozesse (cage+chromium liefen, CPU-Last da, aber nichts auf dem Display). Vom User
+  sofort gemeldet ("Display bootet nicht bis ins Kiosk").
+- **Fix (2. Versuch, stabil):** Den fehlerhaften `ExecStartPre=-/usr/bin/plymouth quit` wieder aus
+  `kiosk.service` entfernt, stattdessen `After=plymouth-quit.service` im `[Unit]`-Block von
+  `kiosk.service` ergaenzt — dadurch startet `kiosk.service` (inkl. seiner eigenen curl-Wait +
+  `sleep 4`-Kette) garantiert erst, NACHDEM `plymouth-quit.service` (mit der 40s-Verzoegerung)
+  vollstaendig durchgelaufen ist. Kein Race mehr, nur noch ein einziger, erfolgreicher
+  `plymouth quit`-Aufruf (root, ueber den Override). Erst per `systemctl restart kiosk.service` ohne
+  Reboot wiederherstellen verifiziert (Display sofort wieder normal), dann per echtem Reboot
+  bestaetigt: `plymouth-quit.service` "Finished" **vor** `Starting kiosk.service` im Journal,
+  GeTmatic-Logo durchgehend sichtbar, Kiosk startet zuverlaessig (HTTP 200), kein Raspberry-Bild mehr.
+  **Lehre:** zwei unabhaengige Trigger fuer denselben einmaligen Vorgang (hier: Plymouth beenden)
+  ohne harte Ordnungs-Dependency (`After=`) sind ein Race — lieber einen einzigen, garantiert
+  erfolgreichen Trigger sauber sequenzieren als zwei "soft" Trigger mit Hoffnung auf gute Reihenfolge.
 
 **Service-Anmeldung / Einstellungen-Sperre (2026-06-22):** Topbar (`base.html`) hat jetzt ein
 Login-Feld ("Anmelden"-Button bzw. "Service"-Badge mit Countdown + Abmelden). Flask-Session-basiert

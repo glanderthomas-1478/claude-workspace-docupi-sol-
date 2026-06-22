@@ -475,6 +475,25 @@
   </div>
 </div>
 
+<!-- Unterschrift-Modal -->
+<div class="modal-overlay" id="sigOverlay">
+  <div class="modal modal-lg" style="max-width:560px">
+    <div class="modal-head">
+      <div class="mi"><i class="bi bi-pen"></i></div>
+      <div><h3>Unterschrift</h3></div>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--muted);margin:0 0 10px">Bitte im Feld unterschreiben.</p>
+      <canvas id="sigCanvas" width="500" height="220" style="border:1px solid var(--border);border-radius:8px;width:100%;height:220px;touch-action:none;background:#fff;display:block"></canvas>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" type="button" onclick="sigClear()"><i class="bi bi-eraser"></i> Löschen</button>
+      <button class="btn btn-outline" type="button" onclick="sigBack()">Zurück</button>
+      <button class="btn btn-primary" type="button" onclick="sigConfirm()"><i class="bi bi-check-lg"></i> Übernehmen</button>
+    </div>
+  </div>
+</div>
+
 <script>
 (function() {
   var _abQueue = [];
@@ -630,12 +649,31 @@
     updatePendingBadge();
   });
 
+  var _abPendingData = null;
+
   document.getElementById('abBtnConfirm').addEventListener('click', function() {
     var data = abCollectFormData();
     var err = abValidate(data);
     if (err) { alert(err); return; }
-    var btn = this; btn.disabled = true;
+    _abPendingData = data;
+    document.getElementById('abOverlay').classList.remove('show');
+    sigOpen();
+  });
+
+  function abResetConfirmBtn() {
+    var btn = document.getElementById('abBtnConfirm');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-check-lg"></i> Bestätigen &amp; PDF erstellen';
+  }
+
+  function abSubmitConfirm(signatureDataUrl) {
+    var data = _abPendingData;
+    if (!data) return;
+    data.signature = signatureDataUrl;
+    var btn = document.getElementById('abBtnConfirm');
+    btn.disabled = true;
     btn.innerHTML = '<i class="bi bi-hourglass-split"></i> PDF wird erstellt …';
+    document.getElementById('abOverlay').classList.add('show');
     var pid = _abCurrentPid;
     var presel = document.getElementById('abPreselectedProgram').value;
     fetch('/api/pending-charges/' + pid + '/confirm', {
@@ -648,20 +686,81 @@
       })
     }).then(function(r) { return r.json(); }).then(function(resp) {
       if (resp.ok) {
+        _abPendingData = null;
         abClose();
         updatePendingBadge();
         if (typeof loadProtocols === 'function') setTimeout(loadProtocols, 4000);
       } else {
         alert('Fehler: ' + (resp.error || 'Unbekannt'));
-        btn.disabled = false;
-        btn.innerHTML = '<i class="bi bi-check-lg"></i> Bestätigen &amp; PDF erstellen';
+        abResetConfirmBtn();
       }
     }).catch(function() {
       alert('Verbindungsfehler — bitte erneut versuchen.');
-      btn.disabled = false;
-      btn.innerHTML = '<i class="bi bi-check-lg"></i> Bestätigen &amp; PDF erstellen';
+      abResetConfirmBtn();
     });
-  });
+  }
+
+  // ── Unterschrift-Pad ────────────────────────────────────────────────────
+  var _sigCtx = null, _sigDrawing = false, _sigHasInk = false, _sigInited = false;
+
+  function sigPos(canvas, e) {
+    var rect = canvas.getBoundingClientRect();
+    var scaleX = canvas.width / rect.width;
+    var scaleY = canvas.height / rect.height;
+    return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
+  }
+
+  function sigInit() {
+    if (_sigInited) return;
+    _sigInited = true;
+    var canvas = document.getElementById('sigCanvas');
+    _sigCtx = canvas.getContext('2d');
+    _sigCtx.lineWidth = 2.5;
+    _sigCtx.lineCap = 'round';
+    _sigCtx.lineJoin = 'round';
+    _sigCtx.strokeStyle = '#1a1a2e';
+    canvas.addEventListener('pointerdown', function(e) {
+      _sigDrawing = true; _sigHasInk = true;
+      var p = sigPos(canvas, e);
+      _sigCtx.beginPath();
+      _sigCtx.moveTo(p.x, p.y);
+      e.preventDefault();
+    });
+    canvas.addEventListener('pointermove', function(e) {
+      if (!_sigDrawing) return;
+      var p = sigPos(canvas, e);
+      _sigCtx.lineTo(p.x, p.y);
+      _sigCtx.stroke();
+      e.preventDefault();
+    });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(function(evt) {
+      canvas.addEventListener(evt, function() { _sigDrawing = false; });
+    });
+  }
+
+  function sigOpen() {
+    sigInit();
+    window.sigClear();
+    document.getElementById('sigOverlay').classList.add('show');
+  }
+
+  window.sigClear = function() {
+    var canvas = document.getElementById('sigCanvas');
+    if (_sigCtx) _sigCtx.clearRect(0, 0, canvas.width, canvas.height);
+    _sigHasInk = false;
+  };
+
+  window.sigBack = function() {
+    document.getElementById('sigOverlay').classList.remove('show');
+    document.getElementById('abOverlay').classList.add('show');
+  };
+
+  window.sigConfirm = function() {
+    if (!_sigHasInk) { alert('Bitte zuerst unterschreiben.'); return; }
+    var dataUrl = document.getElementById('sigCanvas').toDataURL('image/png');
+    document.getElementById('sigOverlay').classList.remove('show');
+    abSubmitConfirm(dataUrl);
+  };
 
   document.getElementById('abConfirmCheck').addEventListener('change', function() {
     document.getElementById('abBtnConfirm').disabled = !this.checked;

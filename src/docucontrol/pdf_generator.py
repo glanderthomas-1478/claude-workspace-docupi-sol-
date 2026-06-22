@@ -737,6 +737,26 @@ class SterilizationPDF(FPDF):
         field_row('Bestätigt durch', fd.get('confirmed_by', ''), 'Bestätigt am', confirmed_at)
         field_row('Kürzel', fd.get('confirmed_initials', ''), '', '')
 
+        # Unterschrift
+        sig_data = fd.get('signature', '')
+        if sig_data:
+            try:
+                import base64, io
+                b64 = sig_data.split(',', 1)[1] if ',' in sig_data else sig_data
+                sig_stream = io.BytesIO(base64.b64decode(b64))
+                _sf('', 7)
+                self.set_text_color(100, 100, 100)
+                self.set_xy(col1_x, y)
+                self.cell(col_w, 4, 'Unterschrift')
+                y += 4
+                sig_h = 16
+                self.set_draw_color(180, 180, 180)
+                self.rect(col1_x, y, 55, sig_h)
+                self.image(sig_stream, x=col1_x + 1, y=y + 1, w=53, h=sig_h - 2)
+                y += sig_h + 4
+            except Exception as e:
+                logger.warning(f"Unterschrift konnte nicht eingebettet werden: {e}")
+
         # Fußzeile
         self.set_fill_color(*FOOTER_BG)
         self.rect(0, 285, 210, 12, 'F')

@@ -31,6 +31,10 @@
 | Bildschirmschoner + Boot-Splash | **IMPLEMENTIERT** | — | GeTmatic-Logo (DVD-Stil + Boot), Plymouth-Quit-Race behoben (2026-06-22) |
 | Drucker Netzwerk/USB-Umschalter | **IMPLEMENTIERT** | — | IPP-Everywhere driverless fuer Netzwerkdrucker zusaetzlich zu IPP-over-USB (2026-06-22) |
 | Passwort-Rollout Geraeteflotte | **TEILWEISE** | Alle Geraete | Pi5_Display/docucontrol3 individuelle Passwoerter gesetzt; DocuControl (.171) + DocuPi-3000 (.83) noch mit altem gemeinsamem Passwort (nicht erreichbar beim Rollout) |
+| SD-Notfall-Klon docucontrol3 | **EINGERICHTET** | — | Bootfaehiger 1:1-Klon der SSD auf der SD-Karte, BOOT_ORDER deckt SSD-Totalausfall automatisch ab (2026-06-22) |
+| Soft-Keyboard (Kiosk) | **GEFIXT** | — | Oeffnet sich jetzt global (nicht nur Autoklavenbuch/Login), Tastenbreiten flexibel statt Fixpixel (2026-06-22, Monitor-Wechsel 7"→10") |
+| Stoerungs-Anzeige Topbar | **IMPLEMENTIERT** | — | Rote Alarm-Badges: Maschine/Drucker/SSD/Netzwerkspeicherort, /api/system/alerts alle 20s gepollt (2026-06-22) |
+| Docker-Speicherplatz docucontrol3 | **AUFGERAEUMT** | — | 41G → 15G (vfs-Storage-Driver-Overhead bereinigt), overlay2-Wechsel als offene Option dokumentiert (2026-06-22) |
 
 ## Quellcode-Uebersicht
 
@@ -93,6 +97,7 @@
 - Autoklavenbuch-Workflow (2026-06-22) aus Felix' separatem Repo `DocuControl-Belimed-Autoklav-Uni-Essen` uebernommen: Chargen landen erst im Status `pending_form`, SocketIO-Formular-Modal am Touchscreen, erst nach Bestaetigung PDF (Formular 268627 Rev. 004/01.2024); eigener PST-Parser fuer UNIKLINIK_ESSEN_10980-Format (6-Sensor-Spalten, mehrseitig)
 - Mehrere Bugs in Felix' Code gefixt: `get_usb_info()` Zeilenumbruch-Bug, `timedatectl` funktioniert nicht in Docker (auf `date -s`+`hwclock` umgestellt), fehlendes `util-linux-extra`-Paket, CSS-Spaltenausrichtung Datei-Manager, PDF-Modal-Vollbild
 - OWASP-Fixes, Offline-Vendoring, Service-Login, Bildschirmschoner, Boot-Splash, Drucker-Netzwerk-Umschalter (s. Tabelle oben) — alle live auf diesem Geraet umgesetzt
+- **2026-06-22 (Monitor-Wechsel 7"→10" + Folgearbeiten):** Soft-Keyboard global nutzbar + Tastenbreiten an 1024×600 angepasst; SD-Karte als bootfaehiger Notfall-Klon der SSD bestueckt (BOOT_ORDER=0xf416 deckt SSD-Totalausfall automatisch ab); Kiosk-Dateimanager PDF-Ansehen statt Download; Drucken-Icon korrekt an physische Verbindung gekoppelt; neue rote Stoerungs-Anzeige in der Topbar (Maschine/Drucker/SSD/Netzwerkspeicherort); Docker-Cleanup 41G→15G
 - Details: CLAUDE.md Abschnitt "docucontrol3"
 
 ### Ziel-Hardware (langfristig)

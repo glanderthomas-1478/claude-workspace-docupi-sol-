@@ -113,6 +113,11 @@ Prototyp fertigstellen und erste Feldtests im eigenen Arbeitsumfeld durchfuehren
 - OFFEN: Passwort-Rotation auf DocuControl (.171) und DocuPi-3000 (.83) nachziehen, sobald erreichbar
 - OFFEN: SMB-Maschinenkonto auf 192.168.0.86 (genutzt von .171 + .218) noch nicht rotiert (kein Remote-Admin-Zugriff auf den Windows-Rechner)
 - OFFEN: Gehaeuse-Branding (3D-Druck, DocuControl weiss + Logo) — Logo-Freistellung + FreeCAD-Bearbeitung noch nicht begonnen
+- **ERLEDIGT 2026-06-22**: Monitor-Wechsel docucontrol3 7"→10" (1024×600 bleibt gleich) + zwei vorbestehende Soft-Keyboard-Bugs gefixt: Tastatur oeffnete sich nur in Autoklavenbuch/Login (jetzt global), Tastenbreiten waren fix und zu breit fuer 1024px (jetzt CSS-Flex-Verhaeltnisse)
+- **ERLEDIGT 2026-06-22**: SD-Karte auf docucontrol3 als bootfaehiger Notfall-Klon der SSD eingerichtet (BOOT_ORDER deckt kompletten SSD-Ausfall automatisch ab), inkl. gefundenem/behobenem rsync-Bug (`-x` ueberspringt `/boot/firmware`); Regel dokumentiert: Maschinendokumente duerfen erst bei echtem SSD-Ausfall auf die SD-Karte, kein laufender Sync waehrend SSD aktiv ist
+- **ERLEDIGT 2026-06-22**: Kiosk-Dateimanager zeigt PDF-Ansehen-Icon statt Download-Button (intern + USB); Drucken-Icon zeigt sich jetzt korrekt nur bei tatsaechlich angeschlossenem Drucker (vorher: CUPS-Status allein reichte, blieb nach Ausstecken faelschlich "bereit")
+- **ERLEDIGT 2026-06-22**: Neue Stoerungs-Anzeige (rote Alarm-Badges in der Topbar): Maschine nicht erreichbar, Drucker offline (bei aktivem Auto-Druck), SSD-Ausfall/Notfallbetrieb von SD, Netzwerkspeicherort nicht erreichbar — gepollt alle 20s; dabei zwei Nebenfunde behoben: `ping` fehlte im Docker-Image, Cache-Control-Header fehlten auf `/api/*`-Routen (Chromium cachte Alarm-Status)
+- **ERLEDIGT 2026-06-22**: Docker-Speicherplatz-Cleanup auf docucontrol3 (41G→15G) — `vfs`-Storage-Driver-Overhead war fast die gesamte Belegung, echte Chargendaten nur ~2,4MB; Wechsel auf `overlay2` als offene, nicht beauftragte Option dokumentiert
 
 ## Wie Erfolg aussieht
 

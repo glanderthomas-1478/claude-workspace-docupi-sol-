@@ -605,6 +605,21 @@ weiterhin erfolgreich. Zusaetzlich geprueft und bestaetigt frei von Internet-Abh
 gecached, `docker-compose up` braucht kein Internet), NTP (faellt bei fehlendem Internet automatisch
 auf die Pi5-Onboard-RTC mit Batteriepufferung zurueck, keine Funktionsunterbrechung).
 
+**Drucker: USB/Netzwerk-Umschalter (2026-06-22):** Settings-Karte "Drucker" hat jetzt einen
+Verbindungstyp-Umschalter (USB/Netzwerk) statt nur fest verdrahtetem USB-Setup. Bei "Netzwerk"
+zusaetzliches IP/Hostname-Feld. Backend: `print_manager.py` `setup_network_printer(host)` nutzt
+denselben Driverless-Ansatz (IPP Everywhere, `-m everywhere`) wie der bestehende
+IPP-over-USB-Pfad — funktioniert geraeteunabhaengig fuer alle IPP-Everywhere/AirPrint/
+Mopria-zertifizierten Drucker (Mehrheit seit ca. 2014), kein modellspezifischer Treiber noetig.
+Aeltere, nicht zertifizierte Netzwerkdrucker bräuchten weiterhin einen eigenen PPD. Konfiguration
+(`connection_type`, `network_host`) in `print_config.json` persistiert, beim Boot automatisch
+angewendet. Host-Eingabe per Regex validiert (`^[A-Za-z0-9][A-Za-z0-9.\-]*$`).
+**Nebenbefund:** `cups-client` (lpadmin/lpinfo/lp) fehlte komplett im Docker-Image — betraf
+auch die bisherige USB-Einrichtung auf diesem Geraet (Pi5_Display/docucontrol3), nicht nur die
+neue Netzwerk-Funktion. Dockerfile ergaenzt, Image neu gebaut, live verifiziert (lpadmin jetzt
+im Container vorhanden, Test-Setup gegen Dummy-IP korrekt fehlgeschlagen mit aussagekraeftiger
+Meldung, danach zurueckgesetzt auf sauberen Ausgangszustand ohne konfigurierten Drucker).
+
 ---
 
 ## Offene Aufgabe: DocuControl-Gehaeuse-Branding (3D-Druck) — IN ARBEIT

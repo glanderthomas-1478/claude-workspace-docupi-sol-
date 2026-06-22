@@ -107,7 +107,7 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 
 - Hardware: Raspberry Pi — DocuPi-3000 (SSH: belimed@192.168.178.83, zu Hause) | DocuControl (SSH: docucontrol@192.168.0.171, bei getmatic) | Pi5_Display (SSH: `ssh docucontrol2`, 192.168.0.218)
 - SSH fuer DocuControl: Alias `ssh docucontrol` (Host 192.168.0.171, User docucontrol, IdentityFile `~/.ssh/docucontrol_id`), Passwort: Xtend1478 (fuer sudo)
-- SSH fuer Pi5_Display: Alias `ssh docucontrol2` (Host 192.168.0.218, User docucontrol, IdentityFile `~/.ssh/docucontrol_id`), Passwort: Xtend1478 (fuer sudo)
+- SSH fuer Pi5_Display: Alias `ssh docucontrol2` (Host 192.168.0.218, User docucontrol, IdentityFile `~/.ssh/docucontrol_id`), sudo-Passwort seit 2026-06-22 individuell + nicht mehr im Klartext hier dokumentiert (siehe lokale `secrets/`-Ablage) — SSH-Login ohnehin Key-only (PasswordAuthentication=no)
 - Langfristiges Ziel: CE-zertifizierte Linux-Controller (Unipi Neuron / RevPi Connect)
 - Geschaeftsmodell: Softwarelizenz + Sensor-Kit
 - Erster Feldtest abgeschlossen: 3 Wochen, 140 Chargen, Helios Krefeld (Belimed 9-6-18 HS2)
@@ -383,6 +383,16 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
   Reduktion auf gezielte Capabilities braucht sorgfaeltige Einzelanalyse + Testfenster, nicht spontan
   umgesetzt)
 
+**Passwort-Rollout Pi5_Display/docucontrol3 (2026-06-22):** Individuelle, zufaellig generierte
+Passwoerter fuer SSH/sudo (Linux-Account `docucontrol`) und Web-UI-Service-Login live gesetzt und
+verifiziert (altes Passwort abgelehnt, neues funktioniert, App nach Container-Restart weiterhin
+fehlerfrei). DocuControl (.171) und DocuPi-3000 (.83) waren beim Rollout-Versuch nicht erreichbar
+(andere Netze/Standorte) — dort gilt also weiterhin das alte gemeinsame Passwort, Rollout steht noch
+aus. SMB-Maschinenkonto auf 192.168.0.86 (von .171 + .218 gemeinsam genutzt) ebenfalls noch nicht
+geaendert — kein Remote-Admin-Zugriff (RDP/WinRM) auf den Windows-Rechner von dieser Session aus.
+Neue Passwoerter liegen in `secrets/docucontrol_passwort_vorschlaege.{md,pdf}` (lokal, per
+`.gitignore` ausgeschlossen, nicht im Repo).
+
 **nftables-Boot-Race behoben (2026-06-13):**
 - Nach Reboot war Web-Interface auf beiden IPs nicht erreichbar (Ping/SSH ok, `docucontrol.service`
   aktiv, aber `curl` -> Connection refused). Ursache: `nftables.service` startete vor Enumeration
@@ -427,7 +437,7 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 ## Pi5_Display (dritte Hardware-Linie) — IN BETRIEB SEIT 2026-06-16
 
 Zweiter unabhaengiger DocuControl-Pi mit HDMI-Kiosk-Display.
-- IP: eth0 192.168.0.218 (DHCP), eth1 192.168.0.107 (statisch), SSH: `ssh docucontrol2`, Passwort: Xtend1478 (sudo)
+- IP: eth0 192.168.0.218 (DHCP), eth1 192.168.0.107 (statisch), SSH: `ssh docucontrol2` (Key-only seit 2026-06-22), sudo-Passwort individuell (siehe lokale `secrets/`-Ablage, nicht in CLAUDE.md)
 - OS: Debian Trixie aarch64, Kernel 6.12.75, Pi 5 (8 GB)
 - Betrieb: **Docker** (`docker-compose up`, Image `docupi-docucontrol`)
 - Architektur: identisch DocuControl — TCP/9100 -> Parse -> PDF -> DB, Flask :5000
@@ -475,7 +485,7 @@ neu geflasht, alte Pi5_Display-Konfiguration dadurch ueberschrieben/verloren). L
 von einer NVMe-SSD (Geekworm X1001), SD-Karte ist entfernt.
 
 - IP: eth0 192.168.0.218 (DHCP), eth1 192.168.0.11 (DHCP), SSH: `ssh docucontrol@192.168.0.11` (oder .218),
-  Passwort: Xtend1478 (sudo)
+  sudo-Passwort individuell seit 2026-06-22 (siehe lokale `secrets/`-Ablage, nicht in CLAUDE.md)
 - Port 80 → 5000 Weiterleitung per eigenem nftables-Table `docucontrol_redirect`
   (`/etc/nftables-docucontrol.conf` + `nftables-docucontrol.service`, interface-basiert `iif eth0`/`iif eth1`,
   System-only nicht im Repo)
@@ -567,7 +577,8 @@ nicht im Repo, wie alle anderen `*.service`-Units).
 
 **Service-Anmeldung / Einstellungen-Sperre (2026-06-22):** Topbar (`base.html`) hat jetzt ein
 Login-Feld ("Anmelden"-Button bzw. "Service"-Badge mit Countdown + Abmelden). Flask-Session-basiert
-(`app.py`: `/api/auth/login|logout|status|touch`, Passwort `Xtend1478`, 5 Min. Inaktivitaets-Timeout,
+(`app.py`: `/api/auth/login|logout|status|touch`, Passwort in `data/auth_secrets.json` persistiert
+(seit 2026-06-22 individuell, nicht mehr Klartext in CLAUDE.md), 5 Min. Inaktivitaets-Timeout,
 wird bei Touch/Tastatur/Klick per `/api/auth/touch` zurueckgesetzt — analog zum Bildschirmschoner).
 Standardmaessig (Rolle "user") sind in Einstellungen NUR die Karten **Drucker**, **Zeit & Uhr** und
 **USB-Synchronisation** bearbeitbar; alle anderen Karten (Anlage, TCP-Empfang, Schnittstelle 1/2,

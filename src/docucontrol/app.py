@@ -43,14 +43,49 @@ logger = logging.getLogger("docupi.app")
 
 # --- Boot Health Check ---
 run_health_check()
+
+
+def _load_or_create_auth_secrets():
+    """Flask-SECRET_KEY und Service-Passwort werden NICHT im Quellcode
+    hinterlegt, sondern beim ersten Start generiert/persistiert (analog zu
+    network_share.cred). Datei liegt ausserhalb des Git-Repos, chmod 600."""
+    import json as _json_secrets
+    import secrets as _secrets_mod
+    secrets_file = "/home/docucontrol/docupi/data/auth_secrets.json"
+    if os.path.exists(secrets_file):
+        try:
+            with open(secrets_file) as f:
+                d = _json_secrets.load(f)
+            if d.get("secret_key") and d.get("service_password"):
+                return d["secret_key"], d["service_password"]
+        except Exception:
+            pass
+    key = _secrets_mod.token_hex(32)
+    pw = "Xtend1478"  # Anfangswert - danach in data/auth_secrets.json aenderbar
+    os.makedirs(os.path.dirname(secrets_file), exist_ok=True)
+    with open(secrets_file, "w") as f:
+        _json_secrets.dump({"secret_key": key, "service_password": pw}, f)
+    os.chmod(secrets_file, 0o600)
+    return key, pw
+
+
 app = Flask(__name__)
-app.config["SECRET_KEY"] = "docucontrol-secret"
+app.config["SECRET_KEY"], SERVICE_PASSWORD = _load_or_create_auth_secrets()
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 receiver = SerialReceiver(socketio=socketio)
 
 # --- Service-Anmeldung (Einstellungen-Sperre) ---
-SERVICE_PASSWORD = "Xtend1478"
 SERVICE_SESSION_TIMEOUT_S = 300
+LOGIN_MAX_ATTEMPTS = 5
+LOGIN_LOCKOUT_S = 300
+_login_failures = []  # Liste von Timestamps fehlgeschlagener Versuche (in-memory)
+
+
+def _login_locked_out():
+    now = _time.time()
+    while _login_failures and (now - _login_failures[0]) > LOGIN_LOCKOUT_S:
+        _login_failures.pop(0)
+    return len(_login_failures) >= LOGIN_MAX_ATTEMPTS
 
 
 def _service_logged_in():
@@ -79,13 +114,19 @@ def api_auth_status():
 
 @app.route("/api/auth/login", methods=["POST"])
 def api_auth_login():
+    if _login_locked_out():
+        wait_s = int(LOGIN_LOCKOUT_S - (_time.time() - _login_failures[0]))
+        log_event("WARN", f"Service-Anmeldung gesperrt (zu viele Fehlversuche, noch {wait_s}s)")
+        return jsonify({"ok": False, "message": f"Zu viele Fehlversuche. Bitte {wait_s}s warten."}), 429
     d = request.get_json(silent=True) or {}
     pw = (d.get("password") or "").strip()
     if pw == SERVICE_PASSWORD:
+        _login_failures.clear()
         session["role"] = "service"
         session["last_seen"] = _time.time()
         log_event("INFO", "Service-Anmeldung erfolgreich")
         return jsonify({"ok": True, "role": "service", "remaining_seconds": SERVICE_SESSION_TIMEOUT_S})
+    _login_failures.append(_time.time())
     log_event("WARN", "Service-Anmeldung fehlgeschlagen (falsches Passwort)")
     return jsonify({"ok": False, "message": "Falsches Passwort"}), 401
 

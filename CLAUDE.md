@@ -58,7 +58,9 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 │       ├── print_manager.py       # Drucker-Management (CUPS, pycups)
 │       ├── storage_manager.py     # USB-Erkennung, Mount, Auto-Sync (PDFs + Captures), udev-Trigger
 │       ├── static/
-│       │   └── docucontrol.css    # Kanonisches CSS (Design-Tokens + Komponenten)
+│       │   ├── docucontrol.css    # Kanonisches CSS (Design-Tokens + Komponenten)
+│       │   ├── bootstrap/, bootstrap-icons/, socketio/  # CDN-Bibliotheken lokal vendored (Offline-Faehigkeit, 2026-06-22)
+│       │   └── screensaver-logo.png
 │       ├── templates/
 │       │   ├── base.html          # Topbar "DocuControl by GeTmatic", 3-Tab-Nav, Footer
 │       │   ├── dashboard.html     # 2 Stat-Karten + Filter + Protokoll-Tabelle + Print-Toast
@@ -74,18 +76,25 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 │   ├── design_handoff_docucontrol/   # hifi Design-Handoff v1/v2 (GeTmatic)
 │   ├── design_handoff_docucontrol_v3/  # hifi Design-Handoff v3 (2026-06-08) — Liquid Glass, Machine-Bar, 6-Tab-Settings
 │   ├── neues Design recap/  # Screenshots des laufenden DocuControl-Interface (laufend aktualisiert, zuletzt 2026-06-12)
-│   └── 3D Druck/            # Raspberry Pi 5 Geekworm X1001 NVMe-Gehaeuse (STL/STEP/3MF) — Basis fuer DocuControl-Branding-Variante (weiss, getmatic-Logo + "DocuControl"-Schriftzug), getmatic_logo.jpeg als Logo-Quelle
+│   ├── 3D Druck/            # Raspberry Pi 5 Geekworm X1001 NVMe-Gehaeuse (STL/STEP/3MF) — Basis fuer DocuControl-Branding-Variante (weiss, getmatic-Logo + "DocuControl"-Schriftzug), getmatic_logo.jpeg als Logo-Quelle
+│   ├── 10980_Essen/         # Belimed-CD-ROM-Material (Installer/Doku) zur Uni-Essen-Maschine Nr. 10980
+│   ├── getmatic_logo_stacked.svg, boot_splash_logo.svg  # Logo-Vorlagen fuer Screensaver + Boot-Splash (Pi5_Display)
+│   └── getmatic_logo_transparent.png  # Freigestelltes Logo fuer 3D-Druck-Gravur (offener Punkt, s.u.)
 ├── plans/                  # Implementierungsplaene
-├── outputs/                # Arbeitsergebnisse (Konzeptpapiere, generierte PDFs)
-│   └── docupi-3000_konzept_getmatic.{md,pdf}  # Vertriebs-Konzept fuer getmatic
+├── outputs/                # Arbeitsergebnisse (Konzeptpapiere, generierte PDFs, Sicherheitsberichte)
+│   ├── docupi-3000_konzept_getmatic.{md,pdf}  # Vertriebs-Konzept fuer getmatic
+│   └── docucontrol_owasp_*.{md,pdf}  # OWASP-Sicherheitsberichte (Web-App + Host-Ebene, 2026-06-22)
 ├── backups/                # Pi-Backups (komplette Snapshots, gitignored)
 │   ├── pi-backup-2026-04-13/  # DocuPi-3000 nach Feldtest Helios Krefeld
 │   ├── pi-backup-2026-06-08/  # DocuControl — 13 Protokolle, 11 PDFs, Storage-Manager, Templates
 │   ├── pi-backup-2026-06-11/  # DocuControl — Code+Patches, DB, Configs, Captures, System-Configs
 │   └── pi-backup-2026-06-12/  # DocuControl — Code, DB, Configs (inkl. Netzwerk-Speicherort), 14 PDFs, 37 Captures, Logs, System-Configs
+├── secrets/                # Passwort-Material, lokal/gitignored (2026-06-22) — NIE committen
+│   └── docucontrol_passwort_vorschlaege.{md,pdf}  # Generierte Passwoerter zur Rollout-Freigabe
 └── scripts/                # Hilfsskripte
     ├── fix_ssh.sh
     ├── render_konzept_pdf.py     # Markdown -> PDF (WeasyPrint) fuer outputs/
+    ├── render_owasp_report_pdf.py  # Markdown -> PDF fuer OWASP-Sicherheitsberichte
     ├── deploy_docucontrol_design.sh   # Deployment-Script fuer Linux/Mac
     ├── deploy_docucontrol_win.ps1     # Deployment-Script fuer Windows (OpenSSH)
     ├── send_test_charges.py  # Sendet simulierte Belimed-Protokolle via TCP/9100 (UTF-16LE, 3 Templates)

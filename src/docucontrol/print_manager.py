@@ -100,6 +100,9 @@ def get_printers():
         result = []
         default = conn.getDefault()
 
+        config = load_print_config()
+        is_network = config.get("connection_type") == "network"
+
         usb_connected = is_usb_printer_present()
         usb_model = get_usb_printer_model() if usb_connected else ""
 
@@ -109,7 +112,12 @@ def get_printers():
             state_text = state_map.get(state, f"unbekannt ({state})")
 
             device_uri = attrs.get("device-uri", "")
-            connected = usb_connected
+            # USB-Anschluss: physische Praesenz (sysfs) entscheidet, da CUPS
+            # einen einmal eingerichteten USB-Drucker auch nach dem Ausstecken
+            # noch als "bereit" melden kann. Netzwerkdrucker haben keine
+            # sysfs-Praesenz - dort ist ein nicht gestoppter CUPS-Status
+            # (state != 5) das einzig verfuegbare Signal.
+            connected = usb_connected if not is_network else state != 5
             model = (usb_model or attrs.get("printer-info", name)) if connected else ""
 
             result.append({

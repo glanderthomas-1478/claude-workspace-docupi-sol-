@@ -1320,8 +1320,9 @@ def api_printer_ready():
     config = load_print_config()
     name = config.get('default_printer') or printers[0]['name']
     p = next((x for x in printers if x['name'] == name), printers[0])
-    ready = p['state'] in (3, 4)
-    return jsonify({'ready': ready, 'printer': p.get('model') or p.get('info') or p['name'], 'state': p['state_text']})
+    ready = p['state'] in (3, 4) and p.get('connected', False)
+    state_text = p['state_text'] if p.get('connected', False) else 'Kein Drucker angeschlossen'
+    return jsonify({'ready': ready, 'printer': p.get('model') or p.get('info') or p['name'], 'state': state_text})
 
 
 @app.route('/api/machine/ping')

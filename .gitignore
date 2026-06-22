@@ -5,3 +5,4 @@ __pycache__/
 tests/fixtures/wd390/e2e_*
 tests/fixtures/wd390/test_*
 backups/
+secrets/

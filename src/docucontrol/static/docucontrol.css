@@ -336,7 +336,7 @@ a:hover { color: var(--primary); }
 .stat .conn.offline .dot { background: var(--danger); box-shadow: 0 0 0 4px rgba(220,53,69,0.15); }
 
 .stat .icon-tile {
-  position: absolute; top: 16px; right: 16px;
+  position: absolute; top: 37px; right: 16px;
   width: 44px; height: 44px; border-radius: 12px;
   display: flex; align-items: center; justify-content: center; font-size: 1.25rem;
   border: 1px solid var(--glass-bd);
@@ -875,7 +875,7 @@ main.page { animation: page-in .12s ease-out; }
   .stat .label { font-size: 12px; }
   .stat .big { font-size: 38px; }
   .stat .sub { font-size: 13.5px; }
-  .stat .icon-tile { width: 50px; height: 50px; font-size: 1.4rem; }
+  .stat .icon-tile { top: 41px; width: 50px; height: 50px; font-size: 1.4rem; }
 
   /* — Filterleiste — */
   .filterbar { padding: 18px 20px; margin-bottom: 22px; gap: 16px; }

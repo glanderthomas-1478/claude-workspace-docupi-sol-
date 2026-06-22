@@ -758,6 +758,12 @@ Ziel: Gehaeuse-Variante in weiss mit getmatic-Logo + "DocuControl"-Schriftzug im
 
 - FreeCAD 1.1.1 wurde lokal installiert (`C:\Users\tomto\AppData\Local\Programs\FreeCAD 1.1`), da keine
   CAD-Software (FreeCAD/OpenSCAD/Blender) und kein Python/ImageMagick auf dem Rechner vorhanden waren
+- **Nuetzlicher Nebeneffekt:** FreeCAD bringt ein eigenstaendiges Python 3.11 mit
+  (`C:\Users\tomto\AppData\Local\Programs\FreeCAD 1.1\bin\python.exe`) — auf diesem Windows-Rechner
+  gibt es sonst kein echtes Python im PATH (`python`/`python3` loesen nur den Microsoft-Store-Stub
+  aus). Fuer einmalige Skript-Laeufe (z.B. `scripts/send_test_charges.py`) kann dieses Python
+  direkt mit vollem Pfad aufgerufen werden, solange nur Standardbibliothek (socket, argparse,
+  datetime) benoetigt wird (2026-06-22 verifiziert: 20 PST-Testchargen an docucontrol3 gesendet)
 - Logo-Quelle: `reference/3D Druck/getmatic_logo.jpeg` (niedrig aufgeloeste JPEG mit grauem Hintergrund,
   von `claude-workspace-docucontrol/reference/design_handoff_docucontrol/assets/GeTmatic_Logo.jpeg`
   kopiert) — User hat sich bewusst fuer "mit JPEG weiterarbeiten" entschieden statt eine bessere Quelle

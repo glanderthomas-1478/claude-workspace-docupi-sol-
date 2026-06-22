@@ -365,6 +365,24 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
   erlaubt keine Authentifizierung, Risiko durch LAN-only-Betrieb gemindert), kein automatisiertes
   Audit-Logging fuer alle Aktionen (nur `log_event()` fuer ausgewaehlte Ereignisse)
 
+**OWASP Host-Level-Audit + Fixes auf Pi5_Display (2026-06-22):**
+- Zusaetzlich zum Web-App-Review (s.o.) Host-Ebene geprueft: SSH-Konfig, sudo-Rechte, offene Ports,
+  Docker-Privilegien, Updates — Bericht in `outputs/docucontrol_owasp_host_sicherheitsbericht.{md,pdf}`
+- **rpcbind deaktiviert** (`systemctl disable --now rpcbind.service rpcbind.socket`): war ungenutzte
+  Abhaengigkeit von `rpd-common` (Raspberry-Pi-Desktop-Paket, nicht fuer den Cage/Chromium-Kiosk
+  benoetigt), lauschte unnoetig auf Port 111 (TCP+UDP, alle Interfaces). Pakete nicht entfernt,
+  nur Dienst gestoppt — kein Abhaengigkeits-Risiko. Port 111 verifiziert geschlossen.
+- **SSH `PasswordAuthentication no`** gesetzt (system-only `/etc/ssh/sshd_config`, nicht im Repo):
+  vor der Umstellung Pubkey-Login explizit mit frischer Verbindung verifiziert, nach der Umstellung
+  per `systemctl reload ssh` aktiviert und erneut verifiziert (Key-Login funktioniert, Passwort-Login
+  wird mit "Permission denied (publickey)" abgelehnt)
+- **Verbleibend, bewusst zurueckgestellt:** Klartext-Passwort `Xtend1478` in dieser CLAUDE.md (mehrfach,
+  ueber die gesamte Geraeteflotte identisch) — Nutzer hat Behebung explizit auf spaeter verschoben
+  (2026-06-22), da Passwortrotation ueber mehrere Produktivgeraete koordiniert erfolgen muss; Docker
+  `privileged: true` + `network_mode: host` (funktional begruendet durch CUPS/nmcli/USB-Mount/Watchdog,
+  Reduktion auf gezielte Capabilities braucht sorgfaeltige Einzelanalyse + Testfenster, nicht spontan
+  umgesetzt)
+
 **nftables-Boot-Race behoben (2026-06-13):**
 - Nach Reboot war Web-Interface auf beiden IPs nicht erreichbar (Ping/SSH ok, `docucontrol.service`
   aktiv, aber `curl` -> Connection refused). Ursache: `nftables.service` startete vor Enumeration

@@ -727,6 +727,28 @@ Wahrheit fuer die Sterilisationsdokumentation, keine zwei parallel fortschreiben
 `network_storage_manager.py` oder eine vergleichbare Auto-Sync-Logik als weiteres Sync-Ziel
 aufgenommen werden, solange die SSD der aktive Datentraeger ist.
 
+**Docker-Speicherplatz-Analyse + Cleanup auf docucontrol3 (2026-06-22):** Auf Nutzerfrage geprueft,
+wie sich die 41G SSD-Belegung zusammensetzt. Ergebnis: echte Chargendaten (DB + PDFs + Rohdaten-
+Captures) sind verschwindend gering (~2,4 MB) - praktisch die gesamte Belegung war Docker-Overhead.
+`/var/lib/docker` allein war 33G, obwohl das laufende Image laut `docker system df` nur ~900MB
+gross ist - Ursache: Storage-Driver `vfs` (siehe docucontrol3-Abschnitt, urspruenglich wegen
+inkompatiblem `overlayroot=tmpfs` gewaehlt) dedupliziert Layer nicht und sammelt bei jedem
+`docker-compose build --no-cache` (mehrere davon allein in dieser Session) ungenutzte Alt-Layer an,
+die `docker system df` nicht vollstaendig als reclaimable auswies.
+- `docker image prune -f` (alte dangling Images) + `docker builder prune -f` (Build-Cache) ausgefuehrt
+- Ergebnis: SSD-Belegung 41G -> **15G**, `/var/lib/docker` 33G -> **6,4G** (~26G freigegeben, deutlich
+  mehr als die ueber `docker system df` sichtbaren ~3,8G) - laufendes Image/Container unberuehrt,
+  Betrieb (docucontrol.service + kiosk.service) waehrend und nach dem Cleanup unterbrechungsfrei
+  verifiziert
+- **Offene, vom User noch nicht beauftragte Option:** Wechsel des Storage-Drivers von `vfs` auf
+  `overlay2` (Standard, mit Layer-Deduplizierung) wuerde die verbleibenden ~6,4G voraussichtlich auf
+  <1G reduzieren. Der urspruengliche Grund fuer `vfs` (Inkompatibilitaet von Docker `overlay2` mit
+  dem SD-Karten-`overlayroot`-Schutz) besteht auf der NVMe-SSD nicht mehr (normales ext4, kein
+  Overlay-Root aktiv, `overlay`-Kernelmodul vorhanden). App-Daten liegen als Bind-Mount
+  (`/home/docucontrol/docupi` -> `/app` in `docker-compose.yml`) ausserhalb des Docker-Storage,
+  ein Treiberwechsel waere daher ohne Datenverlustrisiko - braucht aber einen Docker-Neustart +
+  Image-Neubau und wurde bewusst nicht ohne explizite Rueckfrage umgesetzt.
+
 ---
 
 ## Offene Aufgabe: DocuControl-Gehaeuse-Branding (3D-Druck) — IN ARBEIT

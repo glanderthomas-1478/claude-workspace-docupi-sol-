@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 600" width="1024" height="600">
+  <rect width="1024" height="600" fill="#3a3a3a"/>
+  <g transform="translate(153.5,174.5) scale(1.7925)">
+    <style>
+      text { font-family: Arial, Helvetica, sans-serif; }
+    </style>
+    <text x="200" y="78" font-size="52" font-weight="700" text-anchor="middle"
+          textLength="320" lengthAdjust="spacingAndGlyphs">
+      <tspan fill="#4dd9d9">Ge</tspan><tspan fill="#4dd9d9">T</tspan><tspan fill="#ffffff">Matic</tspan>
+    </text>
+    <text x="200" y="108" font-size="13" font-weight="500" fill="#e6e6e6" text-anchor="middle"
+          letter-spacing="2" textLength="320" lengthAdjust="spacing">AUTOMATISIERUNGSTECHNIK</text>
+  </g>
+</svg>

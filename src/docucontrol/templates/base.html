@@ -824,7 +824,17 @@
         if (cnt) cnt.textContent = '(' + _abQueue.length + ' weitere ausstehend)';
       }
     });
-    _socket.on('charge_completed', function() { updatePendingBadge(); });
+    _socket.on('charge_completed', function(data) {
+      updatePendingBadge();
+      var pid = data && data.protocol_id;
+      if (pid != null && pid === _abCurrentPid) {
+        // Charge wurde auf einem anderen Client (z.B. Kiosk) bereits bestaetigt -
+        // hier offenes Formular fuer dieselbe Charge ebenfalls schliessen.
+        abClose();
+      } else if (pid != null) {
+        _abQueue = _abQueue.filter(function(p) { return p !== pid; });
+      }
+    });
     _socket.on('charge_pdf_error', function(data) {
       console.warn('PDF-Fehler pid=' + data.protocol_id + ': ' + data.error);
     });

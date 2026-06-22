@@ -19,7 +19,7 @@ from print_manager import (
     get_printers, print_pdf, test_print as printer_test_print,
     get_print_queue, cancel_job, get_status as get_printer_status,
     load_print_config, save_print_config, auto_print_pdf, is_cups_available,
-    setup_usb_printer, is_usb_printer_present
+    setup_usb_printer, is_usb_printer_present, setup_network_printer
 )
 from watchdog_manager import start_watchdog_thread, get_status as get_watchdog_status, stop_watchdog_thread
 from tcp_print_capture import (start_capture_server, get_capture_status, load_capture_config, save_capture_config,
@@ -1266,11 +1266,33 @@ def api_printer_detect():
 
 @app.route('/api/printer/setup', methods=['POST'])
 def api_printer_setup():
-    """Legt DocuPrinter als USB-Drucker neu an."""
-    if not is_usb_printer_present():
-        return jsonify({'success': False, 'message': 'Kein USB-Drucker angeschlossen'})
-    ok, msg = setup_usb_printer()
+    """Legt DocuPrinter neu an - USB oder Netzwerk je nach Auswahl (driverless via IPP Everywhere)."""
+    d = request.get_json(silent=True) or {}
+    config = load_print_config()
+    conn_type = (d.get('connection_type') or config.get('connection_type', 'usb')).strip()
+    network_host = (d.get('network_host') if 'network_host' in d else config.get('network_host', '')) or ''
+    network_host = network_host.strip()
+    config['connection_type'] = conn_type
+    config['network_host'] = network_host
+    save_print_config(config)
+    if conn_type == 'network':
+        if not network_host:
+            return jsonify({'success': False, 'message': 'Bitte IP/Hostname des Netzwerkdruckers angeben'})
+        ok, msg = setup_network_printer(network_host)
+    else:
+        if not is_usb_printer_present():
+            return jsonify({'success': False, 'message': 'Kein USB-Drucker angeschlossen'})
+        ok, msg = setup_usb_printer()
     return jsonify({'success': ok, 'message': msg})
+
+
+@app.route('/api/printer/config')
+def api_printer_config():
+    config = load_print_config()
+    return jsonify({
+        'connection_type': config.get('connection_type', 'usb'),
+        'network_host': config.get('network_host', ''),
+    })
 
 
 @app.route('/api/printer/test', methods=['POST'])
@@ -2345,13 +2367,17 @@ if __name__ == "__main__":
     # Auto-Sync starten
     start_auto_sync()
     start_network_sync()
-    # USB-Drucker beim Start konfigurieren (stellt sicher dass DocuPrinter immer USB nutzt)
+    # Drucker beim Start konfigurieren (USB oder Netzwerk je nach gespeicherter Auswahl)
     try:
-        if is_usb_printer_present():
+        _print_cfg = load_print_config()
+        if _print_cfg.get('connection_type') == 'network' and _print_cfg.get('network_host'):
+            ok, msg = setup_network_printer(_print_cfg['network_host'])
+            logger.info(f"Drucker-Setup beim Start (Netzwerk): {msg}")
+        elif is_usb_printer_present():
             ok, msg = setup_usb_printer()
-            logger.info(f"Drucker-Setup beim Start: {msg}")
+            logger.info(f"Drucker-Setup beim Start (USB): {msg}")
         else:
-            logger.info("Drucker-Setup beim Start: kein USB-Drucker angeschlossen")
+            logger.info("Drucker-Setup beim Start: kein Drucker konfiguriert/angeschlossen")
     except Exception as e:
         logger.warning(f"Drucker-Setup beim Start fehlgeschlagen: {e}")
 

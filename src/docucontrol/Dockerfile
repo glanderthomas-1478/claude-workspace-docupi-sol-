@@ -5,6 +5,7 @@ WORKDIR /app
 # System-Pakete: CUPS-Headers (pycups), Fonts (PDF), tzdata
 RUN apt-get update && apt-get install -y \
     libcups2-dev \
+    cups-client \
     gcc \
     fonts-dejavu \
     fonts-liberation \

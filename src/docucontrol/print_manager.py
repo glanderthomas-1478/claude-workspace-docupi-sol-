@@ -33,7 +33,11 @@ DEFAULT_PRINT_CONFIG = {
     "copies": 1,
     "all_pages": True,  # True = all, False = page 1 only
     "color_mode": "auto",  # auto, color, grayscale
+    "connection_type": "usb",  # usb oder network
+    "network_host": "",  # IP/Hostname des Netzwerkdruckers
 }
+
+_HOST_RE = re.compile(r'^[A-Za-z0-9][A-Za-z0-9.\-]*$')
 
 
 def _get_conn():
@@ -462,6 +466,52 @@ def setup_usb_printer(printer_name="DocuPrinter"):
 
     logger.info(f"USB-Drucker eingerichtet: {printer_name} -> {usb_uri}")
     return True, f"Drucker als USB eingerichtet ({usb_uri})"
+
+
+def setup_network_printer(host, printer_name="DocuPrinter"):
+    """Legt DocuPrinter als Netzwerkdrucker in CUPS an (driverless via IPP Everywhere).
+
+    Funktioniert geraeteunabhaengig fuer alle IPP-Everywhere/AirPrint/Mopria-
+    zertifizierten Drucker (de facto Standard seit ca. 2014) - kein
+    modellspezifischer Treiber noetig, analog zum IPP-over-USB-Fall in
+    setup_usb_printer(). Aeltere, nicht zertifizierte Netzwerkdrucker
+    unterstuetzen das nicht und bräuchten weiterhin einen eigenen PPD/Treiber.
+
+    Returns: (success: bool, message: str)
+    """
+    host = (host or "").strip()
+    if not host or not _HOST_RE.match(host):
+        return False, "Ungueltige IP/Hostname fuer Netzwerkdrucker"
+
+    # Alten Eintrag entfernen (Fehler ignorieren — existiert vielleicht nicht)
+    subprocess.run(
+        ['sudo', 'lpadmin', '-x', printer_name],
+        capture_output=True, timeout=10
+    )
+
+    uri = f"ipp://{host}/ipp/print"
+    try:
+        r = subprocess.run(
+            ['sudo', 'lpadmin', '-p', printer_name,
+             '-v', uri,
+             '-m', 'everywhere',
+             '-E',
+             '-o', 'printer-is-shared=false',
+             '-o', 'media=iso_a4_210x297mm'],
+            capture_output=True, text=True, timeout=15
+        )
+        if r.returncode != 0:
+            return False, f"lpadmin fehlgeschlagen ({uri}): {r.stderr.strip() or r.stdout.strip()}"
+    except Exception as e:
+        return False, f"lpadmin Fehler: {e}"
+
+    subprocess.run(
+        ['sudo', 'lpadmin', '-d', printer_name],
+        capture_output=True, timeout=10
+    )
+
+    logger.info(f"Netzwerkdrucker eingerichtet: {printer_name} -> {uri}")
+    return True, f"Drucker als Netzwerkdrucker eingerichtet ({uri})"
 
 
 def get_status():

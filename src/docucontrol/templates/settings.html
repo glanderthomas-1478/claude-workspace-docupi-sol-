@@ -97,10 +97,27 @@
                 </div>
                 <div class="set-row">
                     <div class="info">
-                        <div class="name">Als USB-Drucker einrichten</div>
-                        <div class="desc">Legt DocuPrinter neu als USB-Drucker an (löscht alten Netzwerk-Eintrag)</div>
+                        <div class="name">Verbindungstyp</div>
+                        <div class="desc">USB oder Netzwerkdrucker (driverless via IPP Everywhere)</div>
                     </div>
-                    <button class="btn btn-glass" id="setupUsbBtn" onclick="setupUsbPrinter()"><i class="bi bi-usb-symbol"></i> USB einrichten</button>
+                    <select class="ctrl" id="printerConnType" style="width:140px" onchange="onPrinterConnTypeChange()">
+                        <option value="usb">USB</option>
+                        <option value="network">Netzwerk</option>
+                    </select>
+                </div>
+                <div class="set-row" id="printerHostRow" style="display:none">
+                    <div class="info">
+                        <div class="name">Drucker-IP / Hostname</div>
+                        <div class="desc">Adresse des Netzwerkdruckers</div>
+                    </div>
+                    <input type="text" class="ctrl" id="printerHostInput" placeholder="192.168.0.50" style="width:160px">
+                </div>
+                <div class="set-row">
+                    <div class="info">
+                        <div class="name">Drucker einrichten</div>
+                        <div class="desc">Legt DocuPrinter gemäß Auswahl neu an (löscht alten Eintrag)</div>
+                    </div>
+                    <button class="btn btn-glass" id="setupUsbBtn" onclick="setupPrinter()"><i class="bi bi-printer"></i> Einrichten</button>
                 </div>
                 <div class="set-row">
                     <div class="info">
@@ -737,6 +754,7 @@
             }).catch(function() {
                 document.getElementById('printerName').textContent = 'Kein Drucker angeschlossen';
             });
+        loadPrinterConfig();
 
         // TCP-Status
         fetch('/api/tcp_capture/status')
@@ -1048,20 +1066,45 @@
 
     // ── Drucker ─────────────────────────────────────────────────────────
 
-    window.setupUsbPrinter = function() {
+    function loadPrinterConfig() {
+        fetch('/api/printer/config')
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                document.getElementById('printerConnType').value = d.connection_type || 'usb';
+                document.getElementById('printerHostInput').value = d.network_host || '';
+                onPrinterConnTypeChange();
+            }).catch(function() {});
+    }
+
+    window.onPrinterConnTypeChange = function() {
+        var isNetwork = document.getElementById('printerConnType').value === 'network';
+        document.getElementById('printerHostRow').style.display = isNetwork ? 'flex' : 'none';
+    };
+
+    window.setupPrinter = function() {
+        var connType = document.getElementById('printerConnType').value;
+        var host = document.getElementById('printerHostInput').value.trim();
+        if (connType === 'network' && !host) {
+            alert('Bitte IP/Hostname des Netzwerkdruckers angeben');
+            return;
+        }
         var btn = document.getElementById('setupUsbBtn');
         btn.disabled = true;
         btn.innerHTML = '<i class="bi bi-hourglass-split"></i> …';
-        fetch('/api/printer/setup', {method: 'POST'})
+        fetch('/api/printer/setup', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({connection_type: connType, network_host: host})
+        })
             .then(function(r) { return r.json(); })
             .then(function(d) {
                 btn.disabled = false;
-                btn.innerHTML = '<i class="bi bi-usb-symbol"></i> USB einrichten';
+                btn.innerHTML = '<i class="bi bi-printer"></i> Einrichten';
                 alert(d.message);
                 if (d.success) loadDeviceSettings();
             }).catch(function() {
                 btn.disabled = false;
-                btn.innerHTML = '<i class="bi bi-usb-symbol"></i> USB einrichten';
+                btn.innerHTML = '<i class="bi bi-printer"></i> Einrichten';
                 alert('Fehler beim Einrichten');
             });
     };

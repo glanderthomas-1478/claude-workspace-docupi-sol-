@@ -62,7 +62,7 @@ class SterilizationPDF(FPDF):
         """T3 ist je Maschinenformat unterschiedlich belegt: beim alten
         BELIMED-Format (6-Spalten, Helios Krefeld) ist T3 der Luftnachweis-
         Sensor; im PST-Format (UNIKLINIK_ESSEN) ist T3 der Produktfuehler."""
-        return "T3 Produktfühler" if self._is_pst_format() else "T3 Luftnachweis"
+        return "T3 Produkt" if self._is_pst_format() else "T3 Luftnachweis"
 
     # ---------------------------------------------------------------
     # HEADER

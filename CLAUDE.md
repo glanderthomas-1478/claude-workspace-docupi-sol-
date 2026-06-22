@@ -592,6 +592,19 @@ nicht nur kosmetisch — die zugehoerigen POST-Endpunkte (`/api/machine/config`,
 per `_require_service()`-Guard, geben sonst 403 zurueck. Reines Frontend-Verstecken waere durch direkte
 API-Aufrufe umgehbar gewesen.
 
+**Offline-Faehigkeit: CDN-Abhaengigkeiten entfernt (2026-06-22):** Der Pi soll spaeter dauerhaft ohne
+Internetverbindung laufen. `base.html` lud bislang Bootstrap-CSS, Bootstrap-Icons (inkl. Webfonts) und
+den Socket.IO-Client per CDN (`cdn.jsdelivr.net`, `cdn.socket.io`) — ohne Internet waeren Styling,
+Icons und vor allem die komplette Live-Update-Funktion (Pending-Charge-Popups, Screensaver-Wake,
+Cross-Client-Modal-Sync) ausgefallen, da Socket.IO ueberhaupt nicht mehr geladen haette. Alle drei
+Bibliotheken jetzt unter `src/docucontrol/static/{bootstrap,bootstrap-icons,socketio}/` vendored,
+`base.html` referenziert nur noch lokale Pfade. Live verifiziert: alle vier Assets (CSS, Icons-CSS,
+Icons-Webfont, Socket.IO-JS) liefern 200 vom Pi selbst, WS-Client verbindet sich nach Kiosk-Neustart
+weiterhin erfolgreich. Zusaetzlich geprueft und bestaetigt frei von Internet-Abhaengigkeiten: Backend
+(`app.py` & Co. — keine `requests`/`urlopen`-Aufrufe an externe Hosts), Docker-Image (lokal gebaut/
+gecached, `docker-compose up` braucht kein Internet), NTP (faellt bei fehlendem Internet automatisch
+auf die Pi5-Onboard-RTC mit Batteriepufferung zurueck, keine Funktionsunterbrechung).
+
 ---
 
 ## Offene Aufgabe: DocuControl-Gehaeuse-Branding (3D-Druck) — IN ARBEIT

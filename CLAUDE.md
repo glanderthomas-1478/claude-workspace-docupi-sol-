@@ -334,6 +334,37 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
 - Verifiziert per Testcharge CH021740 + `pdftotext`/`pdftoppm`-Render: "Nr: 10980", "DocuControl"
   korrekt in Kopf- und Fusszeile
 
+**OWASP-Sicherheitsreview + Fixes (2026-06-21/22):**
+- Manuelles Review nach OWASP Top 10 (Code-Review + Live-Endpunkt-Tests) auf Pi5_Display durchgefuehrt
+- **Kritisch (sofort behoben):**
+  - Hardcodierte Secrets (`SECRET_KEY`, Service-Passwort) aus dem Quellcode entfernt — werden jetzt
+    beim ersten Start generiert/persistiert in `data/auth_secrets.json` (chmod 600, analog
+    `network_share.cred`), `_load_or_create_auth_secrets()` in `app.py`
+  - Brute-Force-Schutz fuer Service-Login: 5 Fehlversuche → 5 Minuten Sperre (in-memory
+    `_login_failures`, `_login_locked_out()`)
+  - XSS-Luecke in `escHtml()` (dashboard.html + filemanager.html) — Single-Quote-Escaping ergaenzt
+    (filemanager.html escapte vorher nicht einmal doppelte Anfuehrungszeichen)
+- **Weitere Punkte (2026-06-22 behoben):**
+  - Broken Access Control: `_require_service()`-Guard auf allen destruktiven Endpunkten ergaenzt
+    (`/api/protocols/<id>` DELETE, `/api/protocols/bulk-delete`, `/api/tcp_capture/captures/*`
+    DELETE/bulk-delete, `/api/storage/delete`, `/api/pending-charges/<id>` DELETE) — vorher konnte
+    jeder ohne Service-Anmeldung Protokolle/Captures loeschen
+  - CORS: Flask-SocketIO `cors_allowed_origins="*"` entfernt, Same-Origin-Default reicht (Web-UI und
+    Socket.IO laufen immer auf demselben Host)
+  - CSRF: `SESSION_COOKIE_SAMESITE="Lax"` fuer das Service-Login-Cookie gesetzt
+  - HTTPS: zusaetzlicher TLS-Listener auf Port 5443 (selbstsigniertes Zertifikat, generiert beim
+    ersten Start in `data/tls/`, `_ensure_self_signed_cert()`), laeuft **parallel** zum bestehenden
+    Port 5000 in eigenem Thread — Kiosk-URL `http://localhost:5000` bleibt bewusst unveraendert, um
+    den produktiven Kiosk nicht durch Zertifikatswarnungen zu gefaehrden; nftables
+    `docucontrol_redirect`-Tabelle um `iif eth0/eth1 tcp dport 443 redirect to :5443` erweitert
+  - Dockerfile: `openssl`-Paket fuer Zertifikatsgenerierung ergaenzt, Port 5443 exponiert
+- Alle Fixes auf Pi5_Display deployed (Docker-Rebuild noetig wg. Dockerfile-Aenderung), live verifiziert:
+  HTTP 200 + HTTPS 200, unauthentifizierte DELETE-Requests → 403, authentifizierte DELETE-Requests
+  funktionieren, Lockout nach 5 Fehlversuchen ausgeloest und wieder zurueckgesetzt
+- **Verbleibend (nicht kritisch, bewusst nicht behoben):** offener TCP/9100 ohne Auth (Protokoll-Format
+  erlaubt keine Authentifizierung, Risiko durch LAN-only-Betrieb gemindert), kein automatisiertes
+  Audit-Logging fuer alle Aktionen (nur `log_event()` fuer ausgewaehlte Ereignisse)
+
 **nftables-Boot-Race behoben (2026-06-13):**
 - Nach Reboot war Web-Interface auf beiden IPs nicht erreichbar (Ping/SSH ok, `docucontrol.service`
   aktiv, aber `curl` -> Connection refused). Ursache: `nftables.service` startete vor Enumeration

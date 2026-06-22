@@ -96,14 +96,30 @@ Prototyp fertigstellen und erste Feldtests im eigenen Arbeitsumfeld durchfuehren
 - **ERLEDIGT 2026-06-15**: USB Auto-Mount-Fix: Warning-Log, Sleep nach Lazy-Unmount, Mount-Versuch in Sofortkopie
 - OFFEN: eth0 statisch auf 192.168.0.171 konfigurieren (DHCP-Boot-Race, Workaround: nmcli con down/up)
 - OFFEN: Abteilung "ZTL" in config.json auf Pi direkt setzen (Einmalig: `python3 -c "import json; f='/home/docucontrol/docupi/data/config.json'; c=json.load(open(f)); c.setdefault('pdf',{})['abteilung']='ZTL'; json.dump(c,open(f,'w'),indent=2)"`)
+- **ERLEDIGT 2026-06-16**: Pi5_Display (dritte Hardware-Linie) in Betrieb — HDMI-Kiosk via Docker+cage+Chromium, PDF-Viewer per pdftoppm, virtuelle Tastatur, SMB-Netzwerk-Speicherort
+- **ERLEDIGT 2026-06-18**: SMB-Mount im Docker-Container gefixt (`cifs-utils` fehlte im Image, `vers=3.0` explizit gesetzt)
+- **ERLEDIGT 2026-06-21/22**: docucontrol3 (vierte Hardware-Linie, Autoklavenbuch-Testgeraet) — SD→NVMe-Migration (Geekworm X1001), Overlay-Root deaktiviert (Docker-Inkompatibilitaet), Boot-Reihenfolge auf NVMe gesetzt
+- **ERLEDIGT 2026-06-22**: Autoklavenbuch-Workflow aus Felix' separatem Repo (Uni-Essen-spezifisch) uebernommen: `pending_form`-Status, SocketIO-Formular-Modal am Touchscreen, eigener PST-Format-Parser fuer UNIKLINIK_ESSEN_10980, mehrere Bugs in Felix' Code gefixt (USB-Mount-String, `timedatectl` in Docker, fehlende Pakete, CSS-Layout, PDF-Modal-Vollbild)
+- **ERLEDIGT 2026-06-21/22**: OWASP-Sicherheitsreview (Web-App + Host-Ebene) durchgefuehrt und kritische Punkte behoben: Secrets nicht mehr hardcodiert, Brute-Force-Schutz Login, XSS-Fix, Access-Control-Guards auf destruktiven Endpunkten, CORS/CSRF/HTTPS-Listener, rpcbind deaktiviert, SSH Password-Auth deaktiviert
+- **ERLEDIGT 2026-06-22**: Individuelle Passwoerter fuer Pi5_Display/docucontrol3 (SSH/sudo + Web-Service-Login) live gesetzt und verifiziert — DocuControl (.171) und DocuPi-3000 (.83) noch mit altem Passwort (nicht erreichbar beim Rollout-Versuch), Rollout dort noch offen
+- **ERLEDIGT 2026-06-22**: Offline-Faehigkeit hergestellt — Bootstrap/Bootstrap-Icons/Socket.IO lokal vendored statt CDN, Backend frei von externen Abhaengigkeiten, NTP faellt auf Onboard-RTC zurueck
+- **ERLEDIGT 2026-06-22**: Service-Anmeldung + Einstellungen-Sperre (Rolle "user" vs. Service) inkl. serverseitiger Guards auf sensiblen Endpunkten
+- **ERLEDIGT 2026-06-22**: Bildschirmschoner (GeTmatic-Logo, DVD-Stil) + Boot-Splash (GeTmatic-Logo statt Raspberry-Bild, Plymouth-Quit-Race behoben) auf Pi5_Display/docucontrol3
+- **ERLEDIGT 2026-06-22**: Drucker-Settings um Netzwerk/USB-Umschalter erweitert (IPP Everywhere driverless fuer Netzwerkdrucker)
 - OFFEN: Echten Druckauftrag vom Tierlabor-Geraet (Belimed PST 14-8-12 HS1) empfangen und Captures analysieren
-- OFFEN: protocol_parser.py auf echten PST 14-8-12 HS1 Daten kalibrieren
+- OFFEN: protocol_parser.py auf echten PST 14-8-12 HS1 Daten kalibrieren (PST-Parser fuer UNIKLINIK_ESSEN_10980 vorhanden, noch nicht an echten Daten verifiziert)
 - OFFEN: Maschinennummer des Tierlabor-Geraets in Settings eintragen
 - OFFEN: Installation vor Ort Tierlabor Uni Essen
+- OFFEN: Passwort-Rotation auf DocuControl (.171) und DocuPi-3000 (.83) nachziehen, sobald erreichbar
+- OFFEN: SMB-Maschinenkonto auf 192.168.0.86 (genutzt von .171 + .218) noch nicht rotiert (kein Remote-Admin-Zugriff auf den Windows-Rechner)
+- OFFEN: Gehaeuse-Branding (3D-Druck, DocuControl weiss + Logo) — Logo-Freistellung + FreeCAD-Bearbeitung noch nicht begonnen
 
 ## Wie Erfolg aussieht
 
 - ~~Funktionierender Prototyp, der im Feld einsetzbar ist~~ ERREICHT
 - ~~RS232-Protokoll entschluesselt und implementiert~~ ERREICHT (MST)
 - ~~Erste Feldtests erfolgreich durchgefuehrt~~ ERREICHT (Helios Krefeld)
-- Naechster Meilenstein: DocuControl-Pi fertig konfigurieren, Sample-Druckauftrag analysieren, Installation im Tierlabor Uni Essen, Sensoren anschliessen, WD/RDG-Feldtest, Patch-Konsolidierung
+- ~~DocuControl Web-Interface vollstaendig~~ ERREICHT
+- ~~Sicherheitsreview (Web + Host) mit kritischen Fixes~~ ERREICHT
+- ~~Autoklavenbuch-Workflow fuer Uni Essen integriert~~ ERREICHT (noch nicht an echten Daten verifiziert)
+- Naechster Meilenstein: Echten Druckauftrag Tierlabor analysieren + Parser kalibrieren, Installation im Tierlabor Uni Essen, Passwort-Rotation restliche Geraete (.171, .83, SMB-Konto .86) nachziehen, Gehaeuse-Branding (3D-Druck), Sensoren anschliessen, WD/RDG-Feldtest, Patch-Konsolidierung

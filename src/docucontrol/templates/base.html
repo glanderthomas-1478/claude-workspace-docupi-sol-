@@ -926,8 +926,10 @@
   function kbdShow(inp) {
     _tgt = inp;
     if (!_built) build();
-    document.getElementById('softKbd').classList.add('show');
+    var kbd = document.getElementById('softKbd');
+    kbd.classList.add('show');
     document.body.classList.add('kbd-open');
+    document.documentElement.style.setProperty('--kbd-height', kbd.offsetHeight + 'px');
     setTimeout(function() { inp.scrollIntoView({block:'nearest',behavior:'smooth'}); }, 120);
   }
 

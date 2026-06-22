@@ -153,7 +153,17 @@ def api_auth_login():
         return jsonify({"ok": False, "message": f"Zu viele Fehlversuche. Bitte {wait_s}s warten."}), 429
     d = request.get_json(silent=True) or {}
     pw = (d.get("password") or "").strip()
-    if pw == SERVICE_PASSWORD:
+    # Optionales zweites Testpasswort - nur fuer Testzwecke, wird ueber ein
+    # zusaetzliches Feld in auth_secrets.json gesetzt/entfernt, kein Redeploy
+    # noetig zum Entfernen (Feld einfach wieder loeschen).
+    test_pw = None
+    try:
+        import json as _json_test
+        with open("/home/docucontrol/docupi/data/auth_secrets.json") as f:
+            test_pw = _json_test.load(f).get("service_password_test")
+    except Exception:
+        pass
+    if pw == SERVICE_PASSWORD or (test_pw and pw == test_pw):
         _login_failures.clear()
         session["role"] = "service"
         session["last_seen"] = _time.time()

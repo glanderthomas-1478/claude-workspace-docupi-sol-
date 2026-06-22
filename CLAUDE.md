@@ -689,6 +689,33 @@ Beim Test fielen zwei vorbestehende Soft-Keyboard-Bugs in `base.html`/`docucontr
   `--remote-debugging-port=9222`, danach wieder entfernt) + `grim`-Screenshots verifiziert:
   Tastatur oeffnet sich in Einstellungen, alle Tasten vollstaendig sichtbar bei 1024×600.
 
+**SD-Karte als bootfaehiger Notfall-Klon der SSD (2026-06-22):** Da nach der SD->NVMe-Migration
+die SD-Karte ungenutzt herumlag, wurde sie als kalte Backup-Kopie der produktiven SSD bestueckt.
+`BOOT_ORDER=0xf416` deckt damit den Fall "SSD faellt komplett aus/wird nicht erkannt" automatisch
+ab (Pi versucht NVMe(6) -> SD(1) -> USB-MSD(4) -> Stop). Wichtig: ein echtes automatisches
+OS-Health-Failover (SSD wird erkannt, aber Linux/Container starten nicht durch -> wechsle auf SD)
+gibt es NICHT - der Pi-5-Bootloader prueft nur "Geraet da, gueltiger Bootloader gefunden?", nicht
+den Erfolg des nachfolgenden Linux-Boots. Das waere nur ueber das tryboot/autoboot.txt-A/B-Schema
+moeglich (fuer OS-Updates gedacht, nicht fuer zwei verschiedene physische Datentraeger erprobt,
+bewusst nicht umgesetzt wegen Brick-Risiko auf dem produktiven Geraet).
+- Vorgehen: bestehende Partitionstabelle auf der SD (512M FAT32 Boot + Rest ext4 Root, schon von
+  der alten Pi5_Display-Installation vorhanden) neu formatiert, `rsync -aHAXx` fuer die
+  Root-Hierarchie, `/var/lib/docker` bewusst ausgeschlossen (vfs-Storage-Driver dupliziert jeden
+  Layer voll -> 29G/683k Einzeldateien, auf microSD viel zu langsam und unnoetig, da
+  `docker-compose build` das Image beim ersten Start auf der SD-Karte neu baut)
+- **Stolperstein:** `-x` bei rsync ("keine Dateisystemgrenzen ueberschreiten") gilt fuer die
+  GESAMTE Quelle "/" - da `/boot/firmware` auf der NVMe eine eigene Partition/eigenes
+  Dateisystem ist, wurde es dadurch komplett uebersprungen (kein start4.elf/cmdline.txt auf der
+  SD-Kopie, waere nicht bootfaehig gewesen). Mit separatem `rsync -aHAX /boot/firmware/ ...` ohne
+  `-x` nachgezogen. Referenzskript (inkl. Fix) in `scripts/clone_ssd_to_sd.sh`.
+- PARTUUIDs in `/etc/fstab` + `cmdline.txt` der SD-Kopie auf die SD-eigenen PARTUUIDs (`9d04225d-01`
+  /`-02`) umgeschrieben - sonst wuerde die SD beim Booten versuchen, die (dann ggf. defekte/fehlende)
+  NVMe als Root zu mounten.
+- Ergebnis: 7,7G auf der SD (statt 37G auf der SSD, da Docker-Images fehlen), Boot-Dateien +
+  App-Code + Konfigs + DB-Stand zum Zeitpunkt des Klons vollstaendig. Kein Testreboot des
+  produktiven Geraets durchgefuehrt (Risiko fuer den laufenden Kiosk-Betrieb).
+- Backup-Kontext/Stand siehe `backups/pi-backup-2026-06-22_DocuControl-ZTL-Essen-10Zoll-SSD/`
+
 ---
 
 ## Offene Aufgabe: DocuControl-Gehaeuse-Branding (3D-Druck) — IN ARBEIT

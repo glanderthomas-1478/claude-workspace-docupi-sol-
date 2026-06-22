@@ -145,6 +145,17 @@
   </div>
 </div>
 
+<!-- PDF-Vorschau (Kiosk) -->
+<div class="modal-overlay" id="pdfOverlay" onclick="pdfClose(event)">
+  <div class="modal modal-pdf" id="pdfModal">
+    <div class="pdf-modal-head">
+      <span class="pdf-title" id="pdfModalTitle">PDF</span>
+      <button class="pdf-close" onclick="pdfClose()" title="Schließen">&#x2715;</button>
+    </div>
+    <iframe class="pdf-modal-frame" id="pdfFrame" src="" title="PDF-Ansicht"></iframe>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -168,6 +179,18 @@
     window.txtClose = function(e) {
         if (e && e.target !== document.getElementById('txtOverlay')) return;
         document.getElementById('txtOverlay').classList.remove('show');
+    };
+
+    window.pdfOpen = function(url, title) {
+        document.getElementById('pdfFrame').src = url + '#zoom=89&pagemode=none';
+        document.getElementById('pdfModalTitle').textContent = title || 'PDF';
+        document.getElementById('pdfOverlay').classList.add('show');
+    };
+
+    window.pdfClose = function(e) {
+        if (e && e.target !== document.getElementById('pdfOverlay')) return;
+        document.getElementById('pdfOverlay').classList.remove('show');
+        setTimeout(function() { document.getElementById('pdfFrame').src = ''; }, 200);
     };
 
 
@@ -228,7 +251,9 @@
             + '<td class="muted">' + escHtml(date) + '</td>'
             + '<td class="muted">' + escHtml(size) + '</td>'
             + '<td class="right"><div class="act">'
-            + (id ? '<button class="icon-btn" title="Herunterladen" onclick="dlFile(' + id + ')"><i class="bi bi-download"></i></button>' : '')
+            + (id ? (isKiosk()
+                ? '<button class="icon-btn" title="Ansehen" onclick="pdfOpen(\'/view/' + id + '\',\'' + escHtml(fn) + '\')"><i class="bi bi-file-earmark-pdf"></i></button>'
+                : '<button class="icon-btn" title="Herunterladen" onclick="dlFile(' + id + ')"><i class="bi bi-download"></i></button>') : '')
             + (isInternal && id ? '<button class="icon-btn danger" title="Loeschen" onclick="delFile(' + id + ')"><i class="bi bi-trash"></i></button>' : '')
             + '</div></td>'
             + '</tr>';
@@ -435,7 +460,9 @@
             + '<td class="muted">' + escHtml(date) + '</td>'
             + '<td class="muted">' + escHtml(size) + '</td>'
             + '<td class="right"><div class="act">'
-            + '<a class="icon-btn" title="Herunterladen" href="/api/storage/file/usb?path=' + path + '" download="' + escHtml(fn) + '"><i class="bi bi-download"></i></a>'
+            + (isKiosk()
+                ? '<button class="icon-btn" title="Ansehen" onclick="pdfOpen(\'/api/storage/file/usb?path=' + path + '\',\'' + escHtml(fn) + '\')"><i class="bi bi-file-earmark-pdf"></i></button>'
+                : '<a class="icon-btn" title="Herunterladen" href="/api/storage/file/usb?path=' + path + '" download="' + escHtml(fn) + '"><i class="bi bi-download"></i></a>')
             + '</div></td>'
             + '</tr>';
     }

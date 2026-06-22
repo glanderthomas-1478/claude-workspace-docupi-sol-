@@ -364,6 +364,7 @@ a:hover { color: var(--primary); }
 }
 .ctrl:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(46,117,182,0.16); }
 select.ctrl { min-width: 168px; cursor: pointer; }
+textarea.ctrl { height: auto; min-height: 70px; line-height: 1.4; }
 .ctrl.num { width: 96px; }
 .ctrl.date { width: 152px; }
 .range-pair { display: flex; align-items: center; gap: 7px; }

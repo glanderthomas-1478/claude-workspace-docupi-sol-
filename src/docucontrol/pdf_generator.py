@@ -717,6 +717,16 @@ class SterilizationPDF(FPDF):
             self.cell(130, 5, 'Bemerkung: ' + _safe(fd.get('result_comment', '')))
         y += 10
 
+        # Bemerkungen (freies Feld)
+        remarks = fd.get('remarks', '')
+        if remarks:
+            section_title('Bemerkungen')
+            _sf('', 9)
+            self.set_text_color(*BLACK)
+            self.set_xy(col1_x, y)
+            self.multi_cell(190, 5, _safe(remarks))
+            y = self.get_y() + 3
+
         # Bestätigung
         section_title('Bestätigung')
         _sf('', 8)

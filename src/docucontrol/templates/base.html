@@ -441,6 +441,14 @@
               </div>
             </div>
 
+            <!-- Bemerkungen -->
+            <div class="ab-section">
+              <div class="ab-section-title">Bemerkungen</div>
+              <div class="ab-fld">
+                <textarea class="ctrl" id="abRemarks" rows="3" placeholder="Anmerkungen des Bedieners …" style="resize:vertical;font-family:inherit"></textarea>
+              </div>
+            </div>
+
             <!-- Statische Formularinfos -->
             <div class="ab-static-info">
               Letzte Wartung / Filterwechsel: <b>22.07.2025</b> &nbsp;&middot;&nbsp;
@@ -545,6 +553,7 @@
         }).catch(function() {});
     }
     document.getElementById('abResultComment').value = (d.form_draft && d.form_draft.result_comment) || '';
+    document.getElementById('abRemarks').value = (d.form_draft && d.form_draft.remarks) || '';
 
     var wos = (d.form_draft && d.form_draft.waste_origin) || [];
     document.querySelectorAll('[name=waste_origin]').forEach(function(cb) { cb.checked = wos.indexOf(cb.value) !== -1; });
@@ -612,6 +621,7 @@
       autoclave_program: prog ? prog.value : '',
       result: res ? res.value : '',
       result_comment: document.getElementById('abResultComment').value.trim(),
+      remarks: document.getElementById('abRemarks').value.trim(),
     };
   }
 

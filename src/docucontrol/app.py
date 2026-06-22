@@ -200,7 +200,9 @@ set_pending_charge_callback(_on_pending_charge)
 
 @app.after_request
 def add_no_cache_headers(response):
-    if request.path in ('/', '/settings', '/files') and 'text/html' in response.content_type:
+    is_page = request.path in ('/', '/settings', '/files') and 'text/html' in response.content_type
+    is_api = request.path.startswith('/api/')
+    if is_page or is_api:
         response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
         response.headers['Pragma'] = 'no-cache'
     return response
@@ -1346,6 +1348,69 @@ def api_machine_ping():
         return jsonify({'reachable': reachable, 'configured': True, 'ip': ip, 'latency_ms': latency})
     except Exception as e:
         return jsonify({'reachable': False, 'configured': True, 'ip': ip, 'latency_ms': None, 'error': str(e)})
+
+
+def _root_device_is_nvme():
+    """True wenn / aktuell von der NVMe-SSD gebootet ist. False bei Boot von der
+    SD-Karte (Notfall-Fallback nach BOOT_ORDER, siehe SSD-Klon-Doku in CLAUDE.md)."""
+    try:
+        r = subprocess.run(['findmnt', '-n', '-o', 'SOURCE', '/'], capture_output=True, text=True, timeout=5)
+        return 'nvme' in r.stdout
+    except Exception:
+        return True  # bei Unsicherheit keinen Fehlalarm ausloesen
+
+
+@app.route('/api/system/alerts')
+def api_system_alerts():
+    """Aktive Stoerungen fuer die rote Alarm-Anzeige in der Topbar."""
+    alerts = []
+
+    # Verbindung zur Maschine
+    try:
+        mcfg = load_config().get('machine', {})
+        ip = mcfg.get('ip', '').strip()
+        if ip:
+            r = subprocess.run(['ping', '-c', '1', '-W', '2', ip], capture_output=True, text=True, timeout=5)
+            if r.returncode != 0:
+                alerts.append({'type': 'machine_offline', 'icon': 'bi-plug-fill',
+                                'label': 'Verbindung Maschine inaktiv'})
+    except Exception:
+        pass
+
+    # Drucker (nur relevant wenn Auto-Druck aktiv ist)
+    try:
+        pconfig = load_print_config()
+        if pconfig.get('auto_print'):
+            printers = get_printers()
+            ready = False
+            if printers:
+                name = pconfig.get('default_printer') or printers[0]['name']
+                p = next((x for x in printers if x['name'] == name), printers[0])
+                ready = p['state'] in (3, 4) and p.get('connected', False)
+            if not ready:
+                alerts.append({'type': 'printer_offline', 'icon': 'bi-printer-fill',
+                                'label': 'Drucker offline'})
+    except Exception:
+        pass
+
+    # SSD-Ausfall (Notfallbetrieb von SD-Karte)
+    try:
+        if not _root_device_is_nvme():
+            alerts.append({'type': 'ssd_failed', 'icon': 'bi-hdd-fill',
+                            'label': 'SSD defekt — Notfallbetrieb von SD-Karte'})
+    except Exception:
+        pass
+
+    # Netzwerk-Speicherort
+    try:
+        ns = get_network_storage_status()
+        if ns.get('enabled') and not ns.get('mounted'):
+            alerts.append({'type': 'network_storage_unreachable', 'icon': 'bi-hdd-network-fill',
+                            'label': 'Verbindung Netzwerkspeicherort nicht erreichbar'})
+    except Exception:
+        pass
+
+    return jsonify({'alerts': alerts})
 
 
 @app.route('/api/machine/config', methods=['GET', 'POST'])

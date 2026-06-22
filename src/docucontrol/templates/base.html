@@ -17,6 +17,7 @@
         <span class="logo">DocuControl<span class="by">by <b>GeTmatic</b></span></span>
     </div>
     <div class="topbar-right">
+        <span class="alert-widget" id="alertWidget"></span>
         <span class="auth-widget" id="authWidget">
             <button class="auth-btn" id="authLoginBtn" onclick="authOpenLogin()">
                 <i class="bi bi-person-lock"></i> Anmelden
@@ -183,6 +184,30 @@
     tickClock();
     setInterval(tickClock, 1000);
 
+})();
+</script>
+
+<script>
+(function() {
+    /* Stoerungs-Anzeige (rote Alarm-Icons) */
+    var widget = document.getElementById('alertWidget');
+
+    function renderAlerts(alerts) {
+        if (!alerts.length) { widget.innerHTML = ''; return; }
+        widget.innerHTML = alerts.map(function(a) {
+            return '<span class="alert-badge" title="' + a.label.replace(/"/g, '&quot;') + '">'
+                + '<i class="bi ' + a.icon + '"></i><span>' + a.label + '</span></span>';
+        }).join('');
+    }
+
+    function pollAlerts() {
+        fetch('/api/system/alerts').then(function(r) { return r.json(); })
+            .then(function(d) { renderAlerts(d.alerts || []); })
+            .catch(function() {});
+    }
+
+    pollAlerts();
+    setInterval(pollAlerts, 20000);
 })();
 </script>
 

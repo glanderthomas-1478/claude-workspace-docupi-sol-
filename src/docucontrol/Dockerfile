@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y \
     dosfstools \
     poppler-utils \
     iproute2 \
+    iputils-ping \
     network-manager \
     cifs-utils \
     util-linux-extra \

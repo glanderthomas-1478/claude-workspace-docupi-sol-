@@ -716,6 +716,17 @@ bewusst nicht umgesetzt wegen Brick-Risiko auf dem produktiven Geraet).
   produktiven Geraets durchgefuehrt (Risiko fuer den laufenden Kiosk-Betrieb).
 - Backup-Kontext/Stand siehe `backups/pi-backup-2026-06-22_DocuControl-ZTL-Essen-10Zoll-SSD/`
 
+**Wichtige Regel (User-Vorgabe 2026-06-22): kein laufender Sync der Maschinendokumente auf die
+SD-Karte.** Die auf der Maschine erzeugten Chargendokumente (Rohdaten `.txt`/`.bin` + PDFs) duerfen
+und sollen erst dann auf der SD-Karte landen, wenn die SSD tatsaechlich ausgefallen ist und die SD
+zum aktiven Boot-Medium wird (danach schreibt der normale Betrieb dort ganz regulaer). Bis dahin
+bleibt die SD-Karte auf dem statischen Stand vom Klon-Zeitpunkt - keine automatische
+Mehrfach-Ablage waehrend die SSD laeuft. Vermutlich Compliance-Grund (eindeutige Quelle der
+Wahrheit fuer die Sterilisationsdokumentation, keine zwei parallel fortschreibenden Kopien).
+**Konsequenz fuer zukuenftige Arbeit:** Die SD-Karte darf NICHT in `storage_manager.py` /
+`network_storage_manager.py` oder eine vergleichbare Auto-Sync-Logik als weiteres Sync-Ziel
+aufgenommen werden, solange die SSD der aktive Datentraeger ist.
+
 ---
 
 ## Offene Aufgabe: DocuControl-Gehaeuse-Branding (3D-Druck) — IN ARBEIT

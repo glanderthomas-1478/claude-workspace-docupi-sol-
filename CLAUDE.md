@@ -670,6 +670,25 @@ neue Netzwerk-Funktion. Dockerfile ergaenzt, Image neu gebaut, live verifiziert 
 im Container vorhanden, Test-Setup gegen Dummy-IP korrekt fehlgeschlagen mit aussagekraeftiger
 Meldung, danach zurueckgesetzt auf sauberen Ausgangszustand ohne konfigurierten Drucker).
 
+**Monitor-Wechsel 7" → 10" + Soft-Keyboard-Fixes (2026-06-22):** docucontrol3 hat einen neuen,
+groesseren Touchscreen erhalten. Aufloesung bleibt **1024×600** (per EDID/KMS automatisch erkannt,
+`wlr-randr` zeigt "preferred, current") — Boot-Splash (bereits 1024×600 gerendert) und CSS
+(durchgehend `vh`/`vw`/`min()`/`calc()`, keine Fixpixel-Annahmen) brauchten deshalb keine Anpassung.
+Beim Test fielen zwei vorbestehende Soft-Keyboard-Bugs in `base.html`/`docucontrol.css` auf:
+- Tastatur oeffnete sich nur fuer Felder innerhalb `#abModal`/`#authLoginOverlay` (Autoklavenbuch +
+  Service-Login) — alle Settings-Felder (Maschinenname, IP, Netzwerk, Hostname, NTP, Netzwerk-
+  Speicherort, Drucker-Host) bekamen nie eine Tastatur. Fix: `focusin`-Handler global auf jedes
+  Text/Number/Password-Feld ausgeweitet (`base.html`, Zeile ~952).
+- Tasten hatten feste Pixelbreiten (86px normal / 128px wide), macht bei 12 Tasten pro Reihe
+  ca. 1129px aus — bei 1024px Bildschirmbreite ragten erste/letzte Taste (z.B. "1", "⌫"/"↵") aus
+  dem sichtbaren Bereich. Fix: `.kbd-key` auf `flex:1 1 0` (CSS-Verhaeltnisse statt Fixpixel)
+  umgestellt, `.kbd-wide` auf `flex:1.5`, `.kbd-space` auf `flex:6` — Tastatur fuellt jetzt
+  automatisch die volle verfuegbare Breite, unabhaengig von der tatsaechlichen Bildschirmaufloesung.
+- Beide Fixes per `scp` auf docucontrol2/docucontrol3 deployed (`docker-compose restart` +
+  `systemctl restart kiosk.service`), live per Chrome DevTools Protocol (temporaerer
+  `--remote-debugging-port=9222`, danach wieder entfernt) + `grim`-Screenshots verifiziert:
+  Tastatur oeffnet sich in Einstellungen, alle Tasten vollstaendig sichtbar bei 1024×600.
+
 ---
 
 ## Offene Aufgabe: DocuControl-Gehaeuse-Branding (3D-Druck) — IN ARBEIT

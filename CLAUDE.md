@@ -566,14 +566,25 @@ Bildschirmraendern ab (DVD-Screensaver-Stil). Wird durch Touch ODER eine neu ank
 (SocketIO `new_pending_charge`) sofort beendet, `body.screensaver-active{overflow:hidden}` blendet
 dabei den Scrollbalken aus. Code in `base.html` (`window._screensaverWake`).
 
-**Boot-Splash (2026-06-22):** `/usr/share/plymouth/themes/pix/splash.png` durch ein aus
-`reference/dokumentation.svg` gerendertes PNG (1024×600, via `rsvg-convert`) ersetzt — zeigt eine
-Illustration von Autoklav + Prozess-Recorder + digitalem/analogem Ausdruck waehrend des Bootens.
-Original als `splash.png.orig` gesichert, `update-initramfs -u` danach zwingend (Plymouth-Assets
-liegen im Initramfs, nicht nur im Dateisystem). `kiosk.service` hat einen zusaetzlichen
-`ExecStartPre=/bin/sleep 4` vor dem `cage`-Start, damit der Splash nach Boot-Abschluss noch
-4 Sekunden sichtbar bleibt, statt sofort vom Kiosk ueberschrieben zu werden (System-only,
+**Boot-Splash (2026-06-22, urspruengliche Fassung):** `/usr/share/plymouth/themes/pix/splash.png`
+durch ein aus `reference/dokumentation.svg` gerendertes PNG (1024×600, via `rsvg-convert`) ersetzt —
+zeigte eine Illustration von Autoklav + Prozess-Recorder + digitalem/analogem Ausdruck waehrend
+des Bootens. Original als `splash.png.orig` gesichert, `update-initramfs -u` danach zwingend
+(Plymouth-Assets liegen im Initramfs, nicht nur im Dateisystem). `kiosk.service` hat einen
+zusaetzlichen `ExecStartPre=/bin/sleep 4` vor dem `cage`-Start, damit der Splash nach Boot-Abschluss
+noch 4 Sekunden sichtbar bleibt, statt sofort vom Kiosk ueberschrieben zu werden (System-only,
 nicht im Repo, wie alle anderen `*.service`-Units).
+
+**Boot-Splash (2026-06-22, Update — nur noch Firmenlogo):** Auf Wunsch durch ein reines
+GeTmatic-Logo-Bild ersetzt (Vorbild `reference/getmatic_logo_stacked.svg`, dieselbe Optik wie der
+Screensaver) statt der Autoklav-Illustration — Quell-SVG `reference/boot_splash_logo.svg`
+(1024×600, Logo zentriert auf dunklem `#3a3a3a`-Hintergrund), gerendert via `rsvg-convert`,
+`update-initramfs -u` erneut ausgefuehrt. Zusaetzlich `disable_splash=1` in
+`/boot/firmware/config.txt` ergaenzt, um die Raspberry-Pi-Firmware-Anzeige (Rainbow-Testbild +
+Raspberry-Logos in den Ecken vor Plymouth) zu unterdruecken — dadurch ist waehrend des gesamten
+Bootvorgangs nur noch das GeTmatic-Logo sichtbar, kein Raspberry-Branding mehr. Noch nicht per
+Reboot verifiziert (User testet selbst vor Ort, da das Geraet in der Vergangenheit gelegentlich
+nach Reboots haengen blieb).
 
 **Service-Anmeldung / Einstellungen-Sperre (2026-06-22):** Topbar (`base.html`) hat jetzt ein
 Login-Feld ("Anmelden"-Button bzw. "Service"-Badge mit Countdown + Abmelden). Flask-Session-basiert

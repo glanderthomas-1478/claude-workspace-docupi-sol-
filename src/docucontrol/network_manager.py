@@ -395,11 +395,14 @@ def _write_nftables_conf(static_ip=None):
         type nat hook prerouting priority dstnat; policy accept;
         iif eth0 tcp dport 80 redirect to :5000
         iif eth1 tcp dport 80 redirect to :5000
+        iif eth0 tcp dport 443 redirect to :5443
+        iif eth1 tcp dport 443 redirect to :5443
         tcp dport 9100 accept
     }
     chain output {
         type nat hook output priority -100; policy accept;
         ip daddr 127.0.0.1 tcp dport 80 redirect to :5000
+        ip daddr 127.0.0.1 tcp dport 443 redirect to :5443
     }
 }
 """

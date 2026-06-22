@@ -69,9 +69,42 @@ def _load_or_create_auth_secrets():
     return key, pw
 
 
+def _ensure_self_signed_cert():
+    """Erzeugt beim ersten Start ein selbstsigniertes TLS-Zertifikat fuer den
+    parallelen HTTPS-Listener (Port 5443). Liegt ausserhalb des Git-Repos in
+    data/tls/, analog zu auth_secrets.json. Laeuft ZUSAETZLICH zu Port 5000
+    (HTTP), damit der bestehende Kiosk (http://localhost:5000) unveraendert
+    weiterlaeuft und nicht durch Zertifikatswarnungen gestoert wird."""
+    tls_dir = "/home/docucontrol/docupi/data/tls"
+    cert_file = os.path.join(tls_dir, "cert.pem")
+    key_file = os.path.join(tls_dir, "key.pem")
+    if os.path.exists(cert_file) and os.path.exists(key_file):
+        return cert_file, key_file
+    os.makedirs(tls_dir, exist_ok=True)
+    import subprocess as _subprocess_tls
+    try:
+        _subprocess_tls.run([
+            "openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes",
+            "-keyout", key_file, "-out", cert_file, "-days", "3650",
+            "-subj", "/CN=docucontrol.local",
+        ], check=True, capture_output=True)
+        os.chmod(key_file, 0o600)
+        return cert_file, key_file
+    except Exception as e:
+        logger.warning(f"TLS-Zertifikat konnte nicht erzeugt werden: {e}")
+        return None, None
+
+
 app = Flask(__name__)
 app.config["SECRET_KEY"], SERVICE_PASSWORD = _load_or_create_auth_secrets()
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
+# CSRF-Haertung: Session-Cookie wird nicht bei Cross-Site-Requests mitgesendet
+# (kein HTTPS hier, daher SESSION_COOKIE_SECURE bewusst nicht gesetzt - sonst
+# wuerde der Browser das Cookie ueber http:// gar nicht mehr senden).
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+# Kein "*" mehr: ohne explizite cors_allowed_origins erlaubt Flask-SocketIO
+# nur Same-Origin-Verbindungen (das Web-UI laeuft immer auf demselben Host/Port
+# wie die Socket.IO-Verbindung) - kein geraetespezifischer IP-Allowlist-Pflegeaufwand noetig.
+socketio = SocketIO(app, async_mode="threading")
 receiver = SerialReceiver(socketio=socketio)
 
 # --- Service-Anmeldung (Einstellungen-Sperre) ---
@@ -660,6 +693,8 @@ def api_storage_copy():
 
 @app.route("/api/storage/delete", methods=["POST"])
 def api_storage_delete():
+    guard = _require_service()
+    if guard: return guard
     data = request.get_json()
     pane = data.get("pane")
     path = data.get("path", "")
@@ -1179,6 +1214,8 @@ def api_download_zip():
 
 @app.route('/api/protocols/<int:pid>', methods=['DELETE'])
 def api_protocol_delete(pid):
+    guard = _require_service()
+    if guard: return guard
     db = get_db()
     row = db.execute('SELECT pdf_path FROM protocols WHERE id=?', (pid,)).fetchone()
     if not row:
@@ -1573,6 +1610,8 @@ def api_tcp_capture_download(fname):
 
 @app.route("/api/tcp_capture/captures/delete", methods=["POST"])
 def api_tcp_capture_delete_all():
+    guard = _require_service()
+    if guard: return guard
     import glob
     capture_dir = "/home/docucontrol/docupi/data/raw_captures"
     deleted = 0
@@ -1589,6 +1628,8 @@ def api_tcp_capture_delete_all():
 
 @app.route("/api/tcp_capture/captures/<fname>", methods=["DELETE"])
 def api_tcp_capture_delete_one(fname):
+    guard = _require_service()
+    if guard: return guard
     import re as _re_cap
     if not _re_cap.match(r'^[A-Za-z0-9_\-.]+$', fname):
         return jsonify({"error": "invalid filename"}), 400
@@ -1609,6 +1650,8 @@ def api_tcp_capture_delete_one(fname):
 
 @app.route("/api/tcp_capture/captures/bulk-delete", methods=["POST"])
 def api_tcp_capture_bulk_delete():
+    guard = _require_service()
+    if guard: return guard
     import re as _re_cap_bulk
     data = request.get_json(silent=True) or {}
     basenames = data.get("basenames", [])
@@ -1701,6 +1744,8 @@ def api_storage_captures_usb():
 
 @app.route('/api/protocols/bulk-delete', methods=['POST'])
 def api_protocols_bulk_delete():
+    guard = _require_service()
+    if guard: return guard
     data = request.get_json(silent=True) or {}
     ids = data.get('ids', [])
     if not ids:
@@ -2226,6 +2271,8 @@ def api_pending_form_confirm(pid):
 
 @app.route('/api/pending-charges/<int:pid>', methods=['DELETE'])
 def api_pending_charge_discard(pid):
+    guard = _require_service()
+    if guard: return guard
     discard_pending(pid)
     log_event("WARN", f"Pending Charge pid={pid} verworfen (kein Formular ausgefüllt)")
     return jsonify({'ok': True})
@@ -2307,6 +2354,25 @@ if __name__ == "__main__":
     except Exception as e:
         logger.warning(f"Watchdog Init-Fehler: {e}")
     # receiver.start()  # DocuControl: kein RS232
+
+    # Zusaetzlicher HTTPS-Listener (Port 5443, selbstsigniert) - laeuft parallel
+    # zum bestehenden HTTP-Port 5000 in einem eigenen Thread, damit der Kiosk
+    # (http://localhost:5000) unangetastet bleibt. Kein SocketIO auf diesem
+    # Port noetig (Kiosk nutzt weiterhin HTTP), nur fuer externen Browserzugriff
+    # per HTTPS gedacht.
+    try:
+        cert_file, key_file = _ensure_self_signed_cert()
+        if cert_file and key_file:
+            import threading as _threading_tls
+            def _run_https():
+                app.run(host=config["web"]["host"], port=5443,
+                        ssl_context=(cert_file, key_file), debug=False,
+                        use_reloader=False, threaded=True)
+            _threading_tls.Thread(target=_run_https, daemon=True).start()
+            logger.info("Web: https://0.0.0.0:5443 (selbstsigniertes Zertifikat)")
+    except Exception as e:
+        logger.warning(f"HTTPS-Listener konnte nicht gestartet werden: {e}")
+
     logger.info(f"Web: http://0.0.0.0:{config['web']['port']}")
     socketio.run(app, host=config["web"]["host"], port=config["web"]["port"], debug=False, allow_unsafe_werkzeug=True)
 

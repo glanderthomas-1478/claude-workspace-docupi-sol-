@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y \
     network-manager \
     cifs-utils \
     util-linux-extra \
+    openssl \
     && rm -rf /var/lib/apt/lists/*
 
 ENV TZ=Europe/Berlin
@@ -29,7 +30,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Port 5000: Flask Web | Port 9100: TCP-Empfang
-EXPOSE 5000 9100
+# Port 5000: Flask Web (HTTP) | Port 5443: Flask Web (HTTPS, selbstsigniert) | Port 9100: TCP-Empfang
+EXPOSE 5000 5443 9100
 
 CMD ["python3", "app.py"]

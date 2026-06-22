@@ -773,7 +773,7 @@ table.data tbody tr:last-child td { border-bottom: none; }
 }
 #softKbd.show { display: block; }
 body.kbd-open .modal-overlay { align-items: flex-start; padding-top: 54px; }
-body.kbd-open .modal-lg { max-height: calc(100dvh - var(--kbd-height, 280px) - 54px); }
+body.kbd-open .modal-lg { max-height: max(320px, calc(100dvh - var(--kbd-height, 280px) - 54px)); }
 .kbd-row { display: flex; justify-content: center; gap: 5px; margin-bottom: 5px; }
 .kbd-row:last-child { margin-bottom: 0; }
 .kbd-key {

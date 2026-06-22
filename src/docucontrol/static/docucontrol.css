@@ -694,8 +694,9 @@ table.data tbody tr:last-child td { border-bottom: none; }
 .ab-fld label { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
 .ab-fld .ctrl { font-size: 15px; min-height: 44px; }
 .ab-checkgroup { display: flex; flex-wrap: wrap; gap: 10px 20px; }
+.ab-checkgroup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; }
 .ab-check { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 15px; color: var(--text); }
-.ab-check input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
+.ab-check input[type=checkbox], .ab-check input[type=radio] { width: 22px; height: 22px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
 .ab-radio-group { display: flex; flex-wrap: wrap; gap: 10px 20px; }
 .ab-radio { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 15px; color: var(--text); }
 .ab-radio input[type=radio] { width: 22px; height: 22px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }

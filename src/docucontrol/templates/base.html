@@ -336,13 +336,10 @@
               </div>
               <div class="ab-field-row">
                 <div class="ab-fld">
-                  <label>Durchführender *</label>
-                  <input type="text" class="ctrl" id="abOperatorName" placeholder="Vor- und Nachname" required>
-                </div>
-                <div class="ab-fld">
                   <label>Kürzel *</label>
                   <input type="text" class="ctrl" id="abOperatorInitials" placeholder="z.B. MM" maxlength="8" required>
                 </div>
+                <div class="ab-fld"></div>
               </div>
             </div>
 
@@ -353,16 +350,6 @@
                 <label class="ab-check"><input type="checkbox" name="waste_origin" value="Tierhaltung"> Tierhaltung</label>
                 <label class="ab-check"><input type="checkbox" name="waste_origin" value="Labor"> Labor</label>
                 <label class="ab-check"><input type="checkbox" name="waste_origin" value="Andere Anlage"> Andere Anlage</label>
-              </div>
-              <div class="ab-field-row" style="margin-top:10px">
-                <div class="ab-fld">
-                  <label>OP-Raum Nr.</label>
-                  <input type="text" class="ctrl" id="abOpRaum" placeholder="Nr.">
-                </div>
-                <div class="ab-fld">
-                  <label>Welche andere Anlage?</label>
-                  <input type="text" class="ctrl" id="abAndereAnlage" placeholder="Bezeichnung">
-                </div>
               </div>
             </div>
 
@@ -384,15 +371,15 @@
             <!-- Art des Autoklaviergutes -->
             <div class="ab-section">
               <div class="ab-section-title">Art des Autoklaviergutes</div>
-              <div class="ab-checkgroup">
-                <label class="ab-check"><input type="checkbox" name="autoklaviergut" value="Käfigmaterial / Käfiggestelle"> Käfigmaterial / Käfiggestelle</label>
-                <label class="ab-check"><input type="checkbox" name="autoklaviergut" value="Einstreu / Futter"> Einstreu / Futter</label>
-                <label class="ab-check"><input type="checkbox" name="autoklaviergut" value="Flüssigkeiten"> Flüssigkeiten</label>
-                <label class="ab-check"><input type="checkbox" name="autoklaviergut" value="Tierkörper"> Tierkörper</label>
-                <label class="ab-check"><input type="checkbox" name="autoklaviergut" value="Papier / Wäsche"> Papier / Wäsche</label>
-                <label class="ab-check"><input type="checkbox" name="autoklaviergut" value="OP-/Sektions-Besteck"> OP-/Sektions-Besteck</label>
-                <label class="ab-check"><input type="checkbox" name="autoklaviergut" value="Laborabfälle"> Laborabfälle</label>
-                <label class="ab-check"><input type="checkbox" name="autoklaviergut" value="Leercharge / Testcharge"> Leercharge / Testcharge</label>
+              <div class="ab-checkgroup ab-checkgroup-grid">
+                <label class="ab-check"><input type="radio" name="autoklaviergut" value="Käfigmaterial / Käfiggestelle"> Käfigmaterial / Käfiggestelle</label>
+                <label class="ab-check"><input type="radio" name="autoklaviergut" value="Einstreu / Futter"> Einstreu / Futter</label>
+                <label class="ab-check"><input type="radio" name="autoklaviergut" value="Papier / Wäsche"> Papier / Wäsche</label>
+                <label class="ab-check"><input type="radio" name="autoklaviergut" value="Laborabfälle"> Laborabfälle</label>
+                <label class="ab-check"><input type="radio" name="autoklaviergut" value="Flüssigkeiten"> Flüssigkeiten</label>
+                <label class="ab-check"><input type="radio" name="autoklaviergut" value="Tierkörper"> Tierkörper</label>
+                <label class="ab-check"><input type="radio" name="autoklaviergut" value="OP-/Sektions-Besteck"> OP-/Sektions-Besteck</label>
+                <label class="ab-check"><input type="radio" name="autoklaviergut" value="Leercharge / Testcharge"> Leercharge / Testcharge</label>
               </div>
             </div>
 
@@ -503,6 +490,15 @@
       .catch(function(e) { console.warn('abOpen Fehler:', e); });
   }
 
+  function abAutoklaviergutForProgram(key) {
+    if (!key) return null;
+    if (key.indexOf('kaefige_') === 0) return 'Käfigmaterial / Käfiggestelle';
+    if (key.indexOf('futter_') === 0 || key.indexOf('einstreu_') === 0) return 'Einstreu / Futter';
+    if (key.indexOf('fluessigkeiten_') === 0) return 'Flüssigkeiten';
+    if (key.indexOf('tierkoerper_') === 0) return 'Tierkörper';
+    return null;
+  }
+
   function abPopulate(d) {
     _abCurrentPid = d.id;
     _abPreselectedKey = d.preselected_program || '';
@@ -516,7 +512,6 @@
     var today = new Date().toISOString().split('T')[0];
     document.getElementById('abDatum').value = (d.form_draft && d.form_draft.datum) || today;
     document.getElementById('abZyklus').value = (d.form_draft && d.form_draft.zyklus) || (d.charge_nr_int ? String(d.charge_nr_int) : '');
-    document.getElementById('abOperatorName').value = (d.form_draft && d.form_draft.operator_name) || '';
     document.getElementById('abOperatorInitials').value = (d.form_draft && d.form_draft.operator_initials) || '';
     var standortVal = (d.form_draft && d.form_draft.standort) || '';
     if (standortVal) {
@@ -530,13 +525,15 @@
           if (el && !el.value && cfg.location) el.value = cfg.location;
         }).catch(function() {});
     }
-    document.getElementById('abOpRaum').value = (d.form_draft && d.form_draft.op_raum_nr) || '';
-    document.getElementById('abAndereAnlage').value = (d.form_draft && d.form_draft.waste_other_anlage) || '';
     document.getElementById('abResultComment').value = (d.form_draft && d.form_draft.result_comment) || '';
 
     var wos = (d.form_draft && d.form_draft.waste_origin) || [];
     document.querySelectorAll('[name=waste_origin]').forEach(function(cb) { cb.checked = wos.indexOf(cb.value) !== -1; });
     var ags = (d.form_draft && d.form_draft.autoklaviergut) || [];
+    if (ags.length === 0) {
+      var suggested = abAutoklaviergutForProgram(_abPreselectedKey);
+      if (suggested) ags = [suggested];
+    }
     document.querySelectorAll('[name=autoklaviergut]').forEach(function(cb) { cb.checked = ags.indexOf(cb.value) !== -1; });
     var sl = (d.form_draft && d.form_draft.safety_level) || '';
     document.querySelectorAll('[name=safety_level]').forEach(function(r) { r.checked = r.value === sl; });
@@ -589,11 +586,8 @@
       standort: document.getElementById('abStandort').value.trim(),
       datum: document.getElementById('abDatum').value,
       zyklus: document.getElementById('abZyklus').value.trim(),
-      operator_name: document.getElementById('abOperatorName').value.trim(),
       operator_initials: document.getElementById('abOperatorInitials').value.trim(),
       waste_origin: waste,
-      op_raum_nr: document.getElementById('abOpRaum').value.trim(),
-      waste_other_anlage: document.getElementById('abAndereAnlage').value.trim(),
       safety_level: sl ? sl.value : '',
       autoklaviergut: aut,
       autoclave_program: prog ? prog.value : '',
@@ -603,7 +597,6 @@
   }
 
   function abValidate(data) {
-    if (!data.operator_name) return 'Name des Durchführenden ist Pflichtfeld.';
     if (!data.operator_initials) return 'Kürzel ist Pflichtfeld.';
     if (!data.zyklus) return 'Zyklus / Charge-Nr. ist Pflichtfeld.';
     if (!document.getElementById('abConfirmCheck').checked) return 'Bitte Bestätigungs-Checkbox anhaken.';
@@ -649,7 +642,7 @@
       method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
         form_data: data,
-        confirmed_by: data.operator_name,
+        confirmed_by: data.operator_initials,
         confirmed_initials: data.operator_initials,
         preselected_program: presel,
       })

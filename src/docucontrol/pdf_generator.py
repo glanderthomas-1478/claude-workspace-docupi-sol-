@@ -656,18 +656,11 @@ class SterilizationPDF(FPDF):
         field_row('Standort / Location', fd.get('standort', ''), 'Datum', fd.get('datum', ''))
         field_row('Zyklus / Charge-Nr.', fd.get('zyklus', ''), 'Maschinenprogramm',
                   self.data.get('program_name', '') or self.data.get('program', ''))
-        field_row('Durchführender', fd.get('operator_name', ''), 'Kürzel', fd.get('operator_initials', ''))
+        field_row('Kürzel', fd.get('operator_initials', ''))
 
         # Abfall stammt aus
         section_title('Abfall stammt aus')
         checkbox_row(fd.get('waste_origin', []), ['Tierhaltung', 'Labor', 'Andere Anlage'])
-        if fd.get('op_raum_nr') or fd.get('waste_other_anlage'):
-            _sf('', 8)
-            self.set_text_color(80, 80, 80)
-            self.set_xy(col1_x, y)
-            self.cell(190, 4, 'OP-Raum Nr.: ' + (_safe(fd.get('op_raum_nr')) or '-') +
-                      '   Andere Anlage: ' + (_safe(fd.get('waste_other_anlage')) or '-'))
-            y += 5
 
         # Sicherheitsstufe
         section_title('Sicherheitsstufe (GVO-Klasse)')
@@ -676,8 +669,9 @@ class SterilizationPDF(FPDF):
         # Art des Autoklaviergutes
         section_title('Art des Autoklaviergutes')
         checkbox_row(fd.get('autoklaviergut', []),
-                     ['Käfigmaterial / Käfiggestelle', 'Einstreu / Futter', 'Flüssigkeiten',
-                      'Tierkörper', 'Papier / Wäsche', 'OP-/Sektions-Besteck', 'Laborabfälle'])
+                     ['Käfigmaterial / Käfiggestelle', 'Einstreu / Futter', 'Papier / Wäsche',
+                      'Laborabfälle', 'Flüssigkeiten', 'Tierkörper', 'OP-/Sektions-Besteck',
+                      'Leercharge / Testcharge'])
 
         # Autoklavenprogramm
         section_title('Verwendetes Autoklavenprogramm')

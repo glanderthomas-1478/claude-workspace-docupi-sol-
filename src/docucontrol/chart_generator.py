@@ -11,7 +11,7 @@ import tempfile
 logger = logging.getLogger("docupi.chart")
 
 
-def generate_trend_chart(phases, output_path=None, width=11, height=4, start_time=None):
+def generate_trend_chart(phases, output_path=None, width=11, height=4, start_time=None, t3_label="T3 Luftnachweis"):
     """Generate trend chart with Uhrzeit on X-axis."""
     try:
         import matplotlib
@@ -99,7 +99,7 @@ def generate_trend_chart(phases, output_path=None, width=11, height=4, start_tim
     line_t2, = ax2.plot(x_data, t2_vals, color=color_t2, linewidth=1.5, label="T2 Kammer", alpha=0.9)
     if has_t3:
         line_t3, = ax2.plot(x_data, t3_vals, color=color_t3, linewidth=1.2,
-                            linestyle="--", label="T3 Luftnachweis", alpha=0.8)
+                            linestyle="--", label=t3_label, alpha=0.8)
     ax2.tick_params(axis="y", labelcolor=color_t2, labelsize=7)
 
     # Phase annotations

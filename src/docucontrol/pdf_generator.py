@@ -58,6 +58,12 @@ class SterilizationPDF(FPDF):
         phases = self.data.get("phases", [])
         return bool(phases and "t1_c" in phases[0] and phases[0].get("t2_c") is None)
 
+    def _t3_label(self):
+        """T3 ist je Maschinenformat unterschiedlich belegt: beim alten
+        BELIMED-Format (6-Spalten, Helios Krefeld) ist T3 der Luftnachweis-
+        Sensor; im PST-Format (UNIKLINIK_ESSEN) ist T3 der Produktfuehler."""
+        return "T3 Produktfühler" if self._is_pst_format() else "T3 Luftnachweis"
+
     # ---------------------------------------------------------------
     # HEADER
     # ---------------------------------------------------------------
@@ -387,7 +393,7 @@ class SterilizationPDF(FPDF):
         except Exception:
             pass
 
-        chart_path = generate_trend_chart(phases, start_time=start_time)
+        chart_path = generate_trend_chart(phases, start_time=start_time, t3_label=self._t3_label())
         if not chart_path:
             return
 

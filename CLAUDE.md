@@ -749,6 +749,43 @@ die `docker system df` nicht vollstaendig als reclaimable auswies.
   ein Treiberwechsel waere daher ohne Datenverlustrisiko - braucht aber einen Docker-Neustart +
   Image-Neubau und wurde bewusst nicht ohne explizite Rueckfrage umgesetzt.
 
+**Autoklavenbuch Ergebnis-Pflichtfeld + PDF-Freigabebereich + USB-Mount-Fix (2026-06-25):**
+- "Ergebnis" (Ablauf OK/Stoerung) im Autoklavenbuch-Formular ist jetzt Pflichtfeld, client- (`abValidate()`
+  in `base.html`) UND serverseitig (`/api/pending-charges/<id>/confirm` in `app.py`) erzwungen
+- PDF Seite 1 (Freigabebereich unten) zeigt jetzt das tatsaechliche Ergebnis aus dem Autoklavenbuch-
+  Formular: "ja"/"nein"-Haekchen ausgefuellt, Kuerzel (`confirmed_initials`/`operator_initials`) und
+  die echte eingebettete Unterschrift — vorher waren das nur leere Linien zum handschriftlichen
+  Ausfuellen, obwohl die Daten laengst digital vorliegen (`pdf_generator.py draw_page1()`)
+- Neuer Stoerungs-Alarm "USB-Stick nicht angeschlossen": erscheint nur, wenn USB-Auto-Sync in den
+  Einstellungen aktiv ist, aber kein Stick erkannt/gemountet wird (`app.py /api/system/alerts`)
+- **USB-Mount-Bug gefixt:** Nach Abziehen + Wiedereinstecken bekommt der Stick oft einen neuen
+  Geraetenamen (z.B. `sda1` -> `sdb1`, klassisches Linux-Re-Enumeration-Verhalten). Der bisherige
+  Check `os.path.ismount(USB_MOUNT_POINT)` prueft nur "haengt da ueberhaupt etwas", nicht "ist das
+  AKTUELLE Geraet dort gemountet" — ein verwaister Mount des alten, nicht mehr existierenden Geraets
+  wurde faelschlich als gueltig durchgelassen, der neue Stick nie gemountet, Dateimanager zeigte
+  leer. Fix: neue Hilfsfunktion `_mountpoint_source()` (liest `/proc/mounts`) vergleicht das
+  tatsaechlich gemountete Geraet mit dem aktuell erkannten — bei Mismatch wird automatisch
+  ausgehaengt + neu gemountet (`storage_manager.py`, betrifft `get_usb_info()`, `mount_usb()`,
+  `try_mount_usb_on_boot()`, beide Sync-Funktionen, Sofortkopie, Auto-Sync-Loop)
+- Dateimanager-Layout (Kiosk 1024×600): Seitenauswahl im internen Speicher-Pane lief am Geraet ueber
+  den rechten Rand, weil Auswahl-Info + Download-/Loeschen-Button + Pager in einer Zeile um Platz
+  konkurrierten. Jetzt: Pager + Auswahl-Info in einer Kopfzeile, "Ausgewaehlte"/"Loeschen" darunter
+  zentriert in einer gerahmten Box (`.sync-row`-Klasse wiederverwendet, gleiche Button-Groesse wie
+  die "Jetzt sync."-Box im USB-Pane) — optisch jetzt symmetrisch zum USB-Pane
+- "Neustart"-Button in Einstellungen → System ist jetzt auch ohne Service-Anmeldung nutzbar
+  (`data-always-enabled` im Frontend, `_require_service()`-Guard im Backend entfernt), analog zu
+  Ping/Verbindungstest-Buttons
+- Alle Fixes auf docucontrol3 deployt (scp + `docker-compose restart` + Kiosk-Cache-Leeren) und live
+  per Screenshot (CDP-Navigation + `grim`, temporaerer `--remote-debugging-port=9222` danach wieder
+  entfernt) verifiziert. 3 Commits gepusht (`563245c`, `293ca9e`, `f397373`)
+- **CEC-Test (2026-06-25):** Auf Nutzerfrage geprueft, ob sich das Display (10" Panel "DZX Z3") nach
+  Abschalten per Seitentaste per Software automatisch wieder einschalten laesst. Pi-seitig ist CEC
+  vorhanden (`/dev/cec0`, vc4-hdmi-Treiber, Topologie zeigt die physische Verbindung), aber alle
+  CEC-Befehle ans Panel (Poll, Image View On, Power-Status-Abfrage via `cec-ctl`) kamen mit
+  "Not Acknowledged" zurueck — das Panel implementiert CEC nicht (reagiert nicht mal elektrisch).
+  Ergebnis: Seitentaste ist rein hardwareseitig, kein Software-Wake moeglich ohne Hardware-Umbau
+  (z.B. Relais an der Stromversorgung). Auf Nutzerwunsch nicht weiter verfolgt.
+
 ---
 
 ## Offene Aufgabe: DocuControl-Gehaeuse-Branding (3D-Druck) — IN ARBEIT

@@ -118,6 +118,12 @@ Prototyp fertigstellen und erste Feldtests im eigenen Arbeitsumfeld durchfuehren
 - **ERLEDIGT 2026-06-22**: Kiosk-Dateimanager zeigt PDF-Ansehen-Icon statt Download-Button (intern + USB); Drucken-Icon zeigt sich jetzt korrekt nur bei tatsaechlich angeschlossenem Drucker (vorher: CUPS-Status allein reichte, blieb nach Ausstecken faelschlich "bereit")
 - **ERLEDIGT 2026-06-22**: Neue Stoerungs-Anzeige (rote Alarm-Badges in der Topbar): Maschine nicht erreichbar, Drucker offline (bei aktivem Auto-Druck), SSD-Ausfall/Notfallbetrieb von SD, Netzwerkspeicherort nicht erreichbar — gepollt alle 20s; dabei zwei Nebenfunde behoben: `ping` fehlte im Docker-Image, Cache-Control-Header fehlten auf `/api/*`-Routen (Chromium cachte Alarm-Status)
 - **ERLEDIGT 2026-06-22**: Docker-Speicherplatz-Cleanup auf docucontrol3 (41G→15G) — `vfs`-Storage-Driver-Overhead war fast die gesamte Belegung, echte Chargendaten nur ~2,4MB; Wechsel auf `overlay2` als offene, nicht beauftragte Option dokumentiert
+- **ERLEDIGT 2026-06-25**: Ergebnis (Ablauf OK/Stoerung) im Autoklavenbuch-Formular ist jetzt Pflichtfeld (Frontend + Backend-Guard)
+- **ERLEDIGT 2026-06-25**: PDF Seite 1 Freigabebereich zeigt jetzt echtes Ergebnis-Haekchen, Kuerzel + eingebettete Unterschrift aus dem Autoklavenbuch-Formular statt leerer Linien
+- **ERLEDIGT 2026-06-25**: USB-Mount-Bug behoben — verwaister Mount nach Geraete-Re-Enumeration (sda1→sdb1 nach Abziehen/Einstecken) verhinderte, dass der Dateimanager den Stick-Inhalt anzeigte; neue Stoerungs-Anzeige "USB-Stick nicht angeschlossen" ergaenzt
+- **ERLEDIGT 2026-06-25**: Dateimanager-Layout auf dem Kiosk-Display gefixt (Seitenauswahl lief ueber den Rand), Aktionsleiste optisch an USB-Pane angeglichen
+- **ERLEDIGT 2026-06-25**: "Neustart"-Button in Einstellungen → System auch ohne Service-Anmeldung nutzbar
+- **GEPRUEFT 2026-06-25**: CEC-Test fuer automatisches Display-Einschalten nach Seitentaste — Panel ("DZX Z3") unterstuetzt kein CEC (alle Befehle "Not Acknowledged"), kein Software-Wake moeglich, auf Nutzerwunsch nicht weiter verfolgt
 
 ## Wie Erfolg aussieht
 

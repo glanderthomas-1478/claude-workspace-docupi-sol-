@@ -35,6 +35,12 @@
 | Soft-Keyboard (Kiosk) | **GEFIXT** | — | Oeffnet sich jetzt global (nicht nur Autoklavenbuch/Login), Tastenbreiten flexibel statt Fixpixel (2026-06-22, Monitor-Wechsel 7"→10") |
 | Stoerungs-Anzeige Topbar | **IMPLEMENTIERT** | — | Rote Alarm-Badges: Maschine/Drucker/SSD/Netzwerkspeicherort, /api/system/alerts alle 20s gepollt (2026-06-22) |
 | Docker-Speicherplatz docucontrol3 | **AUFGERAEUMT** | — | 41G → 15G (vfs-Storage-Driver-Overhead bereinigt), overlay2-Wechsel als offene Option dokumentiert (2026-06-22) |
+| Autoklavenbuch Ergebnis-Pflichtfeld | **IMPLEMENTIERT** | — | Frontend + Backend-Guard erzwingen Ablauf OK/Stoerung vor Bestaetigung (2026-06-25) |
+| PDF Seite 1 Freigabebereich | **IMPLEMENTIERT** | — | Zeigt jetzt echtes ja/nein, Kuerzel + Unterschrift aus Autoklavenbuch-Formular statt leerer Linien (2026-06-25) |
+| USB-Mount-Bug (Re-Enumeration) | **GEFIXT** | — | sda1→sdb1 nach Abziehen/Einstecken fuehrte zu verwaistem Mount, Dateimanager zeigte leer; neuer Alarm "USB-Stick nicht angeschlossen" (2026-06-25) |
+| Dateimanager-Layout Kiosk | **GEFIXT** | — | Seitenauswahl lief ueber den Bildschirmrand, Aktionsleiste jetzt optisch an USB-Pane angeglichen (2026-06-25) |
+| Neustart-Button Einstellungen | **FREIGESCHALTET** | — | Auch ohne Service-Anmeldung nutzbar (2026-06-25) |
+| CEC-Display-Wake | **GEPRUEFT, NICHT MOEGLICH** | — | Panel "DZX Z3" unterstuetzt kein CEC, Seitentaste rein hardwareseitig (2026-06-25) |
 
 ## Quellcode-Uebersicht
 

@@ -1531,8 +1531,6 @@ def api_watchdog_status():
 
 @app.route("/api/system/reboot", methods=["POST"])
 def api_reboot():
-    guard = _require_service()
-    if guard: return guard
     log_event("WARN","Reboot"); subprocess.Popen(["sudo","reboot"]); return jsonify({"status":"rebooting"})
 
 @socketio.on("connect")

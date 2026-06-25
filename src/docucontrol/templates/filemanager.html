@@ -54,18 +54,22 @@
                 </tbody>
             </table>
             </div>
-            <div class="table-foot">
-                <div style="display:flex;align-items:center;gap:10px">
-                    <span id="intCountInfo" style="font-size:13px;color:var(--muted)"></span>
-                    <span id="intSelInfo" style="font-size:13px;color:var(--muted)"></span>
-                    <button class="btn btn-sm btn-outline" id="btnDownloadSelected" onclick="downloadSelectedInternal()" disabled>
+            <div class="table-foot" style="flex-direction:column;gap:10px;align-items:stretch">
+                <div style="display:flex;align-items:center;justify-content:space-between">
+                    <div style="display:flex;align-items:center;gap:10px">
+                        <span id="intCountInfo" style="font-size:13px;color:var(--muted)"></span>
+                        <span id="intSelInfo" style="font-size:13px;color:var(--muted)"></span>
+                    </div>
+                    <div class="pager" id="intPager"></div>
+                </div>
+                <div class="sync-row" style="justify-content:center">
+                    <button class="btn btn-outline" id="btnDownloadSelected" onclick="downloadSelectedInternal()" disabled>
                         <i class="bi bi-download"></i> Ausgewählte
                     </button>
-                    <button class="btn btn-sm btn-outline-danger" id="btnDeleteSelected" onclick="deleteSelectedInternal()" disabled>
+                    <button class="btn btn-outline-danger" id="btnDeleteSelected" onclick="deleteSelectedInternal()" disabled>
                         <i class="bi bi-trash"></i> Löschen
                     </button>
                 </div>
-                <div class="pager" id="intPager"></div>
             </div>
         </div>
     </div>

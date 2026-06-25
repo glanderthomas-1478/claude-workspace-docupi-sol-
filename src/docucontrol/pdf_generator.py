@@ -362,16 +362,53 @@ class SterilizationPDF(FPDF):
         self.set_xy(60, y_cb)
         self.cell(20, 5, "freigegeben")
 
+        fd = self.form_data
+        ab_result = fd.get("result", "")
+
         for label, x_pos in [("ja", 92), ("nein", 110), ("bedingte Freigabe", 130)]:
+            checked = (label == "ja" and ab_result == "ok") or (label == "nein" and ab_result == "err")
             self.set_draw_color(100, 100, 100)
-            self.rect(x_pos, y_cb + 0.5, 4, 4)
+            if checked:
+                self.set_fill_color(*DARK_BLUE)
+                self.rect(x_pos, y_cb + 0.5, 4, 4, "F")
+            else:
+                self.rect(x_pos, y_cb + 0.5, 4, 4)
             self.set_xy(x_pos + 5, y_cb)
-            self.set_font("Helvetica", "", 7)
+            self.set_font("Helvetica", "B" if checked else "", 7)
+            self.set_text_color(*BLACK)
             self.cell(20, 5, label)
 
-        self.set_draw_color(150, 150, 150)
-        self.line(170, y_cb + 5, 230, y_cb + 5)
-        self.line(240, y_cb + 5, 287, y_cb + 5)
+        # Kürzel — neben Freigegeben ja/nein
+        kuerzel = fd.get("confirmed_initials") or fd.get("operator_initials") or ""
+        self.set_xy(170, y_cb)
+        self.set_font("Helvetica", "", 7)
+        self.set_text_color(100, 100, 100)
+        self.cell(12, 5, "Kürzel:")
+        self.set_xy(182, y_cb)
+        self.set_font("Helvetica", "B", 9)
+        self.set_text_color(*BLACK)
+        self.cell(18, 5, kuerzel or "-")
+        if not kuerzel:
+            self.set_draw_color(150, 150, 150)
+            self.line(182, y_cb + 5, 200, y_cb + 5)
+
+        # Unterschrift — neben Kürzel
+        sig_data = fd.get("signature", "")
+        if sig_data:
+            try:
+                import base64, io
+                b64 = sig_data.split(",", 1)[1] if "," in sig_data else sig_data
+                sig_stream = io.BytesIO(base64.b64decode(b64))
+                self.set_draw_color(180, 180, 180)
+                self.rect(240, y_cb - 1, 45, 8)
+                self.image(sig_stream, x=241, y=y_cb - 0.5, w=43, h=7)
+            except Exception as e:
+                logger.warning(f"Unterschrift (Seite 1) konnte nicht eingebettet werden: {e}")
+                self.set_draw_color(150, 150, 150)
+                self.line(240, y_cb + 5, 287, y_cb + 5)
+        else:
+            self.set_draw_color(150, 150, 150)
+            self.line(240, y_cb + 5, 287, y_cb + 5)
 
         self.draw_footer(1)
 

@@ -68,6 +68,25 @@ def save_sync_config(config):
 
 # --- USB Detection & Mount ---
 
+def _mountpoint_source(mountpoint):
+    """Liefert das tatsaechlich an `mountpoint` angehaengte Geraet (z.B. /dev/sda1),
+    oder None falls nichts dort gemountet ist. Im Gegensatz zu os.path.ismount()
+    prueft das nicht nur "ist da irgendein Mount", sondern welches Geraet dahinter
+    steckt — wichtig nach USB-Re-Enumeration (Stick wird nach Abziehen/Einstecken
+    oft unter einem neuen Geraetenamen registriert, z.B. sda1 -> sdb1), wo sonst ein
+    verwaister Mount des alten, nicht mehr existierenden Geraetenamens faelschlich
+    als "USB ist da" durchgeht."""
+    try:
+        with open("/proc/mounts") as f:
+            for line in f:
+                parts = line.split()
+                if len(parts) >= 2 and parts[1] == mountpoint:
+                    return parts[0]
+    except Exception:
+        pass
+    return None
+
+
 def detect_usb_device():
     """Find USB block device (not mmcblk = SD card)."""
     ok, out, _ = _run("lsblk -rno NAME,TYPE,RM,MOUNTPOINT | grep 'part 1'")
@@ -86,6 +105,11 @@ def get_usb_info():
     """Get USB device info."""
     dev = detect_usb_device()
     if not dev:
+        # Kein Geraet (mehr) da — falls noch ein verwaister Mount eines bereits
+        # abgezogenen Sticks haengt, jetzt aushaengen statt ihn liegen zu lassen
+        if _mountpoint_source(USB_MOUNT_POINT):
+            logger.warning(f"Verwaister USB-Mount an {USB_MOUNT_POINT} ohne Geraet - haenge aus")
+            _run(f"sudo /usr/bin/umount -l {USB_MOUNT_POINT}")
         return {"detected": False}
 
     info = {"detected": True, "device": dev, "fstype": "", "label": "", "size": "", "mounted": False, "mount_point": ""}
@@ -108,9 +132,16 @@ def get_usb_info():
     if ok and out.strip():
         info["mounted"] = True
         info["mount_point"] = out.strip().splitlines()[0]
-    elif os.path.ismount(USB_MOUNT_POINT):
-        info["mounted"] = True
-        info["mount_point"] = USB_MOUNT_POINT
+    else:
+        mounted_src = _mountpoint_source(USB_MOUNT_POINT)
+        if mounted_src and os.path.realpath(mounted_src) == os.path.realpath(dev):
+            info["mounted"] = True
+            info["mount_point"] = USB_MOUNT_POINT
+        elif mounted_src:
+            # Mountpoint zeigt noch auf ein altes Geraet (z.B. sda1 nach Abziehen),
+            # das aktuell erkannte ist aber ein anderes (z.B. sdb1 nach Neueinstecken)
+            logger.warning(f"Verwaister USB-Mount an {USB_MOUNT_POINT} ({mounted_src} statt {dev}) - haenge aus")
+            _run(f"sudo /usr/bin/umount -l {USB_MOUNT_POINT}")
 
     # Usage if mounted
     if info["mounted"] and info["mount_point"]:
@@ -131,8 +162,14 @@ def mount_usb():
     if not dev:
         return False, "Kein USB-Geraet gefunden"
 
-    if os.path.ismount(USB_MOUNT_POINT):
+    mounted_src = _mountpoint_source(USB_MOUNT_POINT)
+    if mounted_src and os.path.realpath(mounted_src) == os.path.realpath(dev):
         return True, "USB bereits gemountet"
+    if mounted_src:
+        # Verwaister Mount eines alten/entfernten Geraets (Re-Enumeration) - erst aushaengen
+        logger.warning(f"Verwaister USB-Mount erkannt ({mounted_src} statt {dev}) - haenge aus")
+        _run(f"sudo /usr/bin/umount -l {USB_MOUNT_POINT}")
+        time.sleep(1)
 
     _run("sudo /usr/bin/mkdir -p " + USB_MOUNT_POINT)
 
@@ -160,10 +197,6 @@ def mount_usb():
 def try_mount_usb_on_boot():
     """USB-Stick beim Boot mounten (nach Stromausfall/Reboot).
     udev-Rules feuern nur bei physischem Einstecken, nicht beim Boot."""
-    if os.path.ismount(USB_MOUNT_POINT):
-        logger.info("USB bereits gemountet (Boot-Check)")
-        return True
-
     dev = detect_usb_device()
     if dev:
         logger.info(f"USB-Geraet {dev} gefunden beim Boot - versuche Mount")
@@ -336,7 +369,7 @@ def sync_pdfs_to_usb(days=None):
     if days is None:
         days = config.get("sync_days", 7)
 
-    if not os.path.ismount(USB_MOUNT_POINT):
+    if not get_usb_info().get("mounted"):
         ok, msg = mount_usb()
         if not ok:
             return False, msg, 0
@@ -390,7 +423,7 @@ def sync_captures_to_usb(days=None):
     if days is None:
         days = config.get("sync_days", 7)
 
-    if not os.path.ismount(USB_MOUNT_POINT):
+    if not get_usb_info().get("mounted"):
         ok, msg = mount_usb()
         if not ok:
             return False, msg, 0
@@ -459,7 +492,7 @@ def _auto_sync_loop():
     und laeuft regelmaessigen Sync auf konfiguriertem Intervall."""
     global _sync_running
     last_sync_time = 0.0
-    was_mounted = os.path.ismount(USB_MOUNT_POINT)
+    was_mounted = get_usb_info().get("mounted", False)
 
     while _sync_running:
         config = load_sync_config()
@@ -480,7 +513,7 @@ def _auto_sync_loop():
                 pass
 
         usb = get_usb_info()
-        now_mounted = os.path.ismount(USB_MOUNT_POINT)
+        now_mounted = usb.get("mounted", False)
 
         # Neu eingesteckt (Trigger oder Zustandsaenderung)
         newly_inserted = trigger_fired or (usb.get("detected") and not was_mounted)
@@ -579,7 +612,7 @@ def copy_pdf_to_usb_instant(pdf_path, pdf_filename):
     """Kopiert ein frisch erzeugtes PDF sofort auf den USB-Stick.
     Wird nach jeder neuen Charge aufgerufen, damit der Kunde
     den Stick direkt nach der Charge ziehen kann."""
-    if not os.path.ismount(USB_MOUNT_POINT):
+    if not get_usb_info().get("mounted"):
         dev = detect_usb_device()
         if not dev:
             return  # Kein Stick eingesteckt

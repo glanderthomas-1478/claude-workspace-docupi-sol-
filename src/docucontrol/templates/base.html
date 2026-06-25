@@ -449,7 +449,7 @@
 
             <!-- Ergebnis -->
             <div class="ab-section">
-              <div class="ab-section-title">Ergebnis</div>
+              <div class="ab-section-title">Ergebnis *</div>
               <div class="ab-result-row">
                 <div class="ab-result-opt ok" data-val="ok">
                   <i class="bi bi-check-circle-fill"></i> Ablauf OK
@@ -653,6 +653,7 @@
   function abValidate(data) {
     if (!data.operator_initials) return 'Kürzel ist Pflichtfeld.';
     if (!data.zyklus) return 'Zyklus / Charge-Nr. ist Pflichtfeld.';
+    if (!data.result) return 'Ergebnis (Ablauf OK / Störung) ist Pflichtfeld.';
     if (!document.getElementById('abConfirmCheck').checked) return 'Bitte Bestätigungs-Checkbox anhaken.';
     return null;
   }

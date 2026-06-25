@@ -1410,6 +1410,17 @@ def api_system_alerts():
     except Exception:
         pass
 
+    # USB-Stick (nur relevant wenn USB-Auto-Sync aktiviert ist)
+    try:
+        sync_cfg = load_sync_config()
+        if sync_cfg.get('auto_sync_enabled'):
+            usb = get_usb_info()
+            if not usb.get('detected') or not usb.get('mounted'):
+                alerts.append({'type': 'usb_disconnected', 'icon': 'bi-usb-symbol',
+                                'label': 'USB-Stick nicht angeschlossen'})
+    except Exception:
+        pass
+
     return jsonify({'alerts': alerts})
 
 
@@ -2334,6 +2345,8 @@ def api_pending_form_confirm(pid):
 
     if not confirmed_by or not confirmed_initials:
         return jsonify({'error': 'Name und Kürzel des Bedieners sind Pflichtfelder'}), 400
+    if not (form_data.get('result') or '').strip():
+        return jsonify({'error': 'Ergebnis (Ablauf OK / Störung) ist Pflichtfeld'}), 400
 
     row = get_pending_protocol(pid)
     if not row:

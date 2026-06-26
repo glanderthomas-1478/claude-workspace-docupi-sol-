@@ -1314,7 +1314,7 @@
                 document.getElementById('sysHostname').textContent = d.os.hostname || '—';
 
                 var temp = d.cpu.temp;
-                var tempColor = temp > 70 ? 'var(--danger)' : temp > 55 ? 'var(--warning)' : 'var(--success)';
+                var tempColor = temp >= 80 ? 'var(--danger)' : temp >= 70 ? 'var(--warning)' : 'var(--success)';
                 var el = document.getElementById('sysCpuTemp');
                 el.textContent = temp + ' °C';
                 el.style.color = tempColor;

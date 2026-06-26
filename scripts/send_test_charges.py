@@ -719,6 +719,8 @@ def main():
                         help="Protokollformat: 'old'=BELIMED, 'pst'=Chargen Protokoll UNIKLINIK_ESSEN (default: old)")
     parser.add_argument("--via-lpd", action="store_true",
                         help="Sende via LPD-Handshake (Port 5150) statt TCP/9100")
+    parser.add_argument("--error", action="store_true",
+                        help="Stoerungsmeldung einbauen (ersetzt 'Keine prozessrelevante Stoerung')")
     parser.add_argument("--dry-run",  action="store_true",   help="Protokolle auf stdout ausgeben, nicht senden")
     args = parser.parse_args()
 
@@ -746,6 +748,11 @@ def main():
                 i, args.start_charge, sequence)
             charge_display = f"CH{charge_nr:06d}"
 
+        if args.error:
+            text = text.replace(
+                "Keine prozessrelevante Störung aufgetreten",
+                "Prozessrelevante Störung aufgetreten!\nStörung: Sterilisiertemperatur unterschritten - T4: 119.1 C"
+            )
         raw = encode_protocol(text)
         duration_str = f"{ende_mm} min"
 

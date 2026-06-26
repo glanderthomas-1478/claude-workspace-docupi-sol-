@@ -2086,10 +2086,19 @@ def _extract_protocol_fields(row):
     except Exception:
         pass
 
-    if row['status'] == 'completed':
-        row_status = 'Bestanden'
-    elif row['status'] == 'pending_form':
+    raw_upper = raw.upper()
+    has_fault = bool(
+        ('PROZESSRELEVANTE STÖRUNG AUFGETRETEN' in raw_upper and 'KEINE PROZESSRELEVANTE' not in raw_upper)
+        or 'BEENDET NICHT STERIL' in raw_upper
+        or 'ABGEBROCHEN' in raw_upper
+    )
+
+    if row['status'] == 'pending_form':
         row_status = 'Wartet auf Formular'
+    elif row['status'] == 'completed' and has_fault:
+        row_status = 'Störung'
+    elif row['status'] == 'completed':
+        row_status = 'Bestanden'
     else:
         row_status = 'Fehlgeschlagen'
 
@@ -2102,6 +2111,7 @@ def _extract_protocol_fields(row):
         'duration':     duration,
         'status':       row_status,
         'db_status':    row['status'],
+        'has_fault':    has_fault,
         'pdf_filename': row['pdf_filename'] or '',
         'file_size':    row['file_size'] or 0,
     }
@@ -2310,6 +2320,12 @@ def api_pending_charge_detail(pid):
         from protocol_parser import preselect_autoclave_program
         presel_data = preselect_autoclave_program(row['program'], row.get('raw_data', ''))
         presel = presel_data.get('program_key', '')
+    raw = (row.get('raw_data') or '').upper()
+    has_fault = bool(
+        ('PROZESSRELEVANTE STÖRUNG AUFGETRETEN' in raw and 'KEINE PROZESSRELEVANTE' not in raw)
+        or 'BEENDET NICHT STERIL' in raw
+        or 'ABGEBROCHEN' in raw
+    )
     return jsonify({
         'id': row['id'],
         'timestamp': row['timestamp'],
@@ -2317,6 +2333,7 @@ def api_pending_charge_detail(pid):
         'charge_nr_int': row.get('charge_nr_int'),
         'program': row.get('program', ''),
         'preselected_program': presel,
+        'has_fault': has_fault,
         'form_draft': form,
         'confirmed_at': row.get('confirmed_at'),
         'raw_data_preview': (row.get('raw_data') or '')[:400],

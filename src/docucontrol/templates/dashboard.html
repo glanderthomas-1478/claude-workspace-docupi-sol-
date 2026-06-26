@@ -101,6 +101,7 @@
         <select class="ctrl" id="fStatus">
             <option value="">Alle</option>
             <option value="Bestanden">Bestanden</option>
+            <option value="Störung">Störung</option>
             <option value="Wartet auf Formular">Wartet auf Formular</option>
             <option value="Fehlgeschlagen">Fehlgeschlagen</option>
         </select>
@@ -350,6 +351,8 @@
             var badge;
             if (p.status === 'Bestanden') {
                 badge = '<span class="badge ok"><span class="bdot"></span> Bestanden</span>';
+            } else if (p.status === 'Störung') {
+                badge = '<span class="badge fail"><i class="bi bi-exclamation-triangle-fill" style="font-size:10px;margin-right:4px"></i> Störung</span>';
             } else if (p.status === 'Wartet auf Formular') {
                 badge = '<span class="badge warn"><span class="bdot"></span> Wartet auf Formular</span>';
             } else {

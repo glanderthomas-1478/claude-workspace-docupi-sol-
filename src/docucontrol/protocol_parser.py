@@ -265,18 +265,27 @@ def _parse_pst_protocol(raw_text):
 
     result["phases"] = phase_lines
 
-    # Ergebnis aus "Freigabe : Ja/Nein"
+    # PST: Störungsmeldung hat Vorrang vor "Freigabe : Ja  Nein" (beides steht immer als Formularzeile)
     for line in lines:
-        s = line.strip()
-        m = re.search(r'Freigabe\s*:\s*(Ja|Nein)', s, re.IGNORECASE)
-        if m:
-            if m.group(1).lower() == "ja":
-                result["result"] = "ZYKLUS BESTANDEN"
-                result["result_detail"] = "Freigabe: Ja"
-            else:
-                result["result"] = "ZYKLUS NICHT BESTANDEN"
-                result["result_detail"] = "Freigabe: Nein"
+        upper = line.upper().strip()
+        if 'PROZESSRELEVANTE STÖRUNG AUFGETRETEN' in upper and 'KEINE PROZESSRELEVANTE' not in upper:
+            result["result"] = "ZYKLUS NICHT BESTANDEN"
+            result["result_detail"] = line.strip()
             break
+
+    # Ergebnis aus "Freigabe : Ja/Nein" (nur wenn noch kein Ergebnis durch Störungszeile)
+    if not result["result"]:
+        for line in lines:
+            s = line.strip()
+            m = re.search(r'Freigabe\s*:\s*(Ja|Nein)', s, re.IGNORECASE)
+            if m:
+                if m.group(1).lower() == "ja":
+                    result["result"] = "ZYKLUS BESTANDEN"
+                    result["result_detail"] = "Freigabe: Ja"
+                else:
+                    result["result"] = "ZYKLUS NICHT BESTANDEN"
+                    result["result_detail"] = "Freigabe: Nein"
+                break
 
     if not result["result"] and phase_lines:
         result["result"] = "UNVOLLSTAENDIG"

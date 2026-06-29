@@ -41,6 +41,8 @@
 | Dateimanager-Layout Kiosk | **GEFIXT** | — | Seitenauswahl lief ueber den Bildschirmrand, Aktionsleiste jetzt optisch an USB-Pane angeglichen (2026-06-25) |
 | Neustart-Button Einstellungen | **FREIGESCHALTET** | — | Auch ohne Service-Anmeldung nutzbar (2026-06-25) |
 | CEC-Display-Wake | **GEPRUEFT, NICHT MOEGLICH** | — | Panel "DZX Z3" unterstuetzt kein CEC, Seitentaste rein hardwareseitig (2026-06-25) |
+| LUKS-Setup-Skript | **BEREIT** | Ab DocuControl 4 | `scripts/setup_luks_nvme.sh`: USB-Dongle-Unlock, Backup-Passphrase, Docker-kompatibel (2026-06-29) |
+| base.html Modal-Scroll | **GEFIXT** | — | Autoklavenbuch-Modal scrollt beim Oeffnen nach oben (2026-06-29) |
 
 ## Quellcode-Uebersicht
 

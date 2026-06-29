@@ -612,6 +612,8 @@
     if (cnt) cnt.textContent = _abQueue.length > 0 ? '(' + _abQueue.length + ' weitere ausstehend)' : '';
 
     document.getElementById('abOverlay').classList.add('show');
+    var mb = document.querySelector('#abModal .modal-body');
+    if (mb) mb.scrollTop = 0;
   }
 
   function abSelectProgram(key, preselKey) {

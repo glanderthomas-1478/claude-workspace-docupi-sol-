@@ -98,6 +98,10 @@ Das DocuPi-3000 ist ein Raspberry Pi-basiertes System, das:
     ├── deploy_docucontrol_design.sh   # Deployment-Script fuer Linux/Mac
     ├── deploy_docucontrol_win.ps1     # Deployment-Script fuer Windows (OpenSSH)
     ├── send_test_charges.py  # Sendet simulierte Belimed-Protokolle via TCP/9100 (UTF-16LE, 3 Templates)
+    ├── migrate_sd_to_nvme.sh  # SD → NVMe Migration (Referenzskript)
+    ├── clone_ssd_to_sd.sh     # SSD → SD Klon (Notfall-Backup)
+    ├── setup_kiosk_display.sh # Kiosk-Display-Setup (Referenzskript)
+    ├── setup_luks_nvme.sh     # LUKS-Verschluesselung fuer neue Deployments (ab DocuControl 4)
     └── saia_test_toolkit/
 ```
 
@@ -785,6 +789,17 @@ die `docker system df` nicht vollstaendig als reclaimable auswies.
   "Not Acknowledged" zurueck — das Panel implementiert CEC nicht (reagiert nicht mal elektrisch).
   Ergebnis: Seitentaste ist rein hardwareseitig, kein Software-Wake moeglich ohne Hardware-Umbau
   (z.B. Relais an der Stromversorgung). Auf Nutzerwunsch nicht weiter verfolgt.
+
+**LUKS-Verschluesselung (2026-06-29, Vorbereitung):** Referenzskript `scripts/setup_luks_nvme.sh`
+erstellt fuer kuenftige Deployments ab DocuControl 4. Schutzziel: a) SSD-Diebstahl (Root-Partition
+ohne USB-Dongle unlesbar) + c) Quellcode-Schutz (Python-Code auf verschluesselter Partition).
+Unlock-Mechanismus: Keyfile auf USB-Dongle → automatisches Entschluesseln beim Boot ohne Passwort-
+Dialog; Fallback: Backup-Passphrase (Notfall bei verlorenem Dongle). Docker vollstaendig kompatibel
+(LUKS ist transparent auf Block-Ebene). docucontrol3 bleibt vorerst unveraendert — LUKS erst ab
+dem naechsten physischen Geraet (DocuControl 4) beim OS-Setup einrichten.
+
+**base.html Modal-Scroll-Fix (2026-06-29):** Autoklavenbuch-Modal scrollt beim Oeffnen automatisch
+nach oben (`mb.scrollTop = 0` in `showAbModal()`).
 
 ---
 

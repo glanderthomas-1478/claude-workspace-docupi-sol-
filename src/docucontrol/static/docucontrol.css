@@ -495,9 +495,17 @@ table.data tbody tr:last-child td { border-bottom: none; }
 .set-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
 .set-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 13px 0; border-bottom: 1px solid var(--border); }
 .set-row:last-child { border-bottom: none; }
+.set-row > * { min-width: 0; }
 .set-row .info .name { font-weight: 600; font-size: 13.5px; }
 .set-row .info .desc { font-size: 12.5px; color: var(--muted); margin-top: 2px; max-width: 52ch; }
 .set-row .value { font-size: 13.5px; }
+/* Steuerelement-Gruppe (Input+Button) einer set-row: darf nie ueber den
+   Karten-Rand hinauslaufen. Ohne min-width:0 verhindert der Flexbox-Default
+   (min-width:auto) das Schrumpfen von Input/Button unter ihre Inhaltsgroesse,
+   wodurch der Button bei breiteren Eingabefeldern (z.B. 220px) rechts
+   abgeschnitten wurde. */
+.set-row > div[style*="display:flex"] { min-width: 0; max-width: 100%; }
+.set-row > div[style*="display:flex"] > input.ctrl { min-width: 0; flex-shrink: 1; }
 .pill-status { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 500; padding: 4px 11px; border-radius: 50px; }
 .pill-status.on { background: var(--success-soft); color: #15724a; }
 .pill-status.on .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success-strong); }

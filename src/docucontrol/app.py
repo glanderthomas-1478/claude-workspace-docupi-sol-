@@ -122,12 +122,12 @@ def _login_locked_out():
 
 
 def _service_logged_in():
+    # Der Service-Dongle allein schaltet den Service-Modus frei - kein
+    # Passwort-Login noetig, solange er physisch steckt.
+    if dongle_present():
+        return True
     if session.get("role") != "service":
         return False
-    if dongle_present():
-        # Solange der Service-Dongle steckt, gilt die Anmeldung als physisch
-        # abgesichert und laeuft nicht per Inaktivitaets-Timeout ab.
-        return True
     if (_time.time() - session.get("last_seen", 0)) > SERVICE_SESSION_TIMEOUT_S:
         session.pop("role", None)
         session.pop("last_seen", None)

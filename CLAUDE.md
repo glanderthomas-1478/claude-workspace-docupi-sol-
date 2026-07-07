@@ -157,7 +157,15 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
   Herkunftsprojekt — Rotation steht wie bei den anderen Geraeten noch aus)
 - NVMe-SSD ist LUKS-verschluesselt und als Root-Dateisystem eingerichtet (`/dev/mapper/cryptroot`),
   automatischer Dongle-Unlock beim Boot verifiziert; SD-Karte bleibt als EEPROM-Fallback
-  (`BOOT_ORDER=0xf416`). Projekt-Code ist noch nicht deployed, nur OS+LUKS-Grundgeruest steht
+  (`BOOT_ORDER=0xf416`)
+- **Projekt-Code deployed** (2026-07-07): `src/docucontrol/` via Docker/docker-compose auf
+  `/home/docucontrol/docupi/` gebracht, Container laeuft, Kiosk zeigt live das echte Dashboard
+  (aktuell noch unveraenderte DocuControl-Sterilisator-Variante als Platzhalter). Zwei Docker-bedingte
+  Bugs im uebernommenen Code gefunden+gefixt: `_root_device_is_nvme()` in `app.py` pruefte `/` im
+  Container (immer `overlay`) statt des Host-Roots — liest jetzt `/hostproc/1/mountinfo`
+  (neuer Bind-Mount in `docker-compose.yml`) und loest bis zur physischen NVMe-Partition durch den
+  LUKS-`dm-mapper` hindurch auf; Chromium-Uebersetzungs-Popup liess sich nicht per Kommandozeilen-Flag
+  abschalten, sondern nur per Chromium-Managed-Policy (`/etc/chromium/policies/managed/docupi-sol.json`)
 - **Kiosk-Aufbau erledigt** (2026-07-07): `cage`+`seatd`+`chromium` installiert, `kiosk.service`
   zeigt Chromium im Kiosk-Modus auf dem physischen Display (`http://localhost:5000`), per Screenshot
   verifiziert. Wichtige Lehre: `getty@tty1.service` muss deaktiviert werden, sonst blockiert es

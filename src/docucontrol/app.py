@@ -1351,8 +1351,43 @@ def api_machine_ping():
 
 
 def _root_device_is_nvme():
-    """True wenn / aktuell von der NVMe-SSD gebootet ist. False bei Boot von der
-    SD-Karte (Notfall-Fallback nach BOOT_ORDER, siehe SSD-Klon-Doku in CLAUDE.md)."""
+    """True wenn / aktuell (auch durch LUKS/dm-mapper hindurch) von der NVMe-SSD
+    gebootet ist. False bei Boot von der SD-Karte (Notfall-Fallback nach
+    BOOT_ORDER, siehe SSD-Klon-Doku in CLAUDE.md).
+
+    Laeuft die App in Docker, ist '/' im Container immer 'overlay' -- die reine
+    findmnt-Abfrage auf '/' liefert dort nie etwas Brauchbares. Stattdessen wird
+    das echte Host-Root ueber die (namespace-uebergreifende) mountinfo-Datei
+    von PID 1 ermittelt und das Major:Minor rekursiv durch sysfs aufgeloest,
+    damit auch ein LUKS-verschluesseltes Root (/dev/mapper/cryptroot) korrekt
+    bis zur physischen NVMe-Partition zurueckverfolgt wird."""
+    major_minor = None
+    for mountinfo_path in ('/hostproc/1/mountinfo', '/proc/1/mountinfo'):
+        try:
+            with open(mountinfo_path) as f:
+                for line in f:
+                    fields = line.split(' - ', 1)[0].split()
+                    if len(fields) >= 5 and fields[4] == '/':
+                        major_minor = fields[2]
+                        break
+        except OSError:
+            continue
+        if major_minor:
+            break
+
+    if major_minor:
+        try:
+            real = os.path.realpath(f'/sys/dev/block/{major_minor}')
+            name = os.path.basename(real)
+            if name.startswith('nvme'):
+                return True
+            slaves_dir = os.path.join(real, 'slaves')
+            if os.path.isdir(slaves_dir):
+                return any(s.startswith('nvme') for s in os.listdir(slaves_dir))
+            return False
+        except OSError:
+            pass
+
     try:
         r = subprocess.run(['findmnt', '-n', '-o', 'SOURCE', '/'], capture_output=True, text=True, timeout=5)
         return 'nvme' in r.stdout

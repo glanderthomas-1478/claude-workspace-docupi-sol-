@@ -6,6 +6,7 @@ services:
       - .:/app
       - /home/docucontrol/docupi/logs:/home/docucontrol/docupi/logs
       - /sys:/sys:ro
+      - /proc:/hostproc:ro
       - /dev:/dev
       - /var/run/cups:/var/run/cups
       - /var/run/dbus:/var/run/dbus

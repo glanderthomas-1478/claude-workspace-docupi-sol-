@@ -173,6 +173,13 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
   bekannten Kiosk-Stolpersteinen bei Pi5_Display/docucontrol3
 - **Beide USB-Dongles fertig** (2026-07-07): identisches Keyfile auf zwei SanDisk-Sticks, per
   `cryptsetup open --test-passphrase` gegengeprueft — beide entsperren die SSD einwandfrei
+- **Service-Dongle-Konzept implementiert** (2026-07-07, User-Vorgabe): Dongle dient NIE als
+  Datenspeicher, Pi laeuft ohne Dongle normal weiter, Dongle wird nur zusaetzlich zum Service-Login
+  fuer das Lesen/Aendern von Daten gebraucht. Beide Sticks per `fatlabel` auf Label `SOLDONGLE`
+  vereinheitlicht; `storage_manager.py` `detect_usb_device()` ignoriert dieses Label (nie als
+  USB-Datenspeicher erkannt), neue Funktion `dongle_present()`; `app.py` `_require_service()` verlangt
+  jetzt zusaetzlich `dongle_present()` — ohne Dongle liefert jede geschuetzte Aktion 403 trotz
+  gueltiger Anmeldung. Mit beiden Dongles gegengetestet (erlaubt/blockiert je nach Anwesenheit)
 - Die in diesem Repo wiederverwendete Codebasis (`src/docucontrol/`) stammt von den Herkunfts-Geraeten
   (DocuControl .171, Pi5_Display .218, docucontrol3 .11) des Projekts `claude-workspace-docupi` — deren
   Zugangsdaten/IPs/Betriebshistorie gehoeren NICHT zu SOL und werden hier nicht dupliziert (siehe

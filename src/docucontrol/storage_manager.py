@@ -87,8 +87,25 @@ def _mountpoint_source(mountpoint):
     return None
 
 
+DONGLE_LABEL = "SOLDONGLE"  # Label der beiden LUKS-Service-Dongles - nie als Datenspeicher nutzen
+
+
+def _is_service_dongle(devname):
+    """True wenn /dev/<devname> einer der beiden LUKS-Service-Dongles ist (per Label erkannt)."""
+    ok, out, _ = _run(f"sudo /usr/sbin/blkid -s LABEL -o value /dev/{devname}")
+    return ok and out.strip() == DONGLE_LABEL
+
+
+def dongle_present():
+    """True wenn aktuell ein LUKS-Service-Dongle (Label SOLDONGLE) am Pi angeschlossen ist.
+    Fuer das 'Service Dongle'-Konzept: manche Service-Aktionen erfordern zusaetzlich zur
+    Service-Anmeldung, dass der physische Dongle gerade eingesteckt ist."""
+    ok, out, _ = _run(f"sudo /usr/sbin/blkid -o value -t LABEL={DONGLE_LABEL}")
+    return ok and bool(out.strip())
+
+
 def detect_usb_device():
-    """Find USB block device (not mmcblk = SD card)."""
+    """Find USB block device (not mmcblk = SD card, not einer der LUKS-Service-Dongles)."""
     ok, out, _ = _run("lsblk -rno NAME,TYPE,RM,MOUNTPOINT | grep 'part 1'")
     if not ok:
         return None
@@ -96,8 +113,11 @@ def detect_usb_device():
         parts = line.split()
         if len(parts) >= 3:
             name = parts[0]
-            if not name.startswith("mmcblk") and not name.startswith("zram") and not name.startswith("loop"):
-                return f"/dev/{name}"
+            if name.startswith("mmcblk") or name.startswith("zram") or name.startswith("loop"):
+                continue
+            if _is_service_dongle(name):
+                continue
+            return f"/dev/{name}"
     return None
 
 

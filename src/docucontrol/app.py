@@ -30,7 +30,7 @@ from storage_manager import (
     list_files, get_storage_stats, sync_pdfs_to_usb,
     load_sync_config, save_sync_config, start_auto_sync,
     delete_file, delete_directory, copy_file,
-    try_mount_usb_on_boot,
+    try_mount_usb_on_boot, dongle_present,
     SD_PDF_DIR, USB_MOUNT_POINT, USB_PDF_SUBDIR, USB_CAPTURE_SUBDIR)
 from network_storage_manager import (
     load_network_config, save_network_config, get_network_storage_status,
@@ -134,6 +134,8 @@ def _service_logged_in():
 def _require_service():
     if not _service_logged_in():
         return jsonify({"ok": False, "success": False, "message": "Service-Anmeldung erforderlich"}), 403
+    if not dongle_present():
+        return jsonify({"ok": False, "success": False, "message": "Service-Dongle erforderlich"}), 403
     return None
 
 

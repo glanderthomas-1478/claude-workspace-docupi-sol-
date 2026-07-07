@@ -35,8 +35,12 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
   (analog zum Autoklavenbuch-Formular bei docucontrol3)
 - Echtzeit-Dashboard im Browser anzeigt (wiederverwendet aus DocuControl)
 - PDF-Dokumentation mit Temperaturchart generiert (wiederverwendet aus DocuControl-PDF/Chart-Pipeline)
-- Per **USB-Dongle abgesichert** wird (LUKS-Verschluesselung, siehe `scripts/setup_luks_nvme.sh` —
-  bereits aus dem Herkunftsprojekt vorbereitet, hier von Anfang an vorgesehen statt nachtraeglich)
+- Per **zwei identischen USB-Dongles** abgesichert wird (LUKS-Verschluesselung zum
+  Software-/Quellcode-Schutz, 2026-07-07 vom User bestaetigt/korrigiert): **eine** Keyfile-Kopie auf
+  zwei physische USB-Sticks dupliziert (Redundanz falls einer verloren geht/kaputt ist) — **ein**
+  Dongle reicht zum Entschluesseln, kein zweiter Key-Slot noetig. Referenzskript
+  `scripts/setup_luks_nvme.sh` muss dafuer nur um einen Kopier-Schritt (Keyfile auf zweiten Stick)
+  ergaenzt werden, keine LUKS-Struktur-Aenderung noetig
 
 ### Offene Entscheidungen (Stand 2026-07-07)
 
@@ -46,9 +50,15 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
   `serial_receiver.py`/`wd_protocol_parser.py` aus dem Herkunftsprojekt) gebraucht wird
 - **Dokumentationsfelder:** Minimal bestaetigt (Flaschen-ID, Zeitstempel, Temperaturverlauf);
   Bediener/Fuelldruck/weitere Prozesswerte noch offen
-- **Hardware:** noch nicht beschafft — reine Vorbereitung/Planung. Kein physisches SOL-Geraet aktiv.
-- **Git-Remote:** zeigt noch auf `lordboombastic/claude-workspace-docupi` (Herkunftsprojekt) — vor
-  dem ersten Push fuer SOL muss ein eigenes Remote-Repo angelegt/umgestellt werden
+- **Hardware:** **erstes Geraet in Betrieb** (2026-07-07) — Raspberry Pi 5, Hostname `DocuControlSOL`,
+  IP 192.168.0.172, SSH-User `docucontrol`. Root laeuft LUKS-verschluesselt von NVMe-SSD
+  (`/dev/mapper/cryptroot`), automatisch entsperrt durch einen USB-Dongle beim Boot (verifiziert per
+  Reboot-Test), SD-Karte bleibt als EEPROM-Boot-Fallback. **Projekt-Code (`src/docucontrol/`) ist
+  noch NICHT auf dem Geraet** — bisher nur OS + LUKS-Setup
+- **Zweiter USB-Dongle:** noch nicht angelegt — Keyfile `docupi-sol.key` liegt bisher nur auf einem
+  Stick, muss 1:1 auf einen zweiten identischen Stick kopiert werden (Redundanz)
+- **Git-Remote:** **erledigt** — eigenes privates Repo `glanderthomas-1478/claude-workspace-docupi-sol-`
+  angelegt, Origin umgestellt, erster Commit gepusht (2026-07-07)
 
 ---
 
@@ -125,7 +135,7 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
     ├── migrate_sd_to_nvme.sh  # SD → NVMe Migration (Referenzskript, gilt auch fuer SOL-Hardware-Setup)
     ├── clone_ssd_to_sd.sh     # SSD → SD Klon (Notfall-Backup, gilt auch fuer SOL)
     ├── setup_kiosk_display.sh # Kiosk-Display-Setup (Referenzskript, gilt auch fuer SOL)
-    ├── setup_luks_nvme.sh     # LUKS-Verschluesselung — fuer SOL von Anfang an vorgesehen (USB-Dongle-Unlock)
+    ├── setup_luks_nvme.sh     # LUKS-Verschluesselung — Referenz, muss fuer SOL auf 2 USB-Dongle-Slots erweitert werden (bisher 1 Dongle + Backup-Passphrase)
     └── saia_test_toolkit/     # Referenz: SAIA-S-Bus-Testtools (Herkunftsprojekt, fuer SOL nicht relevant)
 ```
 
@@ -142,9 +152,13 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
 
 ## Wichtiger Kontext
 
-- Hardware-Plan SOL: Raspberry Pi 5 + SSD (NVMe, analog docucontrol3/Pi5_Display) + Display (Kiosk,
-  cage+Chromium) + **USB-Dongle fuer LUKS-Entschluesselung** — noch nicht beschafft/aufgebaut
-- Kein physisches SOL-Geraet aktiv, keine SSH-Zugangsdaten fuer dieses Projekt vorhanden
+- **Erstes SOL-Geraet in Betrieb** (2026-07-07): Raspberry Pi 5, Hostname `DocuControlSOL`,
+  SSH `docucontrol@192.168.0.172` (Passwort aktuell identisch mit dem Fleet-Standard-Passwort aus dem
+  Herkunftsprojekt — Rotation steht wie bei den anderen Geraeten noch aus)
+- NVMe-SSD ist LUKS-verschluesselt und als Root-Dateisystem eingerichtet (`/dev/mapper/cryptroot`),
+  automatischer Dongle-Unlock beim Boot verifiziert; SD-Karte bleibt als EEPROM-Fallback
+  (`BOOT_ORDER=0xf416`). Projekt-Code ist noch nicht deployed, nur OS+LUKS-Grundgeruest steht
+- Display/Kiosk-Aufbau (cage+Chromium) noch nicht eingerichtet, ebenso zweiter USB-Dongle
 - Die in diesem Repo wiederverwendete Codebasis (`src/docucontrol/`) stammt von den Herkunfts-Geraeten
   (DocuControl .171, Pi5_Display .218, docucontrol3 .11) des Projekts `claude-workspace-docupi` — deren
   Zugangsdaten/IPs/Betriebshistorie gehoeren NICHT zu SOL und werden hier nicht dupliziert (siehe
@@ -178,9 +192,12 @@ Fuer SOL direkt wiederverwendbar (aus `src/docucontrol/`):
   einplanen statt nachtraeglich patchen
 - **Bildschirmschoner/Boot-Splash**: Mechanismus (base.html `_screensaverWake`, Plymouth-Theme-Ersatz)
   wiederverwendbar, Branding/Logo muesste auf SOL-Identitaet umgestellt werden
-- **`scripts/setup_luks_nvme.sh`**: LUKS-Verschluesselung mit USB-Dongle-Unlock + Backup-Passphrase —
-  fuer SOL **von Anfang an** Teil des Hardware-Setups (nicht erst nachtraeglich wie urspruenglich fuer
-  "DocuControl 4" geplant)
+- **`scripts/setup_luks_nvme.sh`**: LUKS-Verschluesselung, fuer SOL **von Anfang an** Teil des
+  Hardware-Setups (nicht erst nachtraeglich wie urspruenglich fuer "DocuControl 4" geplant) —
+  **kleine Anpassung noetig**: bisher wird das Keyfile nur auf einen Stick geschrieben (Slot 0) +
+  Backup-Passphrase (Slot 1); fuer SOL zusaetzlich dieselbe Keyfile-Datei 1:1 auf einen zweiten
+  Stick kopieren (Redundanz-Dongle), keine LUKS-Struktur-/Slot-Aenderung noetig, da beide Sticks
+  identisch sind und jeder allein zum Entschluesseln reicht
 - **`scripts/migrate_sd_to_nvme.sh`, `clone_ssd_to_sd.sh`, `setup_kiosk_display.sh`**: Referenzskripte
   fuer Pi5-SSD-Boot-Setup + Kiosk-Display, gelten unveraendert auch fuer SOL-Hardware
 

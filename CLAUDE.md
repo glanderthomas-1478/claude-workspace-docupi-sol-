@@ -180,6 +180,17 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
   USB-Datenspeicher erkannt), neue Funktion `dongle_present()`; `app.py` `_require_service()` verlangt
   jetzt zusaetzlich `dongle_present()` — ohne Dongle liefert jede geschuetzte Aktion 403 trotz
   gueltiger Anmeldung. Mit beiden Dongles gegengetestet (erlaubt/blockiert je nach Anwesenheit)
+- **SSH-Login zusaetzlich an den Dongle gekoppelt** (2026-07-07, User-Vorgabe: Software darf ohne
+  Dongle weder ausgelesen noch veraendert werden koennen): PAM-Regel in `/etc/pam.d/sshd`
+  (`account required pam_exec.so /usr/local/bin/check-service-dongle.sh`, Referenzkopie in
+  `scripts/check-service-dongle.sh`) lehnt SSH-Logins ohne SOLDONGLE-Stick komplett ab — sicher
+  getestet (neue Verbindung mit Dongle: ok; Label temporaer entfernt: Verbindung sofort
+  abgelehnt, danach restauriert). **Wichtige Voraussetzung dafuer geschaffen:** da `getty@tty1`
+  fuer den Kiosk deaktiviert ist, war SSH der einzige Zugangsweg — vor der PAM-Aenderung wurde
+  `getty@tty2.service` als physischer Not-Konsolenzugang aktiviert (Strg+Alt+F2 am Geraet,
+  unabhaengig von der SSH-Dongle-Pflicht, da `/etc/pam.d/login` nicht angepasst wurde). SD-Karte
+  wurde vorsorglich auf Restsoftware geprueft — enthaelt keinerlei App-Code (Deployment erfolgte
+  erst nach der SSD-Migration)
 - Die in diesem Repo wiederverwendete Codebasis (`src/docucontrol/`) stammt von den Herkunfts-Geraeten
   (DocuControl .171, Pi5_Display .218, docucontrol3 .11) des Projekts `claude-workspace-docupi` — deren
   Zugangsdaten/IPs/Betriebshistorie gehoeren NICHT zu SOL und werden hier nicht dupliziert (siehe

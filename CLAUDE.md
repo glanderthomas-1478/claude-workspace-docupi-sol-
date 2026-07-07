@@ -35,12 +35,14 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
   (analog zum Autoklavenbuch-Formular bei docucontrol3)
 - Echtzeit-Dashboard im Browser anzeigt (wiederverwendet aus DocuControl)
 - PDF-Dokumentation mit Temperaturchart generiert (wiederverwendet aus DocuControl-PDF/Chart-Pipeline)
-- Per **zwei identischen USB-Dongles** abgesichert wird (LUKS-Verschluesselung zum
-  Software-/Quellcode-Schutz, 2026-07-07 vom User bestaetigt/korrigiert): **eine** Keyfile-Kopie auf
-  zwei physische USB-Sticks dupliziert (Redundanz falls einer verloren geht/kaputt ist) — **ein**
-  Dongle reicht zum Entschluesseln, kein zweiter Key-Slot noetig. Referenzskript
-  `scripts/setup_luks_nvme.sh` muss dafuer nur um einen Kopier-Schritt (Keyfile auf zweiten Stick)
-  ergaenzt werden, keine LUKS-Struktur-Aenderung noetig
+- Per **zwei identischen USB-Dongles** als Service-Techniker-Zugriffskontrolle abgesichert wird
+  (2026-07-07 vom User mehrfach praezisiert): **eine** Keyfile-Kopie auf zwei physische USB-Sticks
+  dupliziert (Redundanz). **Wichtig — finales Modell (2026-07-07):** Der Pi bootet im Normalbetrieb
+  automatisch OHNE Dongle (Keyfile zusaetzlich auf der unverschluesselten Boot-Partition, LUKS ist
+  also kein Boot-Gate mehr) — der Dongle wird stattdessen fuer **SSH-Zugriff** (PAM-Regel) und fuer
+  **Service-Aktionen in der Web-App** (Aendern/Loeschen von Daten) zwingend gebraucht. Damit kann
+  ein Anwender die Anlage taeglich nutzen ohne Dongle, aber nur ein Service-Techniker mit Dongle
+  kommt an Software/Konfiguration heran
 
 ### Offene Entscheidungen (Stand 2026-07-07)
 
@@ -52,11 +54,10 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
   Bediener/Fuelldruck/weitere Prozesswerte noch offen
 - **Hardware:** **erstes Geraet in Betrieb** (2026-07-07) — Raspberry Pi 5, Hostname `DocuControlSOL`,
   IP 192.168.0.172, SSH-User `docucontrol`. Root laeuft LUKS-verschluesselt von NVMe-SSD
-  (`/dev/mapper/cryptroot`), automatisch entsperrt durch einen USB-Dongle beim Boot (verifiziert per
-  Reboot-Test), SD-Karte bleibt als EEPROM-Boot-Fallback. **Projekt-Code (`src/docucontrol/`) ist
-  noch NICHT auf dem Geraet** — bisher nur OS + LUKS-Setup
-- **Zweiter USB-Dongle:** noch nicht angelegt — Keyfile `docupi-sol.key` liegt bisher nur auf einem
-  Stick, muss 1:1 auf einen zweiten identischen Stick kopiert werden (Redundanz)
+  (`/dev/mapper/cryptroot`), bootet seit der finalen Umstellung automatisch (Keyfile auf
+  Boot-Partition, s.o.), SD-Karte bleibt als EEPROM-Boot-Fallback. Projekt-Code (`src/docucontrol/`),
+  Kiosk (cage+Chromium) und beide Dongles sind fertig eingerichtet — Details siehe
+  `context/current-data.md`
 - **Git-Remote:** **erledigt** — eigenes privates Repo `glanderthomas-1478/claude-workspace-docupi-sol-`
   angelegt, Origin umgestellt, erster Commit gepusht (2026-07-07)
 
@@ -156,8 +157,8 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
   SSH `docucontrol@192.168.0.172` (Passwort aktuell identisch mit dem Fleet-Standard-Passwort aus dem
   Herkunftsprojekt — Rotation steht wie bei den anderen Geraeten noch aus)
 - NVMe-SSD ist LUKS-verschluesselt und als Root-Dateisystem eingerichtet (`/dev/mapper/cryptroot`),
-  automatischer Dongle-Unlock beim Boot verifiziert; SD-Karte bleibt als EEPROM-Fallback
-  (`BOOT_ORDER=0xf416`)
+  bootet seit 2026-07-07 automatisch ohne Dongle (Keyfile zusaetzlich auf der Boot-Partition, siehe
+  "Boot ohne Dongle"-Eintrag unten); SD-Karte bleibt als EEPROM-Fallback (`BOOT_ORDER=0xf416`)
 - **Projekt-Code deployed** (2026-07-07): `src/docucontrol/` via Docker/docker-compose auf
   `/home/docucontrol/docupi/` gebracht, Container laeuft, Kiosk zeigt live das echte Dashboard
   (aktuell noch unveraenderte DocuControl-Sterilisator-Variante als Platzhalter). Zwei Docker-bedingte
@@ -205,6 +206,19 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
 - Fix: Settings-Karten hatten einen Flexbox-Overflow-Bug (`.set-row`-Kinder ohne `min-width:0`) —
   der "Setzen"-Button lief bei 220px-breiten Eingabefeldern (Anlage-Karte: Maschinenname/Standort)
   ueber den Kartenrand hinaus und wurde abgeschnitten. In `docucontrol.css` gefixt (2026-07-07)
+- Fix: `kiosk.service` war fuer `graphical.target` aktiviert, gebootet wird aber in
+  `multi-user.target` — Kiosk startete deshalb bei echten Reboots nie automatisch (wirkte wie ein
+  Boot-Haenger). Fix: `WantedBy=multi-user.target`, per Kaltstart-Reboot verifiziert (2026-07-07)
+- **Boot ohne Dongle (finales Modell, 2026-07-07, User-Vorgabe "Service-Techniker"):** Pi soll im
+  Normalbetrieb ganz ohne Dongle laufen, Software-Zugriff (SSH, Aenderungen) aber weiterhin einen
+  Dongle erfordern. Umsetzung: `docupi-sol.key` zusaetzlich auf `/boot/firmware/` (unverschluesselte
+  Boot-Partition) hinterlegt, Keyscript prueft das zuerst (sofort, kein Warten mehr), danach
+  USB-Dongle, danach Passphrase; initramfs neu gebaut. **Per echtem Reboot ganz ohne Dongle
+  verifiziert:** Pi bootet automatisch, SSH bleibt trotzdem blockiert (`Connection closed`),
+  Web-App-Service-Aktionen bleiben blockiert (`"Service-Dongle erforderlich"`). Nebeneffekt: die
+  LUKS-Verschluesselung selbst bietet dadurch keinen Offline-Diebstahlschutz mehr (Schluessel liegt
+  auf derselben Platte) — Schutzziel wird jetzt vollstaendig von SSH-PAM-Sperre + Service-Dongle-Gate
+  getragen, nicht mehr von der Verschluesselung als Boot-Voraussetzung
 - Die in diesem Repo wiederverwendete Codebasis (`src/docucontrol/`) stammt von den Herkunfts-Geraeten
   (DocuControl .171, Pi5_Display .218, docucontrol3 .11) des Projekts `claude-workspace-docupi` — deren
   Zugangsdaten/IPs/Betriebshistorie gehoeren NICHT zu SOL und werden hier nicht dupliziert (siehe

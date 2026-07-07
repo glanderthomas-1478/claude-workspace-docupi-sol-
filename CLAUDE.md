@@ -188,6 +188,16 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
   USB-Datenspeicher erkannt), neue Funktion `dongle_present()`; `app.py` `_require_service()` verlangt
   jetzt zusaetzlich `dongle_present()` — ohne Dongle liefert jede geschuetzte Aktion 403 trotz
   gueltiger Anmeldung. Mit beiden Dongles gegengetestet (erlaubt/blockiert je nach Anwesenheit)
+- **Passwort-Login komplett entfernt** (2026-07-07, User-Vorgabe: "wir nutzen zum Einstellen
+  ausschliesslich das Dongle"): `_service_logged_in()` in `app.py` ist jetzt nur noch
+  `return dongle_present()` — kein Passwort, keine Session, kein Timeout mehr. Entfernt:
+  `/api/auth/login`, `/api/auth/logout`, `/api/auth/touch`, Brute-Force-Schutz
+  (`_login_locked_out()`), Session-Timeout-Konstanten. `auth_secrets.json` enthaelt nur noch den
+  Flask-`secret_key`. Frontend (`base.html`): Login-Button/-Modal/Countdown/Abmelden entfernt,
+  Topbar zeigt nur noch ein Badge "Service-Modus (Dongle)" wenn der Dongle steckt — sonst nichts.
+  `.locked-card`-Freischaltung in `settings.html` (ueber `window.AUTH.role`/`onAuthChange`) bleibt
+  unveraendert kompatibel. Getestet: geschuetzte Aktionen funktionieren komplett ohne Cookie/Login,
+  rein durch Dongle-Anwesenheit
 - **SSH-Login zusaetzlich an den Dongle gekoppelt** (2026-07-07, User-Vorgabe: Software darf ohne
   Dongle weder ausgelesen noch veraendert werden koennen): PAM-Regel in `/etc/pam.d/sshd`
   (`account required pam_exec.so /usr/local/bin/check-service-dongle.sh`, Referenzkopie in

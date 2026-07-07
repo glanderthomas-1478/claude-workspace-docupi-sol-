@@ -19,15 +19,8 @@
     <div class="topbar-right">
         <span class="alert-widget" id="alertWidget"></span>
         <span class="auth-widget" id="authWidget">
-            <button class="auth-btn" id="authLoginBtn" onclick="authOpenLogin()">
-                <i class="bi bi-person-lock"></i> Anmelden
-            </button>
-            <span class="auth-status" id="authServiceStatus" style="display:none">
-                <i class="bi bi-person-check-fill"></i> Service
-                <span class="auth-countdown" id="authCountdown">5:00</span>
-                <button class="auth-logout" id="authLogoutBtn" onclick="authLogout()" title="Abmelden">
-                    <i class="bi bi-box-arrow-right"></i>
-                </button>
+            <span class="auth-status" id="authServiceStatus" style="display:none" title="Service-Modus aktiv (Dongle gesteckt)">
+                <i class="bi bi-shield-lock-fill"></i> Service-Modus (Dongle)
             </span>
         </span>
         <span class="topbar-clock">
@@ -37,27 +30,6 @@
             <span class="bartime" id="barTime">--:--:--</span>
         </span>
     </div>
-</div>
-
-<!-- Service-Anmeldung -->
-<div class="modal-overlay" id="authLoginOverlay" onclick="authCloseLogin(event)">
-  <div class="modal" style="max-width:340px">
-    <div class="modal-head">
-      <div class="mi"><i class="bi bi-person-lock"></i></div>
-      <div><h3>Service-Anmeldung</h3></div>
-    </div>
-    <div class="modal-body">
-      <form id="authLoginForm" onsubmit="authSubmitLogin(event)" autocomplete="off">
-        <input type="password" id="authPasswordInput" class="form-control" placeholder="Passwort" autocomplete="off"
-               style="width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-size:15px">
-        <div id="authLoginError" style="color:var(--danger);font-size:13px;margin-top:8px;display:none">Falsches Passwort</div>
-      </form>
-    </div>
-    <div class="modal-foot">
-      <button class="btn btn-outline" type="button" onclick="authCloseLogin()">Abbrechen</button>
-      <button class="btn btn-primary" type="button" onclick="authSubmitLogin()">Anmelden</button>
-    </div>
-  </div>
 </div>
 
 <!-- Navstrip -->
@@ -220,108 +192,15 @@
 
     function applyStatus(d) {
         window.AUTH.role = d.role || 'user';
-        window.AUTH.remaining = d.remaining_seconds || 0;
         window.AUTH.dongle = !!d.dongle;
-        var btn = document.getElementById('authLoginBtn');
         var status = document.getElementById('authServiceStatus');
-        if (window.AUTH.role === 'service') {
-            btn.style.display = 'none';
-            status.style.display = '';
-            var el = document.getElementById('authCountdown');
-            if (window.AUTH.dongle) {
-                el.textContent = '∞ (Dongle)';
-            } else {
-                var m = Math.floor(window.AUTH.remaining / 60);
-                var s = window.AUTH.remaining % 60;
-                el.textContent = m + ':' + (s < 10 ? '0' : '') + s;
-            }
-        } else {
-            btn.style.display = '';
-            status.style.display = 'none';
-        }
+        status.style.display = (window.AUTH.role === 'service') ? '' : 'none';
         notify();
     }
 
     function refreshStatus() {
         fetch('/api/auth/status').then(function(r) { return r.json(); }).then(applyStatus).catch(function() {});
     }
-
-    window.authOpenLogin = function() {
-        document.getElementById('authLoginError').style.display = 'none';
-        document.getElementById('authPasswordInput').value = '';
-        document.getElementById('authLoginOverlay').classList.add('show');
-        setTimeout(function() {
-            var inp = document.getElementById('authPasswordInput');
-            if (inp) inp.focus();
-        }, 50);
-    };
-
-    window.authCloseLogin = function(e) {
-        if (e && e.target !== document.getElementById('authLoginOverlay')) return;
-        document.getElementById('authLoginOverlay').classList.remove('show');
-    };
-
-    window.authSubmitLogin = function(e) {
-        if (e && e.preventDefault) e.preventDefault();
-        var pw = document.getElementById('authPasswordInput').value;
-        fetch('/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ password: pw })
-        }).then(function(r) { return r.json().then(function(d) { return { status: r.status, data: d }; }); })
-          .then(function(res) {
-            if (res.data.ok) {
-                applyStatus({ role: res.data.role, remaining_seconds: res.data.remaining_seconds });
-                window.authCloseLogin();
-            } else {
-                document.getElementById('authLoginError').style.display = '';
-            }
-        }).catch(function() {
-            document.getElementById('authLoginError').style.display = '';
-        });
-    };
-
-    window.authLogout = function() {
-        fetch('/api/auth/logout', { method: 'POST' }).then(function() {
-            applyStatus({ role: 'user', remaining_seconds: 0 });
-        }).catch(function() {});
-    };
-
-    var touchPending = false;
-    function touchSession() {
-        if (window.AUTH.role !== 'service' || touchPending) return;
-        touchPending = true;
-        fetch('/api/auth/touch', { method: 'POST' }).then(function(r) { return r.json(); })
-            .then(function(d) {
-                touchPending = false;
-                if (d.ok) {
-                    window.AUTH.remaining = d.remaining_seconds;
-                    window.AUTH.dongle = !!d.dongle;
-                }
-            }).catch(function() { touchPending = false; });
-    }
-    ['pointerdown', 'touchstart', 'keydown'].forEach(function(evt) {
-        document.addEventListener(evt, touchSession, { passive: true });
-    });
-
-    var dongleCheckTick = 0;
-    setInterval(function() {
-        if (window.AUTH.role === 'service' && window.AUTH.dongle) {
-            // Dongle steckt: Anmeldung laeuft nicht ab, kein Countdown noetig,
-            // aber alle 10s pruefen ob der Dongle inzwischen gezogen wurde.
-            dongleCheckTick = (dongleCheckTick + 1) % 10;
-            if (dongleCheckTick === 0) refreshStatus();
-            return;
-        }
-        if (window.AUTH.role === 'service' && window.AUTH.remaining > 0) {
-            window.AUTH.remaining -= 1;
-            var m = Math.floor(window.AUTH.remaining / 60);
-            var s = window.AUTH.remaining % 60;
-            var el = document.getElementById('authCountdown');
-            if (el) el.textContent = m + ':' + (s < 10 ? '0' : '') + s;
-            if (window.AUTH.remaining <= 0) refreshStatus();
-        }
-    }, 1000);
 
     refreshStatus();
     setInterval(refreshStatus, 10000);

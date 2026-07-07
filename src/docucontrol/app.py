@@ -1,6 +1,6 @@
 import os, sys, logging, shutil, subprocess, signal, atexit, time as _time
 from datetime import datetime
-from flask import Flask, render_template, request, jsonify, send_file, redirect, make_response, url_for, Response, session
+from flask import Flask, render_template, request, jsonify, send_file, redirect, make_response, url_for, Response
 from flask_socketio import SocketIO
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # Machine identity kommt aus config.json (machine.name / machine.protocol)
@@ -46,9 +46,11 @@ run_health_check()
 
 
 def _load_or_create_auth_secrets():
-    """Flask-SECRET_KEY und Service-Passwort werden NICHT im Quellcode
-    hinterlegt, sondern beim ersten Start generiert/persistiert (analog zu
-    network_share.cred). Datei liegt ausserhalb des Git-Repos, chmod 600."""
+    """Flask-SECRET_KEY (fuer Session-Cookies, z.B. Flash-Messages) wird NICHT
+    im Quellcode hinterlegt, sondern beim ersten Start generiert/persistiert.
+    Datei liegt ausserhalb des Git-Repos, chmod 600. Der Service-Modus selbst
+    braucht kein Passwort mehr - er wird ausschliesslich ueber den physischen
+    Service-Dongle freigeschaltet (siehe dongle_present())."""
     import json as _json_secrets
     import secrets as _secrets_mod
     secrets_file = "/home/docucontrol/docupi/data/auth_secrets.json"
@@ -56,17 +58,16 @@ def _load_or_create_auth_secrets():
         try:
             with open(secrets_file) as f:
                 d = _json_secrets.load(f)
-            if d.get("secret_key") and d.get("service_password"):
-                return d["secret_key"], d["service_password"]
+            if d.get("secret_key"):
+                return d["secret_key"]
         except Exception:
             pass
     key = _secrets_mod.token_hex(32)
-    pw = "Xtend1478"  # Anfangswert - danach in data/auth_secrets.json aenderbar
     os.makedirs(os.path.dirname(secrets_file), exist_ok=True)
     with open(secrets_file, "w") as f:
-        _json_secrets.dump({"secret_key": key, "service_password": pw}, f)
+        _json_secrets.dump({"secret_key": key}, f)
     os.chmod(secrets_file, 0o600)
-    return key, pw
+    return key
 
 
 def _ensure_self_signed_cert():
@@ -96,7 +97,7 @@ def _ensure_self_signed_cert():
 
 
 app = Flask(__name__)
-app.config["SECRET_KEY"], SERVICE_PASSWORD = _load_or_create_auth_secrets()
+app.config["SECRET_KEY"] = _load_or_create_auth_secrets()
 # CSRF-Haertung: Session-Cookie wird nicht bei Cross-Site-Requests mitgesendet
 # (kein HTTPS hier, daher SESSION_COOKIE_SECURE bewusst nicht gesetzt - sonst
 # wuerde der Browser das Cookie ueber http:// gar nicht mehr senden).
@@ -107,37 +108,16 @@ app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 socketio = SocketIO(app, async_mode="threading")
 receiver = SerialReceiver(socketio=socketio)
 
-# --- Service-Anmeldung (Einstellungen-Sperre) ---
-SERVICE_SESSION_TIMEOUT_S = 300
-LOGIN_MAX_ATTEMPTS = 5
-LOGIN_LOCKOUT_S = 300
-_login_failures = []  # Liste von Timestamps fehlgeschlagener Versuche (in-memory)
-
-
-def _login_locked_out():
-    now = _time.time()
-    while _login_failures and (now - _login_failures[0]) > LOGIN_LOCKOUT_S:
-        _login_failures.pop(0)
-    return len(_login_failures) >= LOGIN_MAX_ATTEMPTS
+# --- Service-Modus (Einstellungen-Sperre) ---
+# Kein Passwort-Login mehr: der Service-Modus wird ausschliesslich durch den
+# physischen Service-Dongle (USB-Stick, Label SOLDONGLE) freigeschaltet.
 
 
 def _service_logged_in():
-    # Der Service-Dongle allein schaltet den Service-Modus frei - kein
-    # Passwort-Login noetig, solange er physisch steckt.
-    if dongle_present():
-        return True
-    if session.get("role") != "service":
-        return False
-    if (_time.time() - session.get("last_seen", 0)) > SERVICE_SESSION_TIMEOUT_S:
-        session.pop("role", None)
-        session.pop("last_seen", None)
-        return False
-    return True
+    return dongle_present()
 
 
 def _require_service():
-    if not _service_logged_in():
-        return jsonify({"ok": False, "success": False, "message": "Service-Anmeldung erforderlich"}), 403
     if not dongle_present():
         return jsonify({"ok": False, "success": False, "message": "Service-Dongle erforderlich"}), 403
     return None
@@ -145,55 +125,9 @@ def _require_service():
 
 @app.route("/api/auth/status")
 def api_auth_status():
-    if _service_logged_in():
-        remaining = max(0, SERVICE_SESSION_TIMEOUT_S - (_time.time() - session.get("last_seen", 0)))
-        return jsonify({"role": "service", "remaining_seconds": int(remaining), "dongle": dongle_present()})
-    return jsonify({"role": "user", "remaining_seconds": 0, "dongle": dongle_present()})
-
-
-@app.route("/api/auth/login", methods=["POST"])
-def api_auth_login():
-    if _login_locked_out():
-        wait_s = int(LOGIN_LOCKOUT_S - (_time.time() - _login_failures[0]))
-        log_event("WARN", f"Service-Anmeldung gesperrt (zu viele Fehlversuche, noch {wait_s}s)")
-        return jsonify({"ok": False, "message": f"Zu viele Fehlversuche. Bitte {wait_s}s warten."}), 429
-    d = request.get_json(silent=True) or {}
-    pw = (d.get("password") or "").strip()
-    # Optionales zweites Testpasswort - nur fuer Testzwecke, wird ueber ein
-    # zusaetzliches Feld in auth_secrets.json gesetzt/entfernt, kein Redeploy
-    # noetig zum Entfernen (Feld einfach wieder loeschen).
-    test_pw = None
-    try:
-        import json as _json_test
-        with open("/home/docucontrol/docupi/data/auth_secrets.json") as f:
-            test_pw = _json_test.load(f).get("service_password_test")
-    except Exception:
-        pass
-    if pw == SERVICE_PASSWORD or (test_pw and pw == test_pw):
-        _login_failures.clear()
-        session["role"] = "service"
-        session["last_seen"] = _time.time()
-        log_event("INFO", "Service-Anmeldung erfolgreich")
-        return jsonify({"ok": True, "role": "service", "remaining_seconds": SERVICE_SESSION_TIMEOUT_S,
-                         "dongle": dongle_present()})
-    _login_failures.append(_time.time())
-    log_event("WARN", "Service-Anmeldung fehlgeschlagen (falsches Passwort)")
-    return jsonify({"ok": False, "message": "Falsches Passwort"}), 401
-
-
-@app.route("/api/auth/logout", methods=["POST"])
-def api_auth_logout():
-    session.pop("role", None)
-    session.pop("last_seen", None)
-    return jsonify({"ok": True})
-
-
-@app.route("/api/auth/touch", methods=["POST"])
-def api_auth_touch():
-    if _service_logged_in():
-        session["last_seen"] = _time.time()
-        return jsonify({"ok": True, "remaining_seconds": SERVICE_SESSION_TIMEOUT_S, "dongle": dongle_present()})
-    return jsonify({"ok": False}), 401
+    if dongle_present():
+        return jsonify({"role": "service", "dongle": True})
+    return jsonify({"role": "user", "dongle": False})
 
 
 def _on_pending_charge(protocol_id, metadata):

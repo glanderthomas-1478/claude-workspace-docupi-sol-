@@ -158,7 +158,13 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
 - NVMe-SSD ist LUKS-verschluesselt und als Root-Dateisystem eingerichtet (`/dev/mapper/cryptroot`),
   automatischer Dongle-Unlock beim Boot verifiziert; SD-Karte bleibt als EEPROM-Fallback
   (`BOOT_ORDER=0xf416`). Projekt-Code ist noch nicht deployed, nur OS+LUKS-Grundgeruest steht
-- Display/Kiosk-Aufbau (cage+Chromium) noch nicht eingerichtet, ebenso zweiter USB-Dongle
+- **Kiosk-Aufbau erledigt** (2026-07-07): `cage`+`seatd`+`chromium` installiert, `kiosk.service`
+  zeigt Chromium im Kiosk-Modus auf dem physischen Display (`http://localhost:5000`), per Screenshot
+  verifiziert. Wichtige Lehre: `getty@tty1.service` muss deaktiviert werden, sonst blockiert es
+  `/dev/tty1` parallel zu cage (Service lief scheinbar, aber Chromium startete nie) — analog zu
+  bekannten Kiosk-Stolpersteinen bei Pi5_Display/docucontrol3
+- **Beide USB-Dongles fertig** (2026-07-07): identisches Keyfile auf zwei SanDisk-Sticks, per
+  `cryptsetup open --test-passphrase` gegengeprueft — beide entsperren die SSD einwandfrei
 - Die in diesem Repo wiederverwendete Codebasis (`src/docucontrol/`) stammt von den Herkunfts-Geraeten
   (DocuControl .171, Pi5_Display .218, docucontrol3 .11) des Projekts `claude-workspace-docupi` — deren
   Zugangsdaten/IPs/Betriebshistorie gehoeren NICHT zu SOL und werden hier nicht dupliziert (siehe

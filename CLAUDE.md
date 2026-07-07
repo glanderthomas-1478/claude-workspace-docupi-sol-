@@ -171,6 +171,13 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
   verifiziert. Wichtige Lehre: `getty@tty1.service` muss deaktiviert werden, sonst blockiert es
   `/dev/tty1` parallel zu cage (Service lief scheinbar, aber Chromium startete nie) — analog zu
   bekannten Kiosk-Stolpersteinen bei Pi5_Display/docucontrol3
+- **Fix: Kiosk startete nach echtem Reboot nicht** (2026-07-07): `kiosk.service` war fuer
+  `graphical.target` aktiviert, das System bootet aber tatsaechlich in `multi-user.target` — dieses
+  Target wurde nie erreicht, Kiosk startete bei echten Kaltstarts nie automatisch (User meldete das
+  als "Pi haengt im Boot fest", da tty1 ohne Getty und ohne Kiosk einfach bei den letzten Boot-Zeilen
+  stehen blieb). Alle vorherigen Kiosk-Tests liefen ueber manuelles `systemctl restart`, nie ueber
+  einen echten Reboot — Bug blieb dadurch unbemerkt. Fix: `WantedBy=multi-user.target`, per echtem
+  Kaltstart-Reboot verifiziert
 - **Beide USB-Dongles fertig** (2026-07-07): identisches Keyfile auf zwei SanDisk-Sticks, per
   `cryptsetup open --test-passphrase` gegengeprueft — beide entsperren die SSD einwandfrei
 - **Service-Dongle-Konzept implementiert** (2026-07-07, User-Vorgabe): Dongle dient NIE als

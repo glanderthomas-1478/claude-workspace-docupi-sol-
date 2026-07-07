@@ -2,136 +2,56 @@
 
 ## Aktueller Fokus
 
-Prototyp fertigstellen und erste Feldtests im eigenen Arbeitsumfeld durchfuehren.
+DocuControl-SOL vom Fork zu einem eigenstaendigen, funktionsfaehigen Konzept bringen: Architektur
+fuer Barcode-Erfassung + Temperaturmessung festlegen, dann auf der bestehenden DocuControl-Basis
+(Dashboard, Backend, Security) implementieren. Hardware ist noch nicht beschafft — aktuell reine
+Vorbereitung/Planung.
 
 ## Strategische Prioritaeten
 
-### 1. RS232-Kommunikation — ERLEDIGT (MST)
+### 1. Herkunfts-Codebasis sichten und uebernehmen — ERLEDIGT (2026-07-07)
 
-- MST-Protokollformat entschluesselt (UTF-16LE Klartext ueber RS232)
-- Live-RS232-Listener laeuft produktiv (serial_receiver.py)
-- Parser + PDF-Generator + Chart-Generator implementiert
-- **Erster Feldtest erfolgreich: 3 Wochen, 140 Chargen, 0 Fehler** (Helios Krefeld, Belimed 9-6-18 HS2)
-- OFFEN: WD/RDG-Protokoll (WD290/WD390) — separater Parser vorhanden, noch nicht im Feld getestet
+- Ordner von `claude-workspace-docupi` kopiert, CLAUDE.md + context/ auf SOL-Projekt umgestellt
+- Wiederverwendbare Bausteine identifiziert und in CLAUDE.md dokumentiert (Web-Frontend, Netzwerk-/
+  Speicher-/Drucker-Management, Security-Haertungs-Checkliste, LUKS-Skript)
+- OFFEN: Git-Remote zeigt noch auf das Herkunftsprojekt — vor erstem eigenen Push klaeren (eigenes
+  Repo anlegen oder Origin umstellen)
 
-### 2. Software stabilisieren — IN ARBEIT
+### 2. Kern-Entscheidungen fuer die SOL-Architektur — IN ARBEIT
 
-- Feldtest-Fixes deployed (2026-04-13):
-  - VPR/Lecktest-Erkennung korrigiert (NICHT STERIL = BESTANDEN)
-  - Abbruch-Handling und unvollstaendige Protokolle (Stromausfall)
-  - USB Auto-Mount nach Reboot
-  - Serial-Port Log-Spam eliminiert (Exponential Backoff)
-- OFFEN: Patch-Dateien konsolidieren (15+ separate Patches in app.py integriert)
-- OFFEN: Tests automatisieren
+- **Barcode-Scanner**: USB-HID/Tastatur-Emulation — bestaetigt (2026-07-07). Kein serieller Listener
+  noetig, Scan kann direkt als Input-Event im Browser verarbeitet werden
+- **Temperatursensor**: OFFEN — 1-Wire/I2C direkt am Pi vs. externes Messgeraet per RS232/Modbus.
+  Diese Entscheidung bestimmt, ob ein neuer GPIO-Sensor-Reader gebaut wird oder ein serieller
+  Listener (analog `serial_receiver.py`/`wd_protocol_parser.py` aus dem Herkunftsprojekt)
+  wiederverwendet werden kann
+- **Dokumentationsfelder**: Minimalumfang bestaetigt (Flaschen-ID, Zeitstempel, Temperaturverlauf);
+  Erweiterung um Bediener-Kuerzel/Fuelldruck noch zu klaeren (Vorbild: Autoklavenbuch-Formular bei
+  docucontrol3)
+- OFFEN: Zielkunde/Betreiber/Vertriebsweg fuer SOL (im Unterschied zu DocuControl gibt es hier noch
+  keinen bestaetigten Erstkunden)
 
-### 3. Hardware-Prototyp — ERSTER FELDTEST ABGESCHLOSSEN
+### 3. Hardware-Beschaffung und Sicherheits-Setup — NOCH NICHT BEGONNEN
 
-- Raspberry Pi 5 lief 3 Wochen am Sterilisator in Krefeld
-- RS232-Empfang, PDF-Generierung, WebIF, Hotspot — alles stabil
-- 327 Protokolle in DB, 140 PDFs generiert (nach Fix)
-- OFFEN: Sensoren (Druck, Strom) noch nicht angeschlossen
+- Raspberry Pi 5 + SSD + Display beschaffen (gleiche Basis wie docucontrol3/Pi5_Display)
+- **USB-Dongle fuer LUKS-Verschluesselung von Anfang an einplanen** (nicht nachtraeglich wie beim
+  Herkunftsprojekt) — Referenzskript `scripts/setup_luks_nvme.sh` liegt bereits vor
+- Sicherheits-Haertung (Secrets, Brute-Force-Schutz, Access-Control-Guards, SSH Pubkey-only, etc.)
+  von Anfang an mitbauen statt wie beim Herkunftsprojekt nachtraeglich per OWASP-Review nachzuruesten
 
-### 4. Langfristig: CE-konforme Hardware
+### 4. Implementierung — NOCH NICHT BEGONNEN
 
-- Migration auf Unipi Neuron oder RevPi Connect
-- Regulatorik klaeren (kein eigenes Medizinprodukt, nur Diagnosetool)
-
-### 5. Erster Kunden-Deal (DocuControl, Tierlabor Uni Essen) — WEB-INTERFACE FERTIG
-
-- Vertrieb laeuft verdeckt ueber getmatic / Thomas Glander (Whitelabel)
-- Zielmaschine: **Belimed PST 14-8-12 HS1** (bestaetigt 2026-06-08)
-- **ERLEDIGT 2026-06-02**: Pi 5 aufgebaut, Service aktiv, TCP/9100-Pipeline produktiv
-- **ERLEDIGT 2026-06-03**: Web-Interface v2 deployed (Dashboard, Einstellungen, Datei-Manager, Drucker, USB-Sync)
-- **ERLEDIGT 2026-06-09**: Dashboard v3 Liquid-Glass deployed:
-  - v3 Design-Handoff von getmatic empfangen und implementiert
-  - Machine-Bar (Belimed PST 14-8-12 HS1, 6050/6060 FIS, VAFI/KOST, TCP-Status live)
-  - 3 Stat-Karten: Chargen gesamt / heute / Monat (inkl. Vormonat-Trend)
-  - Dauer-Spalte + Programm-Icons in Tabelle
-  - Liquid-Glass-CSS, Square-Font, Live-Uhr, pulsierender Aktiv-Badge
-  - Neuer /api/dashboard/stats Endpunkt
-- **ERLEDIGT 2026-06-09**: Settings + Drucker-Erkennung optimiert:
-  - Maschinenname + IP in Settings konfigurierbar, Ping-basierter Status in Machine-Bar
-  - Drucker-Erkennung via USB sysfs (physisch), Auto-Print Bug gefixt, Race-Condition Print-Button behoben
-  - Topbar-Badge entfernt, 5 Testchargen (CH021709-CH021713) erfolgreich verarbeitet und gedruckt
-  - Dashboard "Chargen gesamt"-Karte zeigt höchste Charge-Nr. (z.B. 21713) statt DB-Zeilenanzahl — `/api/dashboard/stats` liefert `max_charge_nr` via CHARGE_RE über raw_data
-- **ERLEDIGT 2026-06-10**: Datensammlermodus vollstaendig implementiert und verifiziert:
-  - Toggle in Settings schreibt `collector_mode` Flag in `capture_config.json` (Merker-Architektur)
-  - Browser-Cache-Bug gefixt: `Cache-Control: no-store` via Flask `@after_request`
-  - Verifiziert: CH021718 (Normalmodus → PDF+DB+Druck) und CH021719 (Sammelmodus → Rohtext direkt gedruckt, kein PDF, kein DB)
-- **ERLEDIGT 2026-06-11**: v3 Makeover Settings + Datei-Manager deployed:
-  - Button-Hierarchie: `btn-primary` (Speichern), `btn-glass` (Ping/Test/Sync), `btn-outline-danger` (Reboot)
-  - `.segmented`-Toggle in Datei-Manager (CSS statt Inline-Styles), JS auf `classList.toggle('active')`
-  - `.lede`-Untertitel in Page-Head beider Seiten
-- **ERLEDIGT 2026-06-11**: Dashboard-Bugs behoben (Kundentermin-kritisch):
-  - "Chargen heute" Zaehler: `date(timestamp) = ?` statt String-Vergleich (ISO-T vs Space-Trenner-Bug)
-  - Dauer-Spalte: `_PROG_ENDE_RE` liest `MM:SS Programm Ende` direkt aus raw_data statt ISO-Timestamps
-- **ERLEDIGT 2026-06-11**: USB-Ethernet (Schnittstelle 2) vollstaendig funktionsfaehig:
-  - eth1 statisch 192.168.0.181/24 konfiguriert und stabil
-  - nftables auf interface-basierte Regeln umgestellt (iif eth0 + iif eth1) — beide IPs erreichbar
-  - Connected-Status basiert jetzt auf `/sys/class/net/<iface>/carrier` (physischer Link statt IP-Check)
-  - `iface2StatusBadge` im Settings Card-Header hinzugefuegt — zeigt Verbunden/Getrennt wie bei Schnittstelle 1
-  - Toggle-Bug behoben: `applyIfaceStatus()` setzt jetzt `iface2Enabled`-Checkbox korrekt aus API
-- **ERLEDIGT 2026-06-11**: `scripts/send_test_charges.py` erstellt:
-  - 3 Templates: Instrumente 134°C, Bowie Dick, Instrumente 121°C
-  - UTF-16LE mit BOM, 10 Chargen CH021720-021729, 30s Intervall
-  - Laufzeiten variiert (18-42 min), `--dry-run`, `--count`, `--interval`, `--start-charge` Flags
-  - Testlauf erfolgreich: alle 10 Chargen in DB, duration HH:MM:SS, alle 3 Programme erkannt
-- **ERLEDIGT 2026-06-11**: Skalierbarkeit 10.000+ Protokolle: DB-Spalten charge_nr_int + program, SQL LIMIT/OFFSET in api_protocols, Dateimanager-Paginierung (50/Seite)
-- **ERLEDIGT 2026-06-11**: PDF-Dateinamen + Maschinennummer:
-  - Dateiname-Reihenfolge: `{datum}_{zeit}_{charge}_{masch_nr}_{geraet}` (Charge-Nr. direkt nach Zeitstempel)
-  - Maschinennummer (`machine_nr`) als neues konfigurierbares Feld in Settings → Anlage-Card
-  - `build_filename()` in pdf_generator.py um `{masch_nr}`-Token erweitert
-  - Verifiziert: CH021732 → `2026-06-11_175105_CH021732_27163_Belimed_PST_14-8-12_HS1.pdf`
-- **ERLEDIGT 2026-06-11**: Datei-Manager Rohdaten-Toggle wiederhergestellt (war durch Skalierbarkeits-Deploy überschrieben)
-- **ERLEDIGT 2026-06-11**: Settings-Fixes (waren Pi-only Patches, jetzt committed):
-  - `iface2StatusBadge` im Schnittstelle-2-Card-Header (Verbunden/Getrennt)
-  - `applyIfaceStatus()` setzt `iface2Enabled`-Checkbox korrekt aus `d.enabled`
-  - USB-Stick formatieren Button (POST /api/storage/usb/format, FAT32, Label DOCUCTRL)
-- **ERLEDIGT 2026-06-11**: GitHub Collaboration: Thomas Glander (glanderthomas-1478) als Collaborator mit Push-Zugriff hinzugefügt
-- **ERLEDIGT 2026-06-15**: Drucker USB-Fix deployed (IPP-over-USB, Sudoers, Druck verifiziert)
-- **ERLEDIGT 2026-06-15**: Abteilung "AEMP" -> "ZTL" in Test-Chargen + config.py Default
-- **ERLEDIGT 2026-06-15**: SMB-Sync auf gland-Rechner 192.168.0.99 umgestellt (war 192.168.0.86), eth1-Host-Route gesetzt
-- **ERLEDIGT 2026-06-15**: USB + Netzwerk Sofortkopie: copy_pdf_to_usb_instant() + copy_pdf_to_network_instant() in tcp_print_capture.py eingehängt — PDF sofort nach Charge auf Stick + Netzwerk
-- **ERLEDIGT 2026-06-15**: VPR-Template in send_test_charges.py (Index 3, Aufheizen & VPR ~46 min)
-- **ERLEDIGT 2026-06-15**: USB Auto-Mount-Fix: Warning-Log, Sleep nach Lazy-Unmount, Mount-Versuch in Sofortkopie
-- OFFEN: eth0 statisch auf 192.168.0.171 konfigurieren (DHCP-Boot-Race, Workaround: nmcli con down/up)
-- OFFEN: Abteilung "ZTL" in config.json auf Pi direkt setzen (Einmalig: `python3 -c "import json; f='/home/docucontrol/docupi/data/config.json'; c=json.load(open(f)); c.setdefault('pdf',{})['abteilung']='ZTL'; json.dump(c,open(f,'w'),indent=2)"`)
-- **ERLEDIGT 2026-06-16**: Pi5_Display (dritte Hardware-Linie) in Betrieb — HDMI-Kiosk via Docker+cage+Chromium, PDF-Viewer per pdftoppm, virtuelle Tastatur, SMB-Netzwerk-Speicherort
-- **ERLEDIGT 2026-06-18**: SMB-Mount im Docker-Container gefixt (`cifs-utils` fehlte im Image, `vers=3.0` explizit gesetzt)
-- **ERLEDIGT 2026-06-21/22**: docucontrol3 (vierte Hardware-Linie, Autoklavenbuch-Testgeraet) — SD→NVMe-Migration (Geekworm X1001), Overlay-Root deaktiviert (Docker-Inkompatibilitaet), Boot-Reihenfolge auf NVMe gesetzt
-- **ERLEDIGT 2026-06-22**: Autoklavenbuch-Workflow aus Felix' separatem Repo (Uni-Essen-spezifisch) uebernommen: `pending_form`-Status, SocketIO-Formular-Modal am Touchscreen, eigener PST-Format-Parser fuer UNIKLINIK_ESSEN_10980, mehrere Bugs in Felix' Code gefixt (USB-Mount-String, `timedatectl` in Docker, fehlende Pakete, CSS-Layout, PDF-Modal-Vollbild)
-- **ERLEDIGT 2026-06-21/22**: OWASP-Sicherheitsreview (Web-App + Host-Ebene) durchgefuehrt und kritische Punkte behoben: Secrets nicht mehr hardcodiert, Brute-Force-Schutz Login, XSS-Fix, Access-Control-Guards auf destruktiven Endpunkten, CORS/CSRF/HTTPS-Listener, rpcbind deaktiviert, SSH Password-Auth deaktiviert
-- **ERLEDIGT 2026-06-22**: Individuelle Passwoerter fuer Pi5_Display/docucontrol3 (SSH/sudo + Web-Service-Login) live gesetzt und verifiziert — DocuControl (.171) und DocuPi-3000 (.83) noch mit altem Passwort (nicht erreichbar beim Rollout-Versuch), Rollout dort noch offen
-- **ERLEDIGT 2026-06-22**: Offline-Faehigkeit hergestellt — Bootstrap/Bootstrap-Icons/Socket.IO lokal vendored statt CDN, Backend frei von externen Abhaengigkeiten, NTP faellt auf Onboard-RTC zurueck
-- **ERLEDIGT 2026-06-22**: Service-Anmeldung + Einstellungen-Sperre (Rolle "user" vs. Service) inkl. serverseitiger Guards auf sensiblen Endpunkten
-- **ERLEDIGT 2026-06-22**: Bildschirmschoner (GeTmatic-Logo, DVD-Stil) + Boot-Splash (GeTmatic-Logo statt Raspberry-Bild, Plymouth-Quit-Race behoben) auf Pi5_Display/docucontrol3
-- **ERLEDIGT 2026-06-22**: Drucker-Settings um Netzwerk/USB-Umschalter erweitert (IPP Everywhere driverless fuer Netzwerkdrucker)
-- OFFEN: Echten Druckauftrag vom Tierlabor-Geraet (Belimed PST 14-8-12 HS1) empfangen und Captures analysieren
-- OFFEN: protocol_parser.py auf echten PST 14-8-12 HS1 Daten kalibrieren (PST-Parser fuer UNIKLINIK_ESSEN_10980 vorhanden, noch nicht an echten Daten verifiziert)
-- OFFEN: Maschinennummer des Tierlabor-Geraets in Settings eintragen
-- OFFEN: Installation vor Ort Tierlabor Uni Essen
-- OFFEN: Passwort-Rotation auf DocuControl (.171) und DocuPi-3000 (.83) nachziehen, sobald erreichbar
-- OFFEN: SMB-Maschinenkonto auf 192.168.0.86 (genutzt von .171 + .218) noch nicht rotiert (kein Remote-Admin-Zugriff auf den Windows-Rechner)
-- OFFEN: Gehaeuse-Branding (3D-Druck, DocuControl weiss + Logo) — Logo-Freistellung + FreeCAD-Bearbeitung noch nicht begonnen
-- **VORBEREITET 2026-06-29**: LUKS-Disk-Verschluesselung — `scripts/setup_luks_nvme.sh` bereit, wird ab DocuControl 4 beim OS-Setup eingesetzt (USB-Dongle-Unlock, Quellcode-Schutz + SSD-Diebstahl-Schutz)
-- **ERLEDIGT 2026-06-22**: Monitor-Wechsel docucontrol3 7"→10" (1024×600 bleibt gleich) + zwei vorbestehende Soft-Keyboard-Bugs gefixt: Tastatur oeffnete sich nur in Autoklavenbuch/Login (jetzt global), Tastenbreiten waren fix und zu breit fuer 1024px (jetzt CSS-Flex-Verhaeltnisse)
-- **ERLEDIGT 2026-06-22**: SD-Karte auf docucontrol3 als bootfaehiger Notfall-Klon der SSD eingerichtet (BOOT_ORDER deckt kompletten SSD-Ausfall automatisch ab), inkl. gefundenem/behobenem rsync-Bug (`-x` ueberspringt `/boot/firmware`); Regel dokumentiert: Maschinendokumente duerfen erst bei echtem SSD-Ausfall auf die SD-Karte, kein laufender Sync waehrend SSD aktiv ist
-- **ERLEDIGT 2026-06-22**: Kiosk-Dateimanager zeigt PDF-Ansehen-Icon statt Download-Button (intern + USB); Drucken-Icon zeigt sich jetzt korrekt nur bei tatsaechlich angeschlossenem Drucker (vorher: CUPS-Status allein reichte, blieb nach Ausstecken faelschlich "bereit")
-- **ERLEDIGT 2026-06-22**: Neue Stoerungs-Anzeige (rote Alarm-Badges in der Topbar): Maschine nicht erreichbar, Drucker offline (bei aktivem Auto-Druck), SSD-Ausfall/Notfallbetrieb von SD, Netzwerkspeicherort nicht erreichbar — gepollt alle 20s; dabei zwei Nebenfunde behoben: `ping` fehlte im Docker-Image, Cache-Control-Header fehlten auf `/api/*`-Routen (Chromium cachte Alarm-Status)
-- **ERLEDIGT 2026-06-22**: Docker-Speicherplatz-Cleanup auf docucontrol3 (41G→15G) — `vfs`-Storage-Driver-Overhead war fast die gesamte Belegung, echte Chargendaten nur ~2,4MB; Wechsel auf `overlay2` als offene, nicht beauftragte Option dokumentiert
-- **ERLEDIGT 2026-06-25**: Ergebnis (Ablauf OK/Stoerung) im Autoklavenbuch-Formular ist jetzt Pflichtfeld (Frontend + Backend-Guard)
-- **ERLEDIGT 2026-06-25**: PDF Seite 1 Freigabebereich zeigt jetzt echtes Ergebnis-Haekchen, Kuerzel + eingebettete Unterschrift aus dem Autoklavenbuch-Formular statt leerer Linien
-- **ERLEDIGT 2026-06-25**: USB-Mount-Bug behoben — verwaister Mount nach Geraete-Re-Enumeration (sda1→sdb1 nach Abziehen/Einstecken) verhinderte, dass der Dateimanager den Stick-Inhalt anzeigte; neue Stoerungs-Anzeige "USB-Stick nicht angeschlossen" ergaenzt
-- **ERLEDIGT 2026-06-25**: Dateimanager-Layout auf dem Kiosk-Display gefixt (Seitenauswahl lief ueber den Rand), Aktionsleiste optisch an USB-Pane angeglichen
-- **ERLEDIGT 2026-06-25**: "Neustart"-Button in Einstellungen → System auch ohne Service-Anmeldung nutzbar
-- **GEPRUEFT 2026-06-25**: CEC-Test fuer automatisches Display-Einschalten nach Seitentaste — Panel ("DZX Z3") unterstuetzt kein CEC (alle Befehle "Not Acknowledged"), kein Software-Wake moeglich, auf Nutzerwunsch nicht weiter verfolgt
+- Barcode-Ingestion (Browser-Input-Handler statt TCP/9100-Capture)
+- Temperatur-Ingestion (abhaengig von Sensor-Entscheidung, Punkt 2)
+- Dashboard/PDF/DB-Schema von Sterilisationscharge auf Flaschen-Dokumentation umstellen
+- Fuer strukturelle Aenderungen: `/create-plan` verwenden, sobald die offenen Entscheidungen
+  (Sensor, Scanner-Modell, Dokumentationsfelder) geklaert sind
 
 ## Wie Erfolg aussieht
 
-- ~~Funktionierender Prototyp, der im Feld einsetzbar ist~~ ERREICHT
-- ~~RS232-Protokoll entschluesselt und implementiert~~ ERREICHT (MST)
-- ~~Erste Feldtests erfolgreich durchgefuehrt~~ ERREICHT (Helios Krefeld)
-- ~~DocuControl Web-Interface vollstaendig~~ ERREICHT
-- ~~Sicherheitsreview (Web + Host) mit kritischen Fixes~~ ERREICHT
-- ~~Autoklavenbuch-Workflow fuer Uni Essen integriert~~ ERREICHT (noch nicht an echten Daten verifiziert)
-- Naechster Meilenstein: Echten Druckauftrag Tierlabor analysieren + Parser kalibrieren, Installation im Tierlabor Uni Essen, Passwort-Rotation restliche Geraete (.171, .83, SMB-Konto .86) nachziehen, Gehaeuse-Branding (3D-Druck), Sensoren anschliessen, WD/RDG-Feldtest, Patch-Konsolidierung
+- Kern-Architekturentscheidungen (Scanner, Sensor, Dokumentationsfelder) getroffen
+- Hardware beschafft und mit LUKS/USB-Dongle abgesichert aufgesetzt
+- Barcode- und Temperatur-Ingestion implementiert und auf der DocuControl-Dashboard/PDF-Basis
+  lauffaehig
+- Naechster Meilenstein: offene Entscheidungen (Temperatursensor, Scanner-Modell, Dokumentationsfelder,
+  Git-Remote) klaeren, dann `/create-plan` fuer die erste Implementierungsrunde

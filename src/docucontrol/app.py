@@ -124,6 +124,10 @@ def _login_locked_out():
 def _service_logged_in():
     if session.get("role") != "service":
         return False
+    if dongle_present():
+        # Solange der Service-Dongle steckt, gilt die Anmeldung als physisch
+        # abgesichert und laeuft nicht per Inaktivitaets-Timeout ab.
+        return True
     if (_time.time() - session.get("last_seen", 0)) > SERVICE_SESSION_TIMEOUT_S:
         session.pop("role", None)
         session.pop("last_seen", None)
@@ -143,8 +147,8 @@ def _require_service():
 def api_auth_status():
     if _service_logged_in():
         remaining = max(0, SERVICE_SESSION_TIMEOUT_S - (_time.time() - session.get("last_seen", 0)))
-        return jsonify({"role": "service", "remaining_seconds": int(remaining)})
-    return jsonify({"role": "user", "remaining_seconds": 0})
+        return jsonify({"role": "service", "remaining_seconds": int(remaining), "dongle": dongle_present()})
+    return jsonify({"role": "user", "remaining_seconds": 0, "dongle": dongle_present()})
 
 
 @app.route("/api/auth/login", methods=["POST"])
@@ -170,7 +174,8 @@ def api_auth_login():
         session["role"] = "service"
         session["last_seen"] = _time.time()
         log_event("INFO", "Service-Anmeldung erfolgreich")
-        return jsonify({"ok": True, "role": "service", "remaining_seconds": SERVICE_SESSION_TIMEOUT_S})
+        return jsonify({"ok": True, "role": "service", "remaining_seconds": SERVICE_SESSION_TIMEOUT_S,
+                         "dongle": dongle_present()})
     _login_failures.append(_time.time())
     log_event("WARN", "Service-Anmeldung fehlgeschlagen (falsches Passwort)")
     return jsonify({"ok": False, "message": "Falsches Passwort"}), 401
@@ -187,7 +192,7 @@ def api_auth_logout():
 def api_auth_touch():
     if _service_logged_in():
         session["last_seen"] = _time.time()
-        return jsonify({"ok": True, "remaining_seconds": SERVICE_SESSION_TIMEOUT_S})
+        return jsonify({"ok": True, "remaining_seconds": SERVICE_SESSION_TIMEOUT_S, "dongle": dongle_present()})
     return jsonify({"ok": False}), 401
 
 

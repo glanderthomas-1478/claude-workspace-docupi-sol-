@@ -221,14 +221,20 @@
     function applyStatus(d) {
         window.AUTH.role = d.role || 'user';
         window.AUTH.remaining = d.remaining_seconds || 0;
+        window.AUTH.dongle = !!d.dongle;
         var btn = document.getElementById('authLoginBtn');
         var status = document.getElementById('authServiceStatus');
         if (window.AUTH.role === 'service') {
             btn.style.display = 'none';
             status.style.display = '';
-            var m = Math.floor(window.AUTH.remaining / 60);
-            var s = window.AUTH.remaining % 60;
-            document.getElementById('authCountdown').textContent = m + ':' + (s < 10 ? '0' : '') + s;
+            var el = document.getElementById('authCountdown');
+            if (window.AUTH.dongle) {
+                el.textContent = '∞ (Dongle)';
+            } else {
+                var m = Math.floor(window.AUTH.remaining / 60);
+                var s = window.AUTH.remaining % 60;
+                el.textContent = m + ':' + (s < 10 ? '0' : '') + s;
+            }
         } else {
             btn.style.display = '';
             status.style.display = 'none';
@@ -288,14 +294,25 @@
         fetch('/api/auth/touch', { method: 'POST' }).then(function(r) { return r.json(); })
             .then(function(d) {
                 touchPending = false;
-                if (d.ok) window.AUTH.remaining = d.remaining_seconds;
+                if (d.ok) {
+                    window.AUTH.remaining = d.remaining_seconds;
+                    window.AUTH.dongle = !!d.dongle;
+                }
             }).catch(function() { touchPending = false; });
     }
     ['pointerdown', 'touchstart', 'keydown'].forEach(function(evt) {
         document.addEventListener(evt, touchSession, { passive: true });
     });
 
+    var dongleCheckTick = 0;
     setInterval(function() {
+        if (window.AUTH.role === 'service' && window.AUTH.dongle) {
+            // Dongle steckt: Anmeldung laeuft nicht ab, kein Countdown noetig,
+            // aber alle 10s pruefen ob der Dongle inzwischen gezogen wurde.
+            dongleCheckTick = (dongleCheckTick + 1) % 10;
+            if (dongleCheckTick === 0) refreshStatus();
+            return;
+        }
         if (window.AUTH.role === 'service' && window.AUTH.remaining > 0) {
             window.AUTH.remaining -= 1;
             var m = Math.floor(window.AUTH.remaining / 60);

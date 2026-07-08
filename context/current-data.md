@@ -38,8 +38,11 @@
 
 1. **BTMETER-Thermometer physisch verfuegbar machen** und `python3 /home/docucontrol/ble_scan_thermometer.py` (Scan) → MAC identifizieren → mit MAC erneut aufrufen (GATT-Inspect, dabei am Geraet eine Messung ausloesen) → Rohdatenformat analysieren → Anbindungsmodul `src/docucontrol/ble_thermometer.py` schreiben, `sol_charge_scan.html` von manueller auf automatische Temperatur-Uebernahme umstellen
 1b. **Testo 835-T1 physisch verfuegbar machen** und `python3 /home/docucontrol/usb_scan_thermometer.py` (Scan) → Vendor:Product-ID identifizieren → mit VID:PID erneut aufrufen (USB-Deskriptor-Inspect) → je nach gefundener USB-Klasse (CDC=gut, HID/Vendor-spezifisch=schwierig) entscheiden, ob eine Linux-native Anbindung realistisch ist
-2. **Inateck BCST-70 physisch verfuegbar machen** und per Bluetooth mit dem Pi koppeln (Anleitung in CLAUDE.md) — danach direkt auf der Scan-Seite testen, kein Code noetig
+2. ~~Inateck BCST-70 koppeln~~ — **ERLEDIGT (2026-07-08):** per `bluetoothctl` gekoppelt
+   (`AC:2B:00:26:4A:10`), Ueberwachung in Einstellungen aktiviert, echter Flaschen-Code-Scan vom User
+   bestaetigt (kam korrekt im Eingabefeld an). Noch offen: Scan direkt ins Chargen-Nr.-Feld beim
+   Charge-Start separat testen (bisher kein passender Chargen-Barcode zur Hand gehabt)
 3. Backup-Kopie des Keyfiles sichern (z.B. in `secrets/`-Ablage), falls beide Dongles verloren gehen
-4. Reale Nutzung mit SOL-Mitarbeitern testen (beide Geraete gekoppelt, echter Barcode/QR statt curl-Simulation), Feedback zur Scan-Seite einholen
+4. Reale Nutzung mit SOL-Mitarbeitern testen (Temperatursensor noch offen, Barcode-Scanner jetzt einsatzbereit), Feedback zur Scan-Seite einholen
 5. Echter physischer Boot-Failover-Test der SD-Notfall-Karte (SSD abklemmen, pruefen ob SD-Karte sauber bootet)
 6. Angesammelte Test-Chargen (`SIM-*`) vor dem produktiven Einsatz final bereinigen (aktuell nur noch wenige einzelne Testchargen vorhanden, kein grosser Aufraeumbedarf)

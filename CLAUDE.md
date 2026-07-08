@@ -403,6 +403,16 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
   jedem Einschalten automatisch wieder mit dem zuletzt gekoppelten Geraet — keine erneute Kopplung
   pro Boot noetig. Test danach: Scan-Seite (`/sol/scan`) am Kiosk oeffnen, Eingabefeld fokussiert
   (Standardzustand), Testbarcode scannen — sollte wie eine Tastatureingabe im Feld erscheinen
+- **Barcode-Scanner erfolgreich gekoppelt und end-to-end getestet** (2026-07-08): physisches Geraet
+  war jetzt verfuegbar. Per `bluetoothctl` gefunden (`AC:2B:00:26:4A:10 BCST-70-4A10-HID`, bereits im
+  HID-Modus), Kopplungsablauf wie oben beschrieben durchgefuehrt — `Paired: yes`, `Bonded: yes`,
+  `Connected: yes`, Akkustand laut GATT Battery Service 100%. MAC in Einstellungen → Externe Geraete
+  eingetragen, Scanner-Ueberwachung (siehe Geraete-Erreichbarkeits-Alarm-Eintrag unten) aktiviert —
+  `/api/sol/device-status` meldet `connected:true`, kein Fehlalarm mehr. **Vom User bestaetigt:**
+  echter Scan eines Flaschen-Codes kam korrekt als Tastatureingabe im Eingabefeld auf der Scan-Seite
+  an (`solScanInput`). Noch nicht separat getestet: Scan ins Chargen-Nr.-Feld (`solChargeNrInput`)
+  beim Charge-Start — technisch dasselbe Tastatur-Emulations-Verhalten, aber kein passender
+  Chargen-Barcode beim Test zur Hand
 - **SMB-Netzwerk-Speicherort eingerichtet** (2026-07-08, User-Wunsch): PDF-Sync zum Windows-Rechner
   des Users (192.168.0.85, Freigabe `temp`) per dediziertem lokalem Windows-Konto `docucontrol`
   (nicht das Domaenen-Konto des Users). Domain-Feld auf den Computernamen (`GETMATIC_MASTER`)

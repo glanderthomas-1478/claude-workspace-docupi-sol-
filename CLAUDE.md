@@ -501,6 +501,20 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
   bestehen (dort, wo waehrend des Scannens aktiv gearbeitet wird) — Topbar-Badges sind bewusst
   lautlos, wie alle anderen bestehenden Alarmtypen dort auch. Per Playwright-Screenshot auf der
   Dashboard-Seite verifiziert (beide roten Badges sichtbar)
+- **EEPROM-Bootloader-Diagnosescreen (Raspberry-Logo) ausgeblendet** (2026-07-08, User-Wunsch: kein
+  Raspberry-Branding mehr vor dem GeTmatic-Logo beim Hochfahren): erster Versuch (`disable_splash=1`
+  in `config.txt`) wirkungslos — seit Bootloader-Version 2020-09-03 wird dieses Flag fuer den
+  HDMI-Diagnosescreen nicht mehr ausgewertet, da der Screen bereits von der EEPROM-Firmware VOR dem
+  Lesen von `config.txt` gezeigt wird (offiziell dokumentiert, siehe github.com/raspberrypi/rpi-eeprom
+  Issue #167). Korrekter Hebel: `DISABLE_HDMI=1` in der EEPROM-Bootloader-Konfiguration selbst,
+  gesetzt per `rpi-eeprom-config --apply` (bestehende Config BOOT_UART=1/BOOT_ORDER=0xf416/
+  NET_INSTALL_AT_POWER_ON=1 blieb erhalten, nur ergaenzt) + Reboot zur Aktivierung. Betrifft nur den
+  Bootloader-eigenen Diagnose-Screen, nicht die HDMI-Ausgabe des laufenden Systems (Plymouth/Kiosk
+  unveraendert). Nach Reboot verifiziert: `vcgencmd bootloader_config` zeigt `DISABLE_HDMI=1`,
+  `kiosk.service` + App liefen sofort wieder normal, kein Bootproblem durch die Firmware-Aenderung.
+  `config.txt`-Backup unter `config.txt.bak-disablesplash` (der erste, wirkungslose Versuch) bleibt
+  als Referenz liegen. **Visuelle Bestaetigung durch den User steht noch aus** (kein Remote-Zugriff
+  auf die allerfrueheste Boot-Phase moeglich)
 
 ## Wiederverwendete Architektur aus DocuControl (Herkunftsprojekt)
 

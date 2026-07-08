@@ -466,6 +466,15 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
   **Naechster Schritt:** sobald der Inateck BCST-70 physisch gekoppelt ist, dessen echte MAC-Adresse
   in den Settings eintragen — Ueberwachung aktiviert sich automatisch. Temperatur-Sensor-Ueberwachung
   folgt analog, sobald BTMETER (BLE) oder Testo 835-T1 (USB) integriert ist
+- **Settings-Rubrik "Externe Geraete" ergaenzt** (2026-07-08, User-Wunsch): eigene Karte in
+  Einstellungen → Geraete & Netzwerk mit Ein/Aus-Schaltern fuer Barcode-Scanner und Temperatur-Sensor
+  (`config['sol']['scanner_enabled']`/`temp_sensor_enabled`, beide Default `true`), MAC-Feld dorthin
+  verschoben (vorher in der Druckgasflaschen-Karte). Scanner-Schalter unterdrueckt die
+  Erreichbarkeits-Ueberwachung/den Alarm komplett, auch wenn eine MAC gesetzt ist — gedacht fuer
+  Standorte/Situationen ohne Scanner im Einsatz. Temperatur-Sensor-Schalter ist ein reiner
+  Vorbelegungs-Wert fuer die spaetere Sensor-Integration (noch keine Live-Ueberwachung dahinter).
+  Auf dem Pi verifiziert (Schalter aus → `/api/sol/device-status` liefert trotz gesetzter MAC
+  `connected:null`, kein Fehlalarm)
 
 ## Wiederverwendete Architektur aus DocuControl (Herkunftsprojekt)
 

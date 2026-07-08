@@ -2490,13 +2490,16 @@ def _bluetooth_device_connected(mac):
 @app.route('/api/sol/device-status')
 def api_sol_device_status():
     cfg = load_config().get('sol', {})
+    scanner_enabled = cfg.get('scanner_enabled', True)
     mac = (cfg.get('scanner_bt_mac') or '').strip()
-    scanner = {'configured': bool(mac), 'connected': None}
-    if mac:
+    scanner = {'enabled': scanner_enabled, 'configured': bool(mac), 'connected': None}
+    if scanner_enabled and mac:
         scanner['connected'] = _bluetooth_device_connected(mac)
     # Temperatur-Sensor hat noch keine digitale Anbindung (manuelle IR-Temp-Eingabe) -
-    # kann daher noch nicht auf Erreichbarkeit ueberwacht werden.
-    return jsonify({'scanner': scanner})
+    # kann daher noch nicht auf Erreichbarkeit ueberwacht werden, nur der Ein/Aus-Schalter
+    # existiert schon fuer die spaetere Sensor-Integration.
+    temp_sensor = {'enabled': cfg.get('temp_sensor_enabled', True), 'configured': False, 'connected': None}
+    return jsonify({'scanner': scanner, 'temp_sensor': temp_sensor})
 
 
 @app.route('/api/sol/charges/open')
@@ -2766,6 +2769,10 @@ def api_sol_config_save():
         if mac and not re.match(r'^([0-9A-F]{2}:){5}[0-9A-F]{2}$', mac):
             return jsonify({'ok': False, 'error': 'Ungültige Bluetooth-MAC-Adresse (Format XX:XX:XX:XX:XX:XX)'}), 400
         sol_cfg['scanner_bt_mac'] = mac
+    if 'scanner_enabled' in data:
+        sol_cfg['scanner_enabled'] = bool(data['scanner_enabled'])
+    if 'temp_sensor_enabled' in data:
+        sol_cfg['temp_sensor_enabled'] = bool(data['temp_sensor_enabled'])
     save_config(cfg)
     log_event("INFO", "SOL-Einstellungen gespeichert")
     return jsonify({'ok': True, 'sol': sol_cfg})

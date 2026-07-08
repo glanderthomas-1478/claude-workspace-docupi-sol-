@@ -557,7 +557,7 @@
         fetch('/api/sol/device-status').then(function(r) { return r.json(); }).then(function(d) {
             var scanner = d.scanner || {};
             var bar = document.getElementById('solDeviceAlarmBar');
-            if (scanner.configured && scanner.connected === false) {
+            if (scanner.enabled && scanner.configured && scanner.connected === false) {
                 document.getElementById('solDeviceAlarmText').textContent =
                     'Barcode-Scanner nicht verbunden! Bitte Akku/Bluetooth-Verbindung prüfen.';
                 bar.style.display = 'flex';

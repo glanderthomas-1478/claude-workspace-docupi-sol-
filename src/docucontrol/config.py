@@ -51,7 +51,9 @@ DEFAULT_CONFIG = {
         "bottle_warn_count": 160,
         "standort_kuerzel": "",
         "rows_per_page": 18,
-        "scanner_bt_mac": ""
+        "scanner_bt_mac": "",
+        "scanner_enabled": True,
+        "temp_sensor_enabled": True
     }
 }
 

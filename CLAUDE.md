@@ -475,6 +475,19 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
   Vorbelegungs-Wert fuer die spaetere Sensor-Integration (noch keine Live-Ueberwachung dahinter).
   Auf dem Pi verifiziert (Schalter aus → `/api/sol/device-status` liefert trotz gesetzter MAC
   `connected:null`, kein Fehlalarm)
+- **Bug gefunden+gefixt: Alarm blieb trotz aktivierter Geräte stumm, solange nichts konfiguriert
+  war** (2026-07-08, User meldete "trotz aktivierter Geräte kein Alarm, Geräte sind nicht da"):
+  Die urspüngliche Alarm-Bedingung in `sol_charge_scan.html` verlangte `enabled && configured &&
+  connected===false` — ohne hinterlegte Scanner-MAC (kein Geraet physisch gekoppelt) war
+  `configured:false`, wodurch trotz `scanner_enabled:true` nie ein Alarm auftauchte. Fix:
+  "aktiviert, aber nicht konfiguriert" zaehlt jetzt genauso als Alarmzustand wie "konfiguriert,
+  aber getrennt" — aus Betreiber-Sicht ist beides "Geraet nicht da". Gleiche Logik jetzt auch fuer
+  den Temperatur-Sensor-Schalter: da dafuer noch keine Anbindung existiert, ist er bei aktiviertem
+  Schalter dauerhaft im Alarmzustand ("noch keine digitale Integration") — genau das vom User
+  gewuenschte Verhalten, bis die Sensor-Integration steht; wer das nicht sehen will, schaltet den
+  Temperatur-Sensor-Schalter in "Externe Geraete" einfach aus. Auf dem Pi verifiziert (beide
+  Schalter aktiv, keine MAC/Integration vorhanden → device-status liefert `configured:false` fuer
+  beide, Banner-Bedingung greift jetzt bei beiden)
 
 ## Wiederverwendete Architektur aus DocuControl (Herkunftsprojekt)
 

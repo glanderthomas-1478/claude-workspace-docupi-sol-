@@ -556,10 +556,22 @@
     function pollDeviceStatus() {
         fetch('/api/sol/device-status').then(function(r) { return r.json(); }).then(function(d) {
             var scanner = d.scanner || {};
+            var tempSensor = d.temp_sensor || {};
             var bar = document.getElementById('solDeviceAlarmBar');
-            if (scanner.enabled && scanner.configured && scanner.connected === false) {
-                document.getElementById('solDeviceAlarmText').textContent =
-                    'Barcode-Scanner nicht verbunden! Bitte Akku/Bluetooth-Verbindung prüfen.';
+            var messages = [];
+            // "Aktiviert, aber nicht erreichbar" gilt sowohl bei fehlender Konfiguration
+            // (keine MAC hinterlegt / noch keine Anbindung) als auch bei echter Trennung -
+            // aus Betreiber-Sicht ist beides "Geraet nicht da".
+            if (scanner.enabled && !scanner.configured) {
+                messages.push('Barcode-Scanner aktiviert, aber keine MAC-Adresse hinterlegt (Einstellungen → Externe Geräte).');
+            } else if (scanner.enabled && scanner.connected === false) {
+                messages.push('Barcode-Scanner nicht verbunden! Bitte Akku/Bluetooth-Verbindung prüfen.');
+            }
+            if (tempSensor.enabled && !tempSensor.configured) {
+                messages.push('Temperatur-Sensor nicht angebunden (noch keine digitale Integration).');
+            }
+            if (messages.length) {
+                document.getElementById('solDeviceAlarmText').textContent = messages.join(' | ');
                 bar.style.display = 'flex';
                 var now = Date.now();
                 if (now - lastDeviceAlarmTone > DEVICE_ALARM_REPEAT_MS) {

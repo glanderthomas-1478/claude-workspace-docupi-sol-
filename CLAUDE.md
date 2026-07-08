@@ -46,11 +46,11 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
 
 ### Offene Entscheidungen (Stand 2026-07-08)
 
-- **Barcode-Scanner:** **Modell entschieden:** Inateck BCST-70 (kabellos, Bluetooth, 35m
-  Funkreichweite, 180 Tage Standby). Laeuft im Bluetooth-**HID-Modus** (Tastatur-Emulation) —
-  tippt gescannte Codes direkt als Tastatureingabe, **kein Code noetig** (Scan-Seite
-  `sol_charge_scan.html` funktioniert bereits unveraendert damit). Physisches Geraet fuer die
-  eigentliche Bluetooth-Kopplung noch nicht verfuegbar — Vorbereitung + Pairing-Anleitung siehe
+- **Barcode-Scanner: gekoppelt und einsatzbereit (2026-07-08).** Inateck BCST-70 (kabellos,
+  Bluetooth, 35m Funkreichweite, 180 Tage Standby), laeuft im Bluetooth-**HID-Modus**
+  (Tastatur-Emulation) — tippt gescannte Codes direkt als Tastatureingabe, kein eigener Code
+  noetig. Per `bluetoothctl` gekoppelt (MAC `AC:2B:00:26:4A:10`), Erreichbarkeits-Ueberwachung in
+  den Einstellungen aktiv, echter Flaschen-Code-Scan vom User bestaetigt. Details siehe
   "Wichtiger Kontext" unten
 - **Temperatursensor: zwei Kandidaten in Vorbereitung**, Geraete-Entscheidung noch offen:
   (1) BTMETER Infrarot-Thermometer mit Bluetooth (30:1 Dual-Laser-Pyrometer, -50..1500°C) —

@@ -3,8 +3,13 @@
 ## Aktueller Fokus
 
 Kern-Architektur, Hardware-Setup und die komplette Chargenseite (Flaschen-Scan-Workflow) sind fertig
-implementiert und end-to-end getestet. Fokus jetzt: die beiden noch fehlenden physischen Geraete
-(Barcode-Scanner, Temperatursensor) beschaffen und anbinden, danach echten Praxisbetrieb mit
+implementiert und end-to-end getestet. Barcode-Scanner (Inateck BCST-70) ist seit 2026-07-08
+gekoppelt und einsatzbereit, inkl. Geraete-Erreichbarkeits-Alarm (Topbar-weit + lauter Banner/Ton
+auf der Scan-Seite), der auch fuer den Temperatursensor vorbereitet ist. Barcode-/Chargen-Nr.-Formate
+wurden anhand echter Referenzfotos zweimal korrigiert (urspruengliche Lesefehler bei aehnlich
+aussehenden Zeichen). Solange kein Temperatursensor angebunden ist, wird die IR-Temp automatisch
+mit einem Platzhalterwert (36°C) befuellt (TEMPORAER, muss beim Sensor-Anschluss wieder raus).
+Fokus jetzt: Temperatursensor beschaffen und anbinden, danach echten Praxisbetrieb mit
 SOL-Mitarbeitern testen.
 
 ## Strategische Prioritaeten
@@ -18,8 +23,7 @@ SOL-Mitarbeitern testen.
 
 ### 2. Kern-Entscheidungen fuer die SOL-Architektur — GROESSTENTEILS ERLEDIGT
 
-- **Barcode-Scanner**: Inateck BCST-70 (Bluetooth-HID) entschieden — physisches Geraet fuer
-  Kopplung noch nicht verfuegbar
+- **Barcode-Scanner**: Inateck BCST-70 (Bluetooth-HID) — **gekoppelt und einsatzbereit (2026-07-08)**
 - **Temperatursensor**: zwei Kandidaten in Vorbereitung (BTMETER Bluetooth-IR-Thermometer,
   Testo 835-T1 USB), finale Geraete-Entscheidung noch offen — beide Diagnose-Skripte bereit,
   physische Geraete fehlen noch

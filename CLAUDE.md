@@ -512,9 +512,14 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
   Bootloader-eigenen Diagnose-Screen, nicht die HDMI-Ausgabe des laufenden Systems (Plymouth/Kiosk
   unveraendert). Nach Reboot verifiziert: `vcgencmd bootloader_config` zeigt `DISABLE_HDMI=1`,
   `kiosk.service` + App liefen sofort wieder normal, kein Bootproblem durch die Firmware-Aenderung.
-  `config.txt`-Backup unter `config.txt.bak-disablesplash` (der erste, wirkungslose Versuch) bleibt
-  als Referenz liegen. **Per echtem Kaltstart (Strom aus/an) vom User bestaetigt:** Himbeeren-Screen
-  ist weg, Boot springt jetzt direkt zum GeTmatic-Logo
+  **Per echtem Kaltstart (Strom aus/an) vom User bestaetigt:** Himbeeren-Screen ist weg, Boot springt
+  jetzt direkt zum GeTmatic-Logo. **Nachtrag:** der erste (wirkungslose) `disable_splash=1`-Versuch
+  in `config.txt` samt Backup `config.txt.bak-disablesplash` sind nach dem Reboot spurlos
+  verschwunden — `config.txt` steht wieder exakt auf dem Stand vor der Bearbeitung (Aenderungsdatum
+  unveraendert). Vermutlich wurde der Schreibvorgang auf die FAT32-Boot-Partition nicht durchgesynct,
+  bevor der Reboot griff. Ohne Folgen, da der wirksame Fix (`DISABLE_HDMI=1`) im EEPROM selbst liegt,
+  einem eigenen Speicherort unabhaengig von `/boot/firmware` — **Lehre fuer kuenftige
+  `/boot/firmware`-Edits auf diesem Pi: vor einem Reboot explizit `sync` ausfuehren**
 
 ## Wiederverwendete Architektur aus DocuControl (Herkunftsprojekt)
 

@@ -2474,6 +2474,31 @@ def _sol_is_nok(ir_temp, room_temp, tolerance):
     return (ir_temp - room_temp) < tolerance
 
 
+def _bluetooth_device_connected(mac):
+    """Fragt den Bluetooth-Verbindungsstatus eines Geraets per bluetoothctl ab (BlueZ).
+    Genutzt fuer die Erreichbarkeits-Ueberwachung des Barcode-Scanners (Inateck BCST-70,
+    HID-Modus) - der Scanner liefert selbst keine Anwendungs-Heartbeats, da er sich wie
+    eine normale Tastatur verhaelt."""
+    try:
+        r = subprocess.run(['bluetoothctl', 'info', mac], capture_output=True, text=True, timeout=5)
+        return 'Connected: yes' in r.stdout
+    except Exception as e:
+        logger.warning("Bluetooth-Statusabfrage fehlgeschlagen (%s): %s", mac, e)
+        return False
+
+
+@app.route('/api/sol/device-status')
+def api_sol_device_status():
+    cfg = load_config().get('sol', {})
+    mac = (cfg.get('scanner_bt_mac') or '').strip()
+    scanner = {'configured': bool(mac), 'connected': None}
+    if mac:
+        scanner['connected'] = _bluetooth_device_connected(mac)
+    # Temperatur-Sensor hat noch keine digitale Anbindung (manuelle IR-Temp-Eingabe) -
+    # kann daher noch nicht auf Erreichbarkeit ueberwacht werden.
+    return jsonify({'scanner': scanner})
+
+
 @app.route('/api/sol/charges/open')
 def api_sol_charge_open():
     charge = get_open_sol_charge()
@@ -2736,6 +2761,11 @@ def api_sol_config_save():
             return jsonify({'ok': False, 'error': 'Ungültige Flaschenanzahl'}), 400
     if 'standort_kuerzel' in data:
         sol_cfg['standort_kuerzel'] = str(data['standort_kuerzel']).strip()
+    if 'scanner_bt_mac' in data:
+        mac = str(data['scanner_bt_mac']).strip().upper()
+        if mac and not re.match(r'^([0-9A-F]{2}:){5}[0-9A-F]{2}$', mac):
+            return jsonify({'ok': False, 'error': 'Ungültige Bluetooth-MAC-Adresse (Format XX:XX:XX:XX:XX:XX)'}), 400
+        sol_cfg['scanner_bt_mac'] = mac
     save_config(cfg)
     log_event("INFO", "SOL-Einstellungen gespeichert")
     return jsonify({'ok': True, 'sol': sol_cfg})

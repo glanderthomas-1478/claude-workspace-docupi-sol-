@@ -447,6 +447,26 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
   Per End-to-End-Test verifiziert (Testcharge angelegt, USB-Kopie bestaetigt vorhanden, geloescht,
   USB-Kopie automatisch mitentfernt, SSD/USB-Zaehler danach wieder identisch)
 
+- **Geraete-Erreichbarkeits-Alarm fuer Barcode-Scanner** (2026-07-08, User-Vorgabe: Scanner und
+  Temperatursensor muessen im Einsatz immer erreichbar sein, Ausfall z.B. leerer Akku muss einen
+  Alarm ausloesen): Temperatur-Sensor hat noch keine digitale Anbindung (manuelle IR-Temp-Eingabe,
+  siehe oben) und kann daher noch nicht ueberwacht werden — nur der Rahmen fuer den Barcode-Scanner
+  wurde jetzt gebaut. Neues Settings-Feld "Scanner Bluetooth-MAC" (`config['sol']['scanner_bt_mac']`,
+  Format-validiert, leer = keine Ueberwachung), neue Route `GET /api/sol/device-status` fragt per
+  `bluetoothctl info <mac>` (BlueZ) den Verbindungsstatus ab — der Scanner liefert sonst keinen
+  Anwendungs-Heartbeat, da er sich per HID nur wie eine Tastatur verhaelt. `sol_charge_scan.html`
+  pollt den Status alle 8s; bei `connected:false` erscheint ein pulsierender roter Banner ("Scanner
+  nicht verbunden") + wiederkehrender Alarmton (Web-Audio-API, alle 30s, bewusst anderer Klang als
+  der bestehende NOK-Fehlerton). Der bestehende NOK-Ton bei Temperaturmessung unter der Toleranz
+  (`_sol_is_nok`) blieb unveraendert, deckt die zweite Haelfte der User-Anforderung bereits ab.
+  **Dockerfile-Aenderung noetig:** `bluez`-Paket ergaenzt (nur `bluetoothctl`-Client, der Container
+  spricht darueber per gemountetem `/var/run/dbus` mit dem auf dem Host laufenden `bluetoothd`) —
+  Image-Rebuild (`docker compose build`) statt nur Container-Restart notwendig. Auf dem Pi verifiziert
+  (Fake-MAC gesetzt → `connected:false`, MAC geleert → keine Ueberwachung/kein Fehlalarm).
+  **Naechster Schritt:** sobald der Inateck BCST-70 physisch gekoppelt ist, dessen echte MAC-Adresse
+  in den Settings eintragen — Ueberwachung aktiviert sich automatisch. Temperatur-Sensor-Ueberwachung
+  folgt analog, sobald BTMETER (BLE) oder Testo 835-T1 (USB) integriert ist
+
 ## Wiederverwendete Architektur aus DocuControl (Herkunftsprojekt)
 
 Der komplette Betriebs-Werdegang von DocuControl/Pi5_Display/docucontrol3 (Sterilisator-Dokumentation,

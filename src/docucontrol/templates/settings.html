@@ -68,6 +68,16 @@
                         <button class="btn btn-outline" onclick="saveSolConfig()"><i class="bi bi-check-lg"></i> Setzen</button>
                     </div>
                 </div>
+                <div class="set-row">
+                    <div class="info">
+                        <div class="name">Scanner Bluetooth-MAC</div>
+                        <div class="desc">MAC-Adresse des gekoppelten Barcode-Scanners (Inateck BCST-70) für die Erreichbarkeits-Überwachung auf der Scan-Seite. Leer = keine Überwachung.</div>
+                    </div>
+                    <div style="display:flex;gap:6px;align-items:center">
+                        <input type="text" class="ctrl" id="solScannerMacInput" style="width:180px" maxlength="17" placeholder="XX:XX:XX:XX:XX:XX">
+                        <button class="btn btn-outline" onclick="saveSolConfig()"><i class="bi bi-check-lg"></i> Setzen</button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -559,6 +569,7 @@
                 document.getElementById('solToleranceInput').value = (d.temp_tolerance_c != null ? d.temp_tolerance_c : '');
                 document.getElementById('solWarnCountInput').value = d.bottle_warn_count || '';
                 document.getElementById('solStandortInput').value = d.standort_kuerzel || '';
+                document.getElementById('solScannerMacInput').value = d.scanner_bt_mac || '';
             }).catch(function() {});
     }
 
@@ -571,6 +582,7 @@
                 temp_tolerance_c: document.getElementById('solToleranceInput').value,
                 bottle_warn_count: document.getElementById('solWarnCountInput').value,
                 standort_kuerzel: document.getElementById('solStandortInput').value.trim(),
+                scanner_bt_mac: document.getElementById('solScannerMacInput').value.trim(),
             })
         }).then(function(r) { return r.json(); })
           .then(function(d) {

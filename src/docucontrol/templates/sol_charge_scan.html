@@ -46,6 +46,19 @@
 }
 .sol-nok-bar .nb-text { flex: 1; font-weight: 600; color: var(--danger); font-size: 14px; }
 
+.sol-device-alarm-bar {
+    display: none; align-items: center; gap: 12px;
+    background: var(--danger); color: #fff; border-radius: 10px;
+    padding: 12px 16px; margin-bottom: 18px;
+    animation: solAlarmPulse 1.4s ease-in-out infinite;
+}
+.sol-device-alarm-bar .da-icon { font-size: 20px; flex-shrink: 0; }
+.sol-device-alarm-bar .da-text { flex: 1; font-weight: 600; font-size: 14px; }
+@keyframes solAlarmPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(220,53,69,0.5); }
+    50% { box-shadow: 0 0 0 8px rgba(220,53,69,0); }
+}
+
 .sol-bottle-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 .sol-bottle-table th {
     text-align: left; font-size: 10.5px; font-weight: 700; letter-spacing: .04em;
@@ -66,6 +79,11 @@
         <h1>Charge scannen</h1>
         <div class="lede">Flaschen per Barcode/QR-Scanner erfassen und IR-Temperatur dokumentieren.</div>
     </div>
+</div>
+
+<div class="sol-device-alarm-bar" id="solDeviceAlarmBar">
+    <span class="da-icon"><i class="bi bi-exclamation-triangle-fill"></i></span>
+    <span class="da-text" id="solDeviceAlarmText"></span>
 </div>
 
 <!-- Zustand: keine offene Charge -->
@@ -505,6 +523,57 @@
             setTimeout(function() { window.location.href = '/'; }, 1200);
         }).catch(function() { showToast('Netzwerkfehler', 'error'); });
     };
+
+    // ── Geraete-Erreichbarkeits-Alarm (Barcode-Scanner) ─────────────────────
+    // Temperatur-Sensor hat noch keine digitale Anbindung (manuelle IR-Temp-Eingabe),
+    // kann daher noch nicht ueberwacht werden - siehe /api/sol/device-status.
+
+    var DEVICE_POLL_MS = 8000;
+    var DEVICE_ALARM_REPEAT_MS = 30000;
+    var lastDeviceAlarmTone = 0;
+
+    function playDeviceAlarmTone() {
+        try {
+            var Ctx = window.AudioContext || window.webkitAudioContext;
+            var ctx = new Ctx();
+            [0, 300, 600].forEach(function(delay) {
+                setTimeout(function() {
+                    var osc = ctx.createOscillator();
+                    var gain = ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.value = 300;
+                    gain.gain.value = 0.18;
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start();
+                    setTimeout(function() { osc.stop(); }, 220);
+                }, delay);
+            });
+            setTimeout(function() { ctx.close(); }, 900);
+        } catch (e) { /* Web Audio nicht verfuegbar - kein Blocker */ }
+    }
+
+    function pollDeviceStatus() {
+        fetch('/api/sol/device-status').then(function(r) { return r.json(); }).then(function(d) {
+            var scanner = d.scanner || {};
+            var bar = document.getElementById('solDeviceAlarmBar');
+            if (scanner.configured && scanner.connected === false) {
+                document.getElementById('solDeviceAlarmText').textContent =
+                    'Barcode-Scanner nicht verbunden! Bitte Akku/Bluetooth-Verbindung prüfen.';
+                bar.style.display = 'flex';
+                var now = Date.now();
+                if (now - lastDeviceAlarmTone > DEVICE_ALARM_REPEAT_MS) {
+                    playDeviceAlarmTone();
+                    lastDeviceAlarmTone = now;
+                }
+            } else {
+                bar.style.display = 'none';
+                lastDeviceAlarmTone = 0;
+            }
+        }).catch(function() {});
+    }
+    pollDeviceStatus();
+    setInterval(pollDeviceStatus, DEVICE_POLL_MS);
 
     loadOpenCharge();
 })();

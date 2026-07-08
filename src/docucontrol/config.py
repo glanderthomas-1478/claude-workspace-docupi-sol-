@@ -50,7 +50,8 @@ DEFAULT_CONFIG = {
         "temp_tolerance_c": 5.0,
         "bottle_warn_count": 160,
         "standort_kuerzel": "",
-        "rows_per_page": 18
+        "rows_per_page": 18,
+        "scanner_bt_mac": ""
     }
 }
 

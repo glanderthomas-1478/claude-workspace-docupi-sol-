@@ -36,7 +36,7 @@
 
 ## Naechste konkrete Schritte
 
-1. **BTMETER-Thermometer physisch verfuegbar machen** und `python3 /home/docucontrol/ble_scan_thermometer.py` (Scan) → MAC identifizieren → mit MAC erneut aufrufen (GATT-Inspect, dabei am Geraet eine Messung ausloesen) → Rohdatenformat analysieren → Anbindungsmodul `src/docucontrol/ble_thermometer.py` schreiben, `sol_charge_scan.html` von manueller auf automatische Temperatur-Uebernahme umstellen
+1. **BTMETER-Thermometer physisch verfuegbar machen** und `python3 /home/docucontrol/ble_scan_thermometer.py` (Scan) → MAC identifizieren → mit MAC erneut aufrufen (GATT-Inspect, dabei am Geraet eine Messung ausloesen) → Rohdatenformat analysieren → Anbindungsmodul `src/docucontrol/ble_thermometer.py` schreiben, `sol_charge_scan.html` von manueller auf automatische Temperatur-Uebernahme umstellen. **Dabei unbedingt den TEMPORÄREN 36°C-Platzhalter-Workaround wieder entfernen** (`TEMP_SENSOR_PLACEHOLDER_C` in `sol_charge_scan.html`, seit 2026-07-08 aktiv, siehe CLAUDE.md)
 1b. **Testo 835-T1 physisch verfuegbar machen** und `python3 /home/docucontrol/usb_scan_thermometer.py` (Scan) → Vendor:Product-ID identifizieren → mit VID:PID erneut aufrufen (USB-Deskriptor-Inspect) → je nach gefundener USB-Klasse (CDC=gut, HID/Vendor-spezifisch=schwierig) entscheiden, ob eine Linux-native Anbindung realistisch ist
 2. ~~Inateck BCST-70 koppeln~~ — **ERLEDIGT (2026-07-08):** per `bluetoothctl` gekoppelt
    (`AC:2B:00:26:4A:10`), Ueberwachung in Einstellungen aktiviert, echter Flaschen-Code-Scan vom User

@@ -354,6 +354,12 @@
         document.getElementById('solNokBar').style.display = 'none';
     }
 
+    // TEMPORAER (User-Vorgabe 2026-07-08, gilt bis der Temperatursensor angebunden ist -
+    // siehe CLAUDE.md "naechste Schritte"): ohne Sensor gibt es keine echte IR-Temp-Messung,
+    // daher wird nach jedem Flaschen-Code-Scan automatisch dieser Platzhalterwert uebernommen
+    // statt eine manuelle Eingabe zu verlangen. WIEDER ENTFERNEN, sobald ein Sensor da ist.
+    var TEMP_SENSOR_PLACEHOLDER_C = 36;
+
     function scanInputHandler(e) {
         if (e.key !== 'Enter') return;
         var code = document.getElementById('solScanInput').value.trim().toUpperCase();
@@ -365,12 +371,8 @@
             return;
         }
         hideNokBar();
-        pendingScanCode = code;
-        document.getElementById('solScanInput').style.display = 'none';
-        var tempInput = document.getElementById('solTempInput');
-        tempInput.style.display = '';
-        tempInput.value = '';
-        tempInput.focus();
+        document.getElementById('solScanInput').value = '';
+        submitMeasurement(code, TEMP_SENSOR_PLACEHOLDER_C);
     }
 
     function submitMeasurement(scanCode, tempVal) {

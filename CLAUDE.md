@@ -590,6 +590,16 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
   Formaten aus Foto-Referenzen lieber ein zweites, schaerferes Foto anfordern oder den Scanner
   selbst als Quelle nutzen (digitale Dekodierung ist zuverlaessiger als visuelles Foto-Lesen),
   statt bei Unklarheit voreilig zur "plausibleren" Zeichenklasse (Ziffer statt Buchstabe) zu greifen
+- **⚠️ TEMPORÄRER WORKAROUND: IR-Temperatur wird automatisch mit 36°C befuellt** (2026-07-08,
+  User-Vorgabe "bis morgen", solange kein Temperatursensor angebunden ist): `sol_charge_scan.html`
+  (`scanInputHandler`) ruft nach einem gueltigen Flaschen-Code-Scan direkt `submitMeasurement(code,
+  TEMP_SENSOR_PLACEHOLDER_C)` mit fest codiertem `36` auf, statt wie vorher das Temperatur-Eingabefeld
+  fuer eine manuelle Eingabe einzublenden — das Feld wird dadurch im normalen Scan-Flow gar nicht mehr
+  angezeigt (bleibt aber ueber "Nochmal messen" bei NOK weiterhin fuer manuelle Korrektur erreichbar).
+  Live per Playwright-Scan-Simulation auf dem Pi verifiziert (Flasche wird mit `36.0 °C`/Status OK
+  erfasst, Scan-Feld sofort wieder fokussiert). **MUSS WIEDER ENTFERNT WERDEN, sobald ein
+  Temperatursensor (BTMETER oder Testo 835-T1) angebunden ist** — Konstante `TEMP_SENSOR_PLACEHOLDER_C`
+  im Script bewusst so benannt, um beim spaeteren Aufraeumen leicht auffindbar zu sein
 
 ## Wiederverwendete Architektur aus DocuControl (Herkunftsprojekt)
 

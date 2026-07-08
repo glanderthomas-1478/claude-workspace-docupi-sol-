@@ -44,28 +44,33 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
   ein Anwender die Anlage taeglich nutzen ohne Dongle, aber nur ein Service-Techniker mit Dongle
   kommt an Software/Konfiguration heran
 
-### Offene Entscheidungen (Stand 2026-07-07)
+### Offene Entscheidungen (Stand 2026-07-08)
 
-- **Barcode-Scanner:** **Modell entschieden (2026-07-08):** Inateck BCST-70 (kabellos, Bluetooth,
-  35m Funkreichweite, 180 Tage Standby). Laeuft im Bluetooth-**HID-Modus** (Tastatur-Emulation) —
-  bestaetigt die schon länger angenommene USB-HID/Tastatur-Emulation-Anbindung, tippt gescannte Codes
-  direkt als Tastatureingabe, **kein Code noetig** (Scan-Seite `sol_charge_scan.html` funktioniert
-  bereits unveraendert damit). Physisches Geraet fuer die eigentliche Bluetooth-Kopplung noch nicht
-  verfuegbar — Vorbereitung + Pairing-Anleitung siehe "Wichtiger Kontext" unten
-- **Temperatursensor:** **entschieden (2026-07-08):** BTMETER Infrarot-Thermometer mit Bluetooth
-  (Modell BT-1500APP oder aehnlich, 30:1 Dual-Laser-Pyrometer, -50..1500°C). Anbindung per BLE geplant
-  (nicht RS232/1-Wire) — physisches Geraet fuer die Protokoll-Erfassung noch nicht verfuegbar,
-  Vorbereitung siehe "Wichtiger Kontext" unten (`scripts/ble_scan_thermometer.py`)
-- **Dokumentationsfelder:** Minimal bestaetigt (Flaschen-ID, Zeitstempel, Temperaturverlauf);
-  Bediener/Fuelldruck/weitere Prozesswerte noch offen
-- **Hardware:** **erstes Geraet in Betrieb** (2026-07-07) — Raspberry Pi 5, Hostname `DocuControlSOL`,
-  IP 192.168.0.172, SSH-User `docucontrol`. Root laeuft LUKS-verschluesselt von NVMe-SSD
-  (`/dev/mapper/cryptroot`), bootet seit der finalen Umstellung automatisch (Keyfile auf
-  Boot-Partition, s.o.), SD-Karte bleibt als EEPROM-Boot-Fallback. Projekt-Code (`src/docucontrol/`),
-  Kiosk (cage+Chromium) und beide Dongles sind fertig eingerichtet — Details siehe
-  `context/current-data.md`
-- **Git-Remote:** **erledigt** — eigenes privates Repo `glanderthomas-1478/claude-workspace-docupi-sol-`
-  angelegt, Origin umgestellt, erster Commit gepusht (2026-07-07)
+- **Barcode-Scanner:** **Modell entschieden:** Inateck BCST-70 (kabellos, Bluetooth, 35m
+  Funkreichweite, 180 Tage Standby). Laeuft im Bluetooth-**HID-Modus** (Tastatur-Emulation) —
+  tippt gescannte Codes direkt als Tastatureingabe, **kein Code noetig** (Scan-Seite
+  `sol_charge_scan.html` funktioniert bereits unveraendert damit). Physisches Geraet fuer die
+  eigentliche Bluetooth-Kopplung noch nicht verfuegbar — Vorbereitung + Pairing-Anleitung siehe
+  "Wichtiger Kontext" unten
+- **Temperatursensor: zwei Kandidaten in Vorbereitung**, Geraete-Entscheidung noch offen:
+  (1) BTMETER Infrarot-Thermometer mit Bluetooth (30:1 Dual-Laser-Pyrometer, -50..1500°C) —
+  Linux-native BLE-Anbindung erwartet, `scripts/ble_scan_thermometer.py` bereit.
+  (2) Testo 835-T1 (aus den echten SOL-Referenzfotos, Default in `sensor_names`) — **kein
+  Bluetooth**, nur USB, Live-Werte-Abfrage offiziell nur per Windows-only .NET-SDK, Linux-native
+  Anbindung nicht garantiert, `scripts/usb_scan_thermometer.py` bereit. Beide physischen Geraete
+  fuer die eigentliche Protokoll-Erfassung noch nicht verfuegbar — siehe "Wichtiger Kontext" unten
+- **Dokumentationsfelder:** Chargen-Barcode, Referenztemperatur, Abfueller-Name, pro Flasche
+  Flaschen-Code + IR-Temp, Bestaetigung + digitale Unterschrift — vollstaendig implementiert und
+  end-to-end getestet (siehe "Chargenseite umgebaut" unten). Fuelldruck bisher nicht erfasst,
+  bislang von SOL nicht angefragt
+- **Hardware:** **voll eingerichtet** — Raspberry Pi 5, Hostname `DocuControlSOL`,
+  IP 192.168.0.172, SSH-User `docucontrol`. SSD (LUKS, automatischer Boot ohne Dongle) UND
+  SD-Karte (LUKS, eigener Container, dongle-pflichtig als Notfall-Klon) beide verschluesselt und
+  einsatzbereit, Projekt-Code, Kiosk (cage+Chromium) und beide Dongles fertig eingerichtet —
+  Details siehe `context/current-data.md`
+- **Git-Remote:** **erledigt** — eigenes privates Repo `glanderthomas-1478/claude-workspace-docupi-sol-`,
+  kompletter Session-Stand (Chargenseite + alle Folge-Fixes) committed+gepusht (2026-07-08,
+  Commit `c9768bf`)
 
 ---
 
@@ -128,10 +133,8 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
 │   ├── docupi-3000_konzept_getmatic.{md,pdf}  # Vertriebs-Konzept fuer getmatic
 │   └── docucontrol_owasp_*.{md,pdf}  # OWASP-Sicherheitsberichte (Web-App + Host-Ebene, 2026-06-22)
 ├── backups/                # Pi-Backups (komplette Snapshots, gitignored)
-│   ├── pi-backup-2026-04-13/  # DocuPi-3000 nach Feldtest Helios Krefeld
-│   ├── pi-backup-2026-06-08/  # DocuControl — 13 Protokolle, 11 PDFs, Storage-Manager, Templates
-│   ├── pi-backup-2026-06-11/  # DocuControl — Code+Patches, DB, Configs, Captures, System-Configs
-│   └── pi-backup-2026-06-12/  # DocuControl — Code, DB, Configs (inkl. Netzwerk-Speicherort), 14 PDFs, 37 Captures, Logs, System-Configs
+│   ├── github-backup-2026-06-12/  # Git-Bundle-Backup des Herkunftsprojekts (claude-workspace-docupi)
+│   └── pi-backup-2026-07-08/  # SOL — Code (Stand Commit c9768bf), DB, Configs/Secrets, System-Configs (LUKS/Kiosk/PAM); Details siehe README.md darin
 ├── secrets/                # Passwort-Material, lokal/gitignored (2026-06-22) — NIE committen
 │   └── docucontrol_passwort_vorschlaege.{md,pdf}  # Generierte Passwoerter zur Rollout-Freigabe
 └── scripts/                # Hilfsskripte
@@ -400,6 +403,27 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
   jedem Einschalten automatisch wieder mit dem zuletzt gekoppelten Geraet — keine erneute Kopplung
   pro Boot noetig. Test danach: Scan-Seite (`/sol/scan`) am Kiosk oeffnen, Eingabefeld fokussiert
   (Standardzustand), Testbarcode scannen — sollte wie eine Tastatureingabe im Feld erscheinen
+- **SMB-Netzwerk-Speicherort eingerichtet** (2026-07-08, User-Wunsch): PDF-Sync zum Windows-Rechner
+  des Users (192.168.0.85, Freigabe `temp`) per dediziertem lokalem Windows-Konto `docucontrol`
+  (nicht das Domaenen-Konto des Users). Domain-Feld auf den Computernamen (`GETMATIC_MASTER`)
+  gesetzt, damit lokale statt Domaenen-Authentifizierung versucht wird. Verbindungstest +
+  Synchronisation erfolgreich, Zugangsdaten in `secrets/docupi_sol_zugangsdaten.md`. **Bug
+  gefunden+gefixt:** der manuelle "Jetzt sync."-Button-Endpunkt (`app.py`) rief zusaetzlich
+  `sync_captures_to_network()` auf — eine dritte, zuvor uebersehene Aufrufstelle (neben
+  Hintergrund-Loop und Mount-Funktion), die einen leeren `captures`-Ordner auf der Freigabe anlegte
+  (SOL hat keinen TCP/9100-Empfang, es gibt nie Capture-Dateien). Aufruf entfernt, verifiziert
+- **Sauerstoffflaschen zu Druckgasflaschen umbenannt** (2026-07-08, User-Wunsch): komplette
+  Terminologie-Umstellung in UI (Dashboard-Titel, Scan-Seite, Settings-Karte), PDF-Titel (neue
+  Chargen) und Dokumentation. Bereits erzeugte PDFs behalten den alten Text. PDF-Fusszeile
+  zusaetzlich von "DocuControl-SOL" auf "DocuControl" verkuerzt
+- **Kiosk-Mauszeiger ausgeblendet** (2026-07-08): war im Herkunftsprojekt bereits per
+  `* { cursor: none !important; }` in `docucontrol.css` geloest, Regel fehlte im SOL-Fork — aus
+  Git-Historie wiederhergestellt
+- **Kompletter Session-Stand committed+gepusht** (2026-07-08): die komplette Chargenseite sowie
+  alle Folge-Fixes lagen bis dahin nur auf dem Pi deployed, nie im Git-Repo. Commit `c9768bf`
+  zu `origin/master` gepusht. Zusaetzlich lokales Pi-Backup `backups/pi-backup-2026-07-08/`
+  erstellt (Code, DB, Configs/Secrets, System-Configs — LUKS-Schluessel selbst bewusst nicht
+  enthalten, bleibt exklusiv auf den Dongles)
 
 ## Wiederverwendete Architektur aus DocuControl (Herkunftsprojekt)
 

@@ -31,10 +31,12 @@ sind neu.
 
 ### Hardware-Plattform
 
-- Raspberry Pi 5 + SSD (NVMe) + Display (Kiosk-Betrieb wie docucontrol3/Pi5_Display) — noch nicht
-  beschafft, reine Vorbereitung
-- **USB-Dongle** zur LUKS-Entschluesselung von Anfang an vorgesehen (nicht nachtraeglich wie beim
-  Herkunftsprojekt geplant) — Referenzskript `scripts/setup_luks_nvme.sh` bereits vorhanden
-- Barcode-Scanner: USB-HID (Tastatur-Emulation), Modell noch offen
-- Temperatursensor: Anbindung noch offen (1-Wire/I2C direkt am Pi vs. externes Messgeraet per
-  RS232/Modbus)
+- **Erstes Geraet voll eingerichtet** (Stand 2026-07-08): Raspberry Pi 5 + NVMe-SSD + Display,
+  Kiosk-Betrieb (cage+Chromium), Hostname `DocuControlSOL`. SSD und SD-Karte beide LUKS-
+  verschluesselt (SSD bootet automatisch ohne Dongle, SD-Karte als dongle-pflichtiger Notfall-Klon)
+- **USB-Dongle** zur Zugriffskontrolle (SSH + Service-Aktionen) fertig eingerichtet, zwei identische
+  SOLDONGLE-Sticks im Einsatz
+- Barcode-Scanner: **Modell entschieden** — Inateck BCST-70 (Bluetooth-HID), physisches Geraet fuer
+  Kopplung noch nicht verfuegbar
+- Temperatursensor: **zwei Kandidaten in Vorbereitung** (BTMETER Bluetooth-IR-Thermometer,
+  Testo 835-T1 USB), finale Geraete-Entscheidung noch offen — siehe CLAUDE.md

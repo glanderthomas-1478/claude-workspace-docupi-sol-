@@ -2,10 +2,10 @@
 
 ## Aktueller Fokus
 
-DocuControl-SOL vom Fork zu einem eigenstaendigen, funktionsfaehigen Konzept bringen: Architektur
-fuer Barcode-Erfassung + Temperaturmessung festlegen, dann auf der bestehenden DocuControl-Basis
-(Dashboard, Backend, Security) implementieren. Hardware ist noch nicht beschafft — aktuell reine
-Vorbereitung/Planung.
+Kern-Architektur, Hardware-Setup und die komplette Chargenseite (Flaschen-Scan-Workflow) sind fertig
+implementiert und end-to-end getestet. Fokus jetzt: die beiden noch fehlenden physischen Geraete
+(Barcode-Scanner, Temperatursensor) beschaffen und anbinden, danach echten Praxisbetrieb mit
+SOL-Mitarbeitern testen.
 
 ## Strategische Prioritaeten
 
@@ -14,44 +14,43 @@ Vorbereitung/Planung.
 - Ordner von `claude-workspace-docupi` kopiert, CLAUDE.md + context/ auf SOL-Projekt umgestellt
 - Wiederverwendbare Bausteine identifiziert und in CLAUDE.md dokumentiert (Web-Frontend, Netzwerk-/
   Speicher-/Drucker-Management, Security-Haertungs-Checkliste, LUKS-Skript)
-- OFFEN: Git-Remote zeigt noch auf das Herkunftsprojekt — vor erstem eigenen Push klaeren (eigenes
-  Repo anlegen oder Origin umstellen)
+- Git-Remote: eigenes privates Repo angelegt, Origin umgestellt
 
-### 2. Kern-Entscheidungen fuer die SOL-Architektur — IN ARBEIT
+### 2. Kern-Entscheidungen fuer die SOL-Architektur — GROESSTENTEILS ERLEDIGT
 
-- **Barcode-Scanner**: USB-HID/Tastatur-Emulation — bestaetigt (2026-07-07). Kein serieller Listener
-  noetig, Scan kann direkt als Input-Event im Browser verarbeitet werden
-- **Temperatursensor**: OFFEN — 1-Wire/I2C direkt am Pi vs. externes Messgeraet per RS232/Modbus.
-  Diese Entscheidung bestimmt, ob ein neuer GPIO-Sensor-Reader gebaut wird oder ein serieller
-  Listener (analog `serial_receiver.py`/`wd_protocol_parser.py` aus dem Herkunftsprojekt)
-  wiederverwendet werden kann
-- **Dokumentationsfelder**: Minimalumfang bestaetigt (Flaschen-ID, Zeitstempel, Temperaturverlauf);
-  Erweiterung um Bediener-Kuerzel/Fuelldruck noch zu klaeren (Vorbild: Autoklavenbuch-Formular bei
-  docucontrol3)
+- **Barcode-Scanner**: Inateck BCST-70 (Bluetooth-HID) entschieden — physisches Geraet fuer
+  Kopplung noch nicht verfuegbar
+- **Temperatursensor**: zwei Kandidaten in Vorbereitung (BTMETER Bluetooth-IR-Thermometer,
+  Testo 835-T1 USB), finale Geraete-Entscheidung noch offen — beide Diagnose-Skripte bereit,
+  physische Geraete fehlen noch
+- **Dokumentationsfelder**: vollstaendig implementiert (Chargen-Barcode, Referenztemperatur,
+  Abfueller-Name, pro Flasche Code+IR-Temp, Bestaetigung+Unterschrift, nicht beschreibbares PDF)
 - OFFEN: Zielkunde/Betreiber/Vertriebsweg fuer SOL (im Unterschied zu DocuControl gibt es hier noch
   keinen bestaetigten Erstkunden)
 
-### 3. Hardware-Beschaffung und Sicherheits-Setup — NOCH NICHT BEGONNEN
+### 3. Hardware-Beschaffung und Sicherheits-Setup — ERLEDIGT (2026-07-07/08)
 
-- Raspberry Pi 5 + SSD + Display beschaffen (gleiche Basis wie docucontrol3/Pi5_Display)
-- **USB-Dongle fuer LUKS-Verschluesselung von Anfang an einplanen** (nicht nachtraeglich wie beim
-  Herkunftsprojekt) — Referenzskript `scripts/setup_luks_nvme.sh` liegt bereits vor
-- Sicherheits-Haertung (Secrets, Brute-Force-Schutz, Access-Control-Guards, SSH Pubkey-only, etc.)
-  von Anfang an mitbauen statt wie beim Herkunftsprojekt nachtraeglich per OWASP-Review nachzuruesten
+- Erstes Pi-5-Geraet beschafft, SSD+SD-Karte beide LUKS-verschluesselt, Kiosk (cage+Chromium)
+  eingerichtet
+- USB-Dongle-Zugriffskontrolle (SSH + Service-Aktionen) fertig, zwei identische Dongles im Einsatz
+- Sicherheits-Haertung von Anfang an mitgebaut (Service-Dongle-Gates, kein Passwort-Login mehr,
+  SSH-PAM-Sperre ohne Dongle)
 
-### 4. Implementierung — NOCH NICHT BEGONNEN
+### 4. Implementierung — ERLEDIGT (2026-07-07/08)
 
-- Barcode-Ingestion (Browser-Input-Handler statt TCP/9100-Capture)
-- Temperatur-Ingestion (abhaengig von Sensor-Entscheidung, Punkt 2)
-- Dashboard/PDF/DB-Schema von Sterilisationscharge auf Flaschen-Dokumentation umstellen
-- Fuer strukturelle Aenderungen: `/create-plan` verwenden, sobald die offenen Entscheidungen
-  (Sensor, Scanner-Modell, Dokumentationsfelder) geklaert sind
+- Chargenseite (`sol_charge_scan.html`) komplett implementiert: Barcode-Scan (Browser-Input-Handler,
+  kein TCP/9100-Capture noetig), manuelle IR-Temp-Eingabe (bis Sensor-Anbindung steht), NOK-Erkennung
+  mit Fehlerton, Bestaetigung+Unterschrift, nicht beschreibbares PDF
+- Dashboard/PDF/DB-Schema von Sterilisationscharge auf Flaschen-Dokumentation umgestellt
+  (`sol_charges`/`sol_bottles`, `sol_pdf_generator.py`)
+- SMB-Netzwerk-Speicherort + verschluesselter SD-Notfall-Klon zusaetzlich eingerichtet
 
 ## Wie Erfolg aussieht
 
-- Kern-Architekturentscheidungen (Scanner, Sensor, Dokumentationsfelder) getroffen
-- Hardware beschafft und mit LUKS/USB-Dongle abgesichert aufgesetzt
+- Kern-Architekturentscheidungen (Scanner, Sensor, Dokumentationsfelder) getroffen — **erledigt**
+  bis auf die finale Sensor-Geraeteauswahl
+- Hardware beschafft und mit LUKS/USB-Dongle abgesichert aufgesetzt — **erledigt**
 - Barcode- und Temperatur-Ingestion implementiert und auf der DocuControl-Dashboard/PDF-Basis
-  lauffaehig
-- Naechster Meilenstein: offene Entscheidungen (Temperatursensor, Scanner-Modell, Dokumentationsfelder,
-  Git-Remote) klaeren, dann `/create-plan` fuer die erste Implementierungsrunde
+  lauffaehig — **erledigt** (Temperatur noch manuell, Sensor-Anbindung folgt)
+- Naechster Meilenstein: Barcode-Scanner + Temperatursensor physisch beschaffen und anbinden, dann
+  echten Praxisbetrieb mit SOL-Mitarbeitern testen

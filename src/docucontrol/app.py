@@ -2792,6 +2792,26 @@ def api_sol_config_save():
     return jsonify({'ok': True, 'sol': sol_cfg})
 
 
+@app.route('/api/sol/device-toggle', methods=['POST'])
+def api_sol_device_toggle():
+    # Bewusst NICHT hinter _require_service(): ein Bediener muss ein defektes
+    # Geraet (Scanner/Sensor) selbst deaktivieren koennen, um weiterarbeiten zu
+    # koennen, ohne auf einen Service-Techniker mit Dongle warten zu muessen.
+    # Nur der Ein/Aus-Schalter ist hierueber erreichbar - die eigentliche
+    # Konfiguration (z.B. Scanner-MAC) bleibt ueber /api/sol/config gesperrt.
+    data = request.get_json(silent=True) or {}
+    cfg = load_config()
+    sol_cfg = cfg.setdefault('sol', {})
+    if 'scanner_enabled' in data:
+        sol_cfg['scanner_enabled'] = bool(data['scanner_enabled'])
+    if 'temp_sensor_enabled' in data:
+        sol_cfg['temp_sensor_enabled'] = bool(data['temp_sensor_enabled'])
+    save_config(cfg)
+    log_event("INFO", f"SOL-Geraet umgeschaltet: scanner_enabled={sol_cfg.get('scanner_enabled')}, "
+                       f"temp_sensor_enabled={sol_cfg.get('temp_sensor_enabled')}")
+    return jsonify({'ok': True, 'sol': sol_cfg})
+
+
 if __name__ == "__main__":
     config = load_config()
     log_event("INFO", "DocuControl gestartet")

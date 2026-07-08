@@ -542,6 +542,20 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
   `sshd`-Neustart entstand kurzzeitig ein Lockout (Passwort-Login zusaetzlich durch eine vermutete
   fail2ban-Sperre durch die vielen Testverbindungen erschwert), der sich ohne physischen
   Tastatur-Zugang am Geraet nur durch Abwarten aufloesen liess
+- **"Externe Geraete"-Schalter ohne Dongle bedienbar gemacht** (2026-07-08, User-Vorgabe: "der
+  Bediener muss ein defektes Geraet deaktivieren koennen um weiter zu arbeiten"): die Ein/Aus-Schalter
+  fuer Barcode-Scanner/Temperatur-Sensor lagen bisher wie der Rest der Karte hinter dem
+  Service-Dongle — dadurch konnte ein Bediener ohne Dongle einen kaputten Scanner/Sensor nicht selbst
+  stummschalten und haette bis zu einem Service-Techniker mit dem Dauer-Alarm weiterarbeiten muessen.
+  Neuer, bewusst NICHT gesperrter Endpunkt `POST /api/sol/device-toggle` (nur `scanner_enabled`/
+  `temp_sensor_enabled`) getrennt vom weiterhin gesperrten `POST /api/sol/config` (Scanner-MAC,
+  Temperatur-Toleranz, Standort-Kuerzel etc. bleiben Service-Technik-Aufgabe). Frontend: beide
+  Schalter-Labels+Inputs mit `data-always-enabled="1"` markiert (bestehendes Muster aus
+  `docucontrol.css`, schon fuer "Verbindung testen"/"Neustart"-Buttons genutzt), eigene JS-Funktion
+  `saveDeviceToggle()` statt `saveSolConfig()`. Per Live-Test ohne Dongle verifiziert: Schalter
+  laesst sich klicken und speichert (`scanner_enabled` aendert sich tatsaechlich), waehrend ein
+  Aenderungsversuch am MAC-Feld ueber die alte Route weiterhin korrekt mit "Service-Dongle
+  erforderlich" abgelehnt wird — granulare Sperre funktioniert wie gewollt
 
 ## Wiederverwendete Architektur aus DocuControl (Herkunftsprojekt)
 

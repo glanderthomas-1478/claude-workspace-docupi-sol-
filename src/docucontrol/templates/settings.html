@@ -78,10 +78,10 @@
                 <div class="set-row">
                     <div class="info">
                         <div class="name">Barcode-Scanner</div>
-                        <div class="desc">Erreichbarkeits-Überwachung (Bluetooth) auf der Scan-Seite. Deaktivieren, wenn kein Scanner im Einsatz ist.</div>
+                        <div class="desc">Erreichbarkeits-Überwachung (Bluetooth) auf der Scan-Seite. Bei einem defekten Scanner hier abschalten, um ohne Service-Techniker weiterarbeiten zu können.</div>
                     </div>
-                    <label class="switch">
-                        <input type="checkbox" id="solScannerEnabledToggle" onchange="saveSolConfig()">
+                    <label class="switch" data-always-enabled="1">
+                        <input type="checkbox" id="solScannerEnabledToggle" data-always-enabled="1" onchange="saveDeviceToggle()">
                         <span class="track"></span>
                     </label>
                 </div>
@@ -98,10 +98,10 @@
                 <div class="set-row">
                     <div class="info">
                         <div class="name">Temperatur-Sensor</div>
-                        <div class="desc">Erreichbarkeits-Überwachung — technisch noch nicht angebunden (aktuell manuelle IR-Temp-Eingabe), folgt mit der Sensor-Integration.</div>
+                        <div class="desc">Erreichbarkeits-Überwachung — technisch noch nicht angebunden (aktuell manuelle IR-Temp-Eingabe), folgt mit der Sensor-Integration. Bei Bedarf hier abschalten, um ohne Service-Techniker weiterarbeiten zu können.</div>
                     </div>
-                    <label class="switch">
-                        <input type="checkbox" id="solTempSensorEnabledToggle" onchange="saveSolConfig()">
+                    <label class="switch" data-always-enabled="1">
+                        <input type="checkbox" id="solTempSensorEnabledToggle" data-always-enabled="1" onchange="saveDeviceToggle()">
                         <span class="track"></span>
                     </label>
                 </div>
@@ -618,6 +618,24 @@
         }).then(function(r) { return r.json(); })
           .then(function(d) {
               if (d.ok) showToast('Gespeichert', 'Abfüllungs-Einstellungen aktualisiert.');
+              else showToast('Fehler', d.error || 'Speichern fehlgeschlagen.');
+          }).catch(function() {});
+    };
+
+    // Bewusst NICHT hinter dem Service-Dongle: ein Bediener muss ein defektes
+    // Geraet (Scanner/Sensor) selbst abschalten koennen, um weiterarbeiten zu
+    // koennen, ohne auf einen Service-Techniker warten zu muessen.
+    window.saveDeviceToggle = function() {
+        fetch('/api/sol/device-toggle', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                scanner_enabled: document.getElementById('solScannerEnabledToggle').checked,
+                temp_sensor_enabled: document.getElementById('solTempSensorEnabledToggle').checked,
+            })
+        }).then(function(r) { return r.json(); })
+          .then(function(d) {
+              if (d.ok) showToast('Gespeichert', 'Geräte-Überwachung aktualisiert.');
               else showToast('Fehler', d.error || 'Speichern fehlgeschlagen.');
           }).catch(function() {});
     };

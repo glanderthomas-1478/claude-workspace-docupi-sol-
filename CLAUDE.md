@@ -488,6 +488,19 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
   Temperatur-Sensor-Schalter in "Externe Geraete" einfach aus. Auf dem Pi verifiziert (beide
   Schalter aktiv, keine MAC/Integration vorhanden → device-status liefert `configured:false` fuer
   beide, Banner-Bedingung greift jetzt bei beiden)
+- **Bug gefunden+gefixt: Alarm auf dem Kiosk trotzdem unsichtbar** (2026-07-08, User meldete erneut
+  "kommt noch immer keine Alarmmeldung" nach dem vorherigen Fix): der grosse Banner+Ton existierte
+  bisher ausschliesslich in `sol_charge_scan.html` — der Kiosk zeigt aber standardmaessig das
+  Dashboard (`http://localhost:5000`, `dashboard.html`), nicht die Scan-Seite. Auf dem Dashboard war
+  der Alarm dadurch komplett unsichtbar, obwohl die Geraete-Logik selbst schon korrekt lief. Fix:
+  `/api/system/alerts` (der bestehende seitenuebergreifende Topbar-Alarm-Mechanismus, sichtbar auf
+  jeder Seite via `base.html` — bereits genutzt fuer Maschine/Drucker/SSD/Netzwerkspeicher/USB) um
+  zwei neue Eintraege ergaenzt: Barcode-Scanner (nicht konfiguriert/nicht verbunden) und
+  Temperatur-Sensor (nicht angebunden). Erscheint jetzt als rotes Badge in der Topbar auf allen
+  Seiten inkl. Dashboard. Der laute Banner+Ton bleibt zusaetzlich exklusiv auf der Scan-Seite
+  bestehen (dort, wo waehrend des Scannens aktiv gearbeitet wird) — Topbar-Badges sind bewusst
+  lautlos, wie alle anderen bestehenden Alarmtypen dort auch. Per Playwright-Screenshot auf der
+  Dashboard-Seite verifiziert (beide roten Badges sichtbar)
 
 ## Wiederverwendete Architektur aus DocuControl (Herkunftsprojekt)
 

@@ -513,8 +513,8 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
   unveraendert). Nach Reboot verifiziert: `vcgencmd bootloader_config` zeigt `DISABLE_HDMI=1`,
   `kiosk.service` + App liefen sofort wieder normal, kein Bootproblem durch die Firmware-Aenderung.
   `config.txt`-Backup unter `config.txt.bak-disablesplash` (der erste, wirkungslose Versuch) bleibt
-  als Referenz liegen. **Visuelle Bestaetigung durch den User steht noch aus** (kein Remote-Zugriff
-  auf die allerfrueheste Boot-Phase moeglich)
+  als Referenz liegen. **Per echtem Kaltstart (Strom aus/an) vom User bestaetigt:** Himbeeren-Screen
+  ist weg, Boot springt jetzt direkt zum GeTmatic-Logo
 
 ## Wiederverwendete Architektur aus DocuControl (Herkunftsprojekt)
 

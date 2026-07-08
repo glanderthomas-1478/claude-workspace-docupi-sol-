@@ -520,6 +520,28 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
   bevor der Reboot griff. Ohne Folgen, da der wirksame Fix (`DISABLE_HDMI=1`) im EEPROM selbst liegt,
   einem eigenen Speicherort unabhaengig von `/boot/firmware` — **Lehre fuer kuenftige
   `/boot/firmware`-Edits auf diesem Pi: vor einem Reboot explizit `sync` ausfuehren**
+- **Sicherheitsluecke gefunden+gefixt: SSH-Key-Login umging die Dongle-Sperre** (2026-07-08, per
+  explizitem User-Test "Dongle ziehen, SSH pruefen" entdeckt): SSH-Key-Login wurde eingerichtet
+  (Public Key `~/.ssh/docupi_sol_id.pub` des Windows-Rechners in `~/.ssh/authorized_keys` auf dem
+  Pi), danach beim Testen festgestellt: mit gezogenem Dongle blieb Passwort-Login korrekt blockiert
+  (PAM `account`-Regel `check-service-dongle.sh` griff), aber **Key-Login funktionierte trotzdem** —
+  die PAM-account-Pruefung wird von OpenSSH bei reiner Pubkey-Authentifizierung offenbar nicht
+  zuverlaessig durchlaufen (bekanntes Verhalten bei manchen sshd/PAM-Kombinationen). Das hebelte den
+  gesamten "Software nicht ohne Dongle zugaenglich"-Schutz fuer jeden mit gueltigem SSH-Key aus.
+  **Fix:** Key nicht mehr ueber die normale `~/.ssh/authorized_keys`-Datei ausgeliefert (dort
+  geloescht), sondern per `AuthorizedKeysCommand` (`/etc/ssh/sshd_config`: `AuthorizedKeysFile none`
+  + `AuthorizedKeysCommand /usr/local/bin/check-service-dongle-ssh-key.sh` + `AuthorizedKeysCommandUser
+  nobody`) — das Script prueft den Dongle direkt beim Authentifizierungsversuch selbst (per `lsblk`
+  auf Label SOLDONGLE) und gibt den erlaubten Key (liegt jetzt root-eigen in
+  `/etc/ssh/docupi-sol-dongle-authorized-keys`) nur dann ueberhaupt aus — kein Fallback mehr auf die
+  unzuverlaessige PAM-account-Pruefung fuer diesen Pfad. Per echtem Dongle-Ziehen/-Stecken-Test
+  verifiziert: Key-Login jetzt zuverlaessig blockiert ohne Dongle, funktioniert mit Dongle. **Wichtige
+  Lehre:** bei sicherheitskritischen Aenderungen am laufenden System (hier: `sshd_config` +
+  Authorized-Keys-Migration) erst die neue Konfiguration vollstaendig aktivieren (Dienst-Neustart),
+  bevor der alte Zugangsweg entfernt wird — beim Loeschen der alten `authorized_keys`-Datei VOR dem
+  `sshd`-Neustart entstand kurzzeitig ein Lockout (Passwort-Login zusaetzlich durch eine vermutete
+  fail2ban-Sperre durch die vielen Testverbindungen erschwert), der sich ohne physischen
+  Tastatur-Zugang am Geraet nur durch Abwarten aufloesen liess
 
 ## Wiederverwendete Architektur aus DocuControl (Herkunftsprojekt)
 

@@ -24,6 +24,24 @@ import requests
 BASE = "http://192.168.0.172:5000"
 
 
+def make_charge_nr():
+    """RAMSES-Chargennummer, 18-stellig (PR.128.07.9 Kap. 4.3): Standort-ID(3) +
+    Abfuellnr./Tag(1) + Produktionsdatum TTMMJJ(6) + Produktcode Buchstabe+5 Ziffern(6) +
+    Mitarbeiter-Nr. alphanumerisch(1) + Landeskennung(1)."""
+    site_id = "075"
+    fill_no = str(random.randint(0, 9))
+    prod_date = time.strftime("%d%m%y")
+    product_code = "X" + f"{random.randint(0, 99999):05d}"
+    employee = random.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+    country = "D"
+    return f"{site_id}{fill_no}{prod_date}{product_code}{employee}{country}"
+
+
+def make_bottle_code(i):
+    """SOL-Flaschen-Barcode: 3 Buchstaben + 9 Ziffern (z. B. EFQ227010119)."""
+    return f"BTL{i:09d}"
+
+
 def make_signature_png():
     """Erzeugt eine simple, nicht-transparente Test-Unterschrift (Zickzack-Linie)."""
     try:
@@ -50,7 +68,7 @@ def main():
         if a.startswith("--nok="):
             exact_nok = int(a.split("=", 1)[1])
 
-    charge_nr = f"SIM-{int(time.time())}"
+    charge_nr = make_charge_nr()
     room_temp = 27.5
     print(f"=== Simulation: Charge {charge_nr}, {n_bottles} Flaschen ===\n")
 
@@ -79,7 +97,7 @@ def main():
             ir_temp = round(room_temp + random.uniform(1.0, 4.0), 1)
         else:
             ir_temp = round(room_temp + random.uniform(6.0, 16.0), 1)
-        scan_code = f"BTL{i:04d}"
+        scan_code = make_bottle_code(i)
         r = requests.post(f"{BASE}/api/sol/charges/{charge_id}/bottles",
                            json={"scan_code": scan_code, "ir_temp": ir_temp})
         r.raise_for_status()

@@ -1,4 +1,4 @@
-import os, sys, logging, shutil, subprocess, signal, atexit, time as _time
+import os, sys, re, logging, shutil, subprocess, signal, atexit, time as _time
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, send_file, redirect, make_response, url_for, Response
 from flask_socketio import SocketIO
@@ -2452,6 +2452,17 @@ def sol_view_pdf(charge_id):
     return "PDF nicht gefunden", 404
 
 
+# Format der echten SOL-Flaschen-Barcodes (Referenzfoto reference/screenshots/Bilder SOL Daten/
+# 20260707_224940.jpg, Beispielwert "EFQ227010119"): 3 Buchstaben + 9 Ziffern.
+SOL_BOTTLE_CODE_RE = re.compile(r'^[A-Z]{3}\d{9}$')
+
+# Format der RAMSES-Chargennummer (Referenzfotos reference/screenshots/Bilder SOL Daten/
+# 20260707_225122.jpg, PR.128.07.9 Kap. 4.3): 18-stellig = 3 Ziffern Standort-ID +
+# 1 Ziffer Abfuellnr./Tag + 6 Ziffern Produktionsdatum TTMMJJ + 1 Buchstabe + 5 Ziffern
+# RAMSES-Produktcode + 1 alphanumerisches Zeichen Mitarbeiter-Nr. + 1 Buchstabe Landeskennung.
+SOL_CHARGE_NR_RE = re.compile(r'^\d{10}[A-Z]\d{5}[A-Z0-9][A-Z]$')
+
+
 def _sol_is_nok(ir_temp, room_temp, tolerance):
     """Eine Flasche gilt als NOK, wenn ihre IR-Temperatur nicht ausreichend ueber
     der Referenztemperatur liegt (zu geringe Erwaermung durch die Abfuellung deutet
@@ -2477,9 +2488,11 @@ def api_sol_charge_start():
     if get_open_sol_charge():
         return jsonify({'ok': False, 'error': 'Es ist bereits eine Charge offen'}), 409
     data = request.get_json(silent=True) or {}
-    charge_nr = (data.get('charge_nr') or '').strip()
+    charge_nr = (data.get('charge_nr') or '').strip().upper()
     if not charge_nr:
         return jsonify({'ok': False, 'error': 'Charge-Nr. ist ein Pflichtfeld'}), 400
+    if not SOL_CHARGE_NR_RE.match(charge_nr):
+        return jsonify({'ok': False, 'error': 'Ungültige Charge-Nr. "' + charge_nr + '" (erwartet: 18-stellig, z. B. 0750010726X000547D)'}), 400
     try:
         room_temp = float(data.get('room_temp'))
     except (TypeError, ValueError):
@@ -2498,9 +2511,11 @@ def api_sol_bottle_add(charge_id):
     if not charge or charge['status'] != 'open':
         return jsonify({'ok': False, 'error': 'Charge nicht gefunden oder bereits abgeschlossen'}), 404
     data = request.get_json(silent=True) or {}
-    scan_code = (data.get('scan_code') or '').strip()
+    scan_code = (data.get('scan_code') or '').strip().upper()
     if not scan_code:
         return jsonify({'ok': False, 'error': 'Flaschen-Code fehlt'}), 400
+    if not SOL_BOTTLE_CODE_RE.match(scan_code):
+        return jsonify({'ok': False, 'error': 'Ungültiger Flaschen-Code "' + scan_code + '" (erwartet: 3 Buchstaben + 9 Ziffern, z. B. EFQ227010119)'}), 400
     try:
         ir_temp = float(data.get('ir_temp'))
     except (TypeError, ValueError):

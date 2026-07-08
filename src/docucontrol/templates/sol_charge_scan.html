@@ -380,8 +380,12 @@
             method: 'POST', headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({scan_code: scanCode, ir_temp: parseFloat(tempVal)})
         }).then(function(r) { return r.json(); }).then(function(d) {
-            if (!d.ok) { showToast(d.error || 'Fehler', 'error'); resetScanFlow(); return; }
-            if (d.duplicate) showToast('Achtung: Flasche "' + scanCode + '" wurde in dieser Charge bereits gescannt', 'warn');
+            if (!d.ok) {
+                if (d.duplicate) playErrorTone();
+                showToast(d.error || 'Fehler', 'error');
+                resetScanFlow();
+                return;
+            }
             if (d.warn_count_reached) showToast('Warnschwelle erreicht (' + {{ config.sol.bottle_warn_count }} + ' Flaschen)', 'warn');
 
             lastAddedBottleId = d.bottle.id;

@@ -2568,7 +2568,12 @@ def api_sol_bottle_add(charge_id):
     except (TypeError, ValueError):
         return jsonify({'ok': False, 'error': 'IR-Temperatur ist ein Pflichtfeld'}), 400
 
-    duplicate = bottle_code_exists_in_charge(charge_id, scan_code)
+    # Duplikat = Flasche wurde in dieser Charge bereits erfasst - wird hart abgelehnt (nicht nur
+    # gewarnt), der erste erfasste Wert bleibt unveraendert bestehen (User-Vorgabe 2026-07-08).
+    if bottle_code_exists_in_charge(charge_id, scan_code):
+        return jsonify({'ok': False, 'duplicate': True,
+                         'error': 'Flasche "' + scan_code + '" wurde in dieser Charge bereits erfasst'}), 400
+
     cfg = load_config()
     tolerance = float(cfg.get('sol', {}).get('temp_tolerance_c', 5.0))
     is_nok = _sol_is_nok(ir_temp, charge['room_temp'], tolerance)
@@ -2577,7 +2582,6 @@ def api_sol_bottle_add(charge_id):
     return jsonify({
         'ok': True,
         'bottle': {'id': bottle_id, 'seq_nr': seq_nr, 'scan_code': scan_code, 'ir_temp': ir_temp, 'is_nok': is_nok},
-        'duplicate': duplicate,
         'warn_count_reached': seq_nr >= warn_count,
     })
 

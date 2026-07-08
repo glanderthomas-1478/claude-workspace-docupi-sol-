@@ -600,6 +600,19 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
   erfasst, Scan-Feld sofort wieder fokussiert). **MUSS WIEDER ENTFERNT WERDEN, sobald ein
   Temperatursensor (BTMETER oder Testo 835-T1) angebunden ist** — Konstante `TEMP_SENSOR_PLACEHOLDER_C`
   im Script bewusst so benannt, um beim spaeteren Aufraeumen leicht auffindbar zu sein
+- **Duplikat-Flaschen-Codes werden jetzt hart abgelehnt statt nur gewarnt** (2026-07-08, User-Vorgabe
+  "es darf keine doppelten Flaschencodes geben ... ersten Wert beibehalten, erneute Eingabe nicht
+  anerkennen"): Anlass war der neue Auto-36°C-Workaround (s.o.) — beim realen Scan-Test mit nur 3
+  physischen Test-Etiketten feuerte der Scanner mehrfach, wodurch die echte User-Charge (id=89)
+  7 Duplikate der 3 echten Codes ansammelte (jeweils mit dem Auto-Platzhalterwert 36°C, alle als OK
+  erfasst). `api_sol_bottle_add` prueft `bottle_code_exists_in_charge()` jetzt VOR dem Einfuegen und
+  lehnt mit `400`+`duplicate:true` ab, statt wie vorher trotzdem einen weiteren Eintrag anzulegen und
+  nur zu warnen — der zuerst erfasste Wert bleibt dadurch unangetastet. Frontend spielt bei
+  Duplikat-Ablehnung jetzt den Fehlerton (vorher nur ein stiller Warn-Toast bei gleichzeitig
+  angelegtem Duplikat). Direkt an der echten Charge verifiziert: 7 bereits vorhandene Duplikate
+  manuell bereinigt (erste Erfassung pro Code behalten, 3 Flaschen blieben uebrig), erneuter Scan
+  eines bereits erfassten Codes korrekt mit `"wurde in dieser Charge bereits erfasst"` abgelehnt,
+  Bestand blieb bei 3 Flaschen
 
 ## Wiederverwendete Architektur aus DocuControl (Herkunftsprojekt)
 

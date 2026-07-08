@@ -635,6 +635,21 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
   gelassen. Per Playwright verifiziert (echte Fokus-Tastatur-Ausloesung, nicht nur `.show`-Klasse
   gesetzt): Footer-Buttons bei offener Tastatur jetzt vollstaendig sichtbar, nach Tastatur-Schliessen
   zeigt sich das volle 440px-Unterschriftsfeld
+- **Abschluss-Bestaetigung vereinfacht: nur noch die Ablauf-Auswahl, Checkbox entfernt + Bug
+  gefunden+gefixt** (2026-07-08, User-Vorgabe "der Bediener muss bestaetigen dass alles nach
+  Vorschrift gelaufen ist, also nur ein Feld"): die separate Checkbox "Ich bestaetige, dass ich alle
+  Flaschen korrekt gemessen habe" entfernt — die Auswahl von "Ordnungsgemaesser Ablauf"/"Stoerung im
+  Ablauf" selbst ist jetzt die alleinige Bestaetigung, "Weiter" schaltet direkt danach frei. Modal
+  von 440px auf 640px verbreitert (User-Wunsch "beide Felder gleich gross").
+  **Bug beim Testen gefunden+gefixt:** die beiden Buttons nutzten die CSS-Klasse `.ab-result-opt`
+  (wiederverwendet vom alten Autoklavenbuch-Muster) — `base.html` haengt aber einen GLOBALEN
+  Click-Handler an alle `.ab-result-opt`-Elemente jeder Seite (`abUpdateResultUI`, fuer das alte
+  inerte Autoklavenbuch-Modal gedacht), der beim Fehlen des dortigen `data-val`-Attributs
+  (meine Elemente haben `data-status`, nicht `data-val`) faelschlich BEIDE Buttons gleichzeitig als
+  "selected" markierte (`null === null`-Fallstrick). Fix: eigener, nicht mit dem globalen Handler
+  kollidierender Klassenname `sol-proc-opt` mit dupliziertem CSS (gleiches Erscheinungsbild, keine
+  JS-Kollision mehr). Per Playwright verifiziert: nur noch eine Option gleichzeitig markiert,
+  Button-Groessen exakt gleich (288×93.6px)
 
 ## Wiederverwendete Architektur aus DocuControl (Herkunftsprojekt)
 

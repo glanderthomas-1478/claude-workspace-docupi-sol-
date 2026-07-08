@@ -73,6 +73,19 @@
 .sol-bottle-table .del-btn { cursor: pointer; color: var(--muted); }
 .sol-bottle-table .del-btn:hover { color: var(--danger); }
 
+/* Eigener Klassenname (nicht .ab-result-opt!): base.html haengt einen globalen Click-Handler an
+   ALLE .ab-result-opt-Elemente (altes, inertes Autoklavenbuch-Modal) - der wuerde sonst auch hier
+   mitfeuern und faelschlich beide Optionen gleichzeitig als "selected" markieren. */
+.sol-proc-opt {
+    flex: 1; border: 2px solid var(--border); border-radius: 12px; padding: 16px 20px;
+    display: flex; align-items: center; gap: 12px; cursor: pointer; font-size: 18px;
+    min-height: 90px; transition: border-color .14s, background .14s; user-select: none; font-weight: 500;
+}
+.sol-proc-opt .bi { font-size: 26px; flex-shrink: 0; }
+.sol-proc-opt:hover { border-color: var(--accent); }
+.sol-proc-opt.ok.selected { border-color: var(--success-strong); background: var(--success-soft); color: var(--success-strong); font-weight: 600; }
+.sol-proc-opt.err.selected { border-color: var(--danger); background: var(--danger-soft); color: var(--danger); font-weight: 600; }
+
 /* Die generische kbd-open-Formel in docucontrol.css hat eine feste Mindesthoehe (320px), die bei
    einer hohen Bildschirmtastatur (~314px auf 600px Kiosk-Display) groesser ist als der tatsaechlich
    frei bleibende Platz - der Bestaetigen-Button landet dann unter der Tastatur. Fuer dieses Modal
@@ -172,25 +185,22 @@ body.kbd-open #solSigOverlay .modal-lg {
 
 <!-- Abschluss Schritt 1: Bestätigung -->
 <div class="modal-overlay" id="solConfirmOverlay">
-    <div class="modal" style="max-width:440px">
+    <div class="modal" style="max-width:640px">
         <div class="modal-head">
             <div class="mi warn"><i class="bi bi-clipboard-check"></i></div>
             <div><h3>Charge abschließen</h3></div>
         </div>
         <div class="modal-body">
             <p id="solConfirmSummary" style="margin:0 0 14px"></p>
-            <div class="ab-result-row" id="solProcessChoice" style="margin-bottom:16px">
-                <div class="ab-result-opt ok" data-status="ordnungsgemaess" onclick="solSelectProcessStatus('ordnungsgemaess')">
+            <p style="margin:0 0 12px;font-size:14px">Bitte bestätigen: ist die Charge nach Vorschrift gelaufen?</p>
+            <div class="ab-result-row" id="solProcessChoice">
+                <div class="sol-proc-opt ok" data-status="ordnungsgemaess" onclick="solSelectProcessStatus('ordnungsgemaess')">
                     <i class="bi bi-check-circle-fill"></i> Ordnungsgemäßer Ablauf
                 </div>
-                <div class="ab-result-opt err" data-status="stoerung" onclick="solSelectProcessStatus('stoerung')">
+                <div class="sol-proc-opt err" data-status="stoerung" onclick="solSelectProcessStatus('stoerung')">
                     <i class="bi bi-exclamation-triangle-fill"></i> Störung im Ablauf
                 </div>
             </div>
-            <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;font-size:14px">
-                <input type="checkbox" id="solConfirmCheck" style="margin-top:3px;width:18px;height:18px">
-                <span>Ich bestätige, dass ich alle Flaschen korrekt gemessen habe.</span>
-            </label>
         </div>
         <div class="modal-foot">
             <button class="btn btn-outline" onclick="solCloseConfirmOverlay()">Abbrechen</button>
@@ -464,13 +474,12 @@ body.kbd-open #solSigOverlay .modal-lg {
     var solProcessStatus = null;
 
     function updateConfirmNextBtn() {
-        var checked = document.getElementById('solConfirmCheck').checked;
-        document.getElementById('solConfirmNextBtn').disabled = !checked || !solProcessStatus;
+        document.getElementById('solConfirmNextBtn').disabled = !solProcessStatus;
     }
 
     window.solSelectProcessStatus = function(status) {
         solProcessStatus = status;
-        document.querySelectorAll('#solProcessChoice .ab-result-opt').forEach(function(el) {
+        document.querySelectorAll('#solProcessChoice .sol-proc-opt').forEach(function(el) {
             el.classList.toggle('selected', el.getAttribute('data-status') === status);
         });
         updateConfirmNextBtn();
@@ -483,17 +492,15 @@ body.kbd-open #solSigOverlay .modal-lg {
             bottles.length + ' Flasche' + (bottles.length !== 1 ? 'n' : '') + ' erfasst' +
             (nokCount > 0 ? ', davon ' + nokCount + ' NOK' : '') + '.';
         solProcessStatus = null;
-        document.querySelectorAll('#solProcessChoice .ab-result-opt').forEach(function(el) {
+        document.querySelectorAll('#solProcessChoice .sol-proc-opt').forEach(function(el) {
             el.classList.remove('selected');
         });
-        document.getElementById('solConfirmCheck').checked = false;
         document.getElementById('solConfirmNextBtn').disabled = true;
         document.getElementById('solConfirmOverlay').classList.add('show');
     };
     window.solCloseConfirmOverlay = function() {
         document.getElementById('solConfirmOverlay').classList.remove('show');
     };
-    document.getElementById('solConfirmCheck').addEventListener('change', updateConfirmNextBtn);
 
     // ── Abschluss Schritt 2: Unterschrift ───────────────────────────────────
 

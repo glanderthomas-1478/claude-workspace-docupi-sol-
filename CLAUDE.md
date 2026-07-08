@@ -613,6 +613,28 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
   manuell bereinigt (erste Erfassung pro Code behalten, 3 Flaschen blieben uebrig), erneuter Scan
   eines bereits erfassten Codes korrekt mit `"wurde in dieser Charge bereits erfasst"` abgelehnt,
   Bestand blieb bei 3 Flaschen
+- **Abschluss-Auswahl "Ordnungsgemäßer Ablauf" / "Störung im Ablauf" ergaenzt** (2026-07-08,
+  User-Vorgabe): neue DB-Spalte `sol_charges.process_status` (idempotente Inline-Migration in
+  `init_db()`, wie schon bei `confirmed_signature`), Pflichtfeld beim Schliessen — `POST
+  /api/sol/charges/<id>/close` lehnt ohne `process_status` (`"ordnungsgemaess"`/`"stoerung"`) mit
+  400 ab. Frontend nutzt das bestehende `.ab-result-opt`/`.ab-result-row`-Muster aus dem alten
+  (inerten) Autoklavenbuch-Flow (grosse Touch-Buttons, kein neues CSS noetig) statt der bisherigen
+  reinen Checkbox — "Weiter" bleibt gesperrt, bis sowohl die Checkbox als auch eine der beiden
+  Optionen gewaehlt sind. PDF (`sol_pdf_generator.py`) zeigt "Ablauf: ..." in der Fusszeile, bei
+  Stoerung in Rot. Kein Freitext fuer die Stoerungsbeschreibung (bewusste User-Entscheidung, nur die
+  Auswahl selbst wird dokumentiert). End-to-end an einer echten Test-Charge verifiziert (Close ohne
+  Auswahl abgelehnt, mit `stoerung` erfolgreich, PDF zeigt die Zeile korrekt)
+- **Unterschriftsfeld vergroessert + Kiosk-Tastatur-Ueberlappung gefixt** (2026-07-08): Canvas von
+  500×200 auf 920×440, Modal-Breite von 560px auf 960px. Dabei einen bestehenden, generischen
+  Kiosk-Softtastatur-Mechanismus in `docucontrol.css` entdeckt (`body.kbd-open` verkleinert
+  `.modal-lg` per `max(320px, calc(100dvh - kbd-height - 54px))`) — dessen feste 320px-Mindesthoehe
+  ist groesser als der bei dieser hohen Tastatur (314px auf dem 600px-Kiosk-Display) tatsaechlich
+  freibleibende Platz (232px), wodurch der "Bestaetigen"-Button beim Fokussieren des Namensfelds
+  unter der Tastatur verschwand. Nur fuer dieses eine Modal (`#solSigOverlay`) per hoeherer
+  CSS-Spezifitaet ohne festen Boden neu berechnet, globale Regel fuer andere Modals unangetastet
+  gelassen. Per Playwright verifiziert (echte Fokus-Tastatur-Ausloesung, nicht nur `.show`-Klasse
+  gesetzt): Footer-Buttons bei offener Tastatur jetzt vollstaendig sichtbar, nach Tastatur-Schliessen
+  zeigt sich das volle 440px-Unterschriftsfeld
 
 ## Wiederverwendete Architektur aus DocuControl (Herkunftsprojekt)
 

@@ -277,6 +277,14 @@ class SolTemperaturProtokollPDF(FPDF):
             self.cell(100, 5, f"Flaschen gesamt: {len(self.bottles)}    Davon NOK: {nok_count}", align="R")
 
             c = self.charge
+            process_status = c.get("process_status") or ""
+            if process_status:
+                label = "Ordnungsgemäßer Ablauf" if process_status == "ordnungsgemaess" else "Störung im Ablauf"
+                self._sf("B", 8)
+                self.set_text_color(176, 37, 49) if process_status == "stoerung" else self.set_text_color(*BLACK)
+                self.set_xy(10, summary_y + 5)
+                self.cell(190, 5, self._safe("Ablauf: " + label))
+                self.set_text_color(*BLACK)
             sig_y = summary_y - 33
             self.set_draw_color(*TABLE_BORDER)
             self._sf("", 7)

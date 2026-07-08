@@ -2603,8 +2603,11 @@ def api_sol_charge_close(charge_id):
     data = request.get_json(silent=True) or {}
     confirmed = bool(data.get('confirmed'))
     signature = (data.get('signature') or '').strip()
+    process_status = (data.get('process_status') or '').strip()
     if not confirmed:
         return jsonify({'ok': False, 'error': 'Bestätigung fehlt'}), 400
+    if process_status not in ('ordnungsgemaess', 'stoerung'):
+        return jsonify({'ok': False, 'error': 'Bitte auswählen: ordnungsgemäßer Ablauf oder Störung im Ablauf'}), 400
     if not signature.startswith('data:image/'):
         return jsonify({'ok': False, 'error': 'Unterschrift fehlt'}), 400
     if not charge.get('operator_name'):
@@ -2613,6 +2616,7 @@ def api_sol_charge_close(charge_id):
         return jsonify({'ok': False, 'error': 'Es wurde noch keine Flasche gescannt'}), 400
 
     charge['confirmed_signature'] = signature
+    charge['process_status'] = process_status
 
     cfg = load_config()
     try:
@@ -2621,7 +2625,7 @@ def api_sol_charge_close(charge_id):
         logger.error("SOL-PDF-Generierung fehlgeschlagen (charge_id=%d): %s", charge_id, e)
         return jsonify({'ok': False, 'error': f'PDF-Generierung fehlgeschlagen: {e}'}), 500
 
-    close_sol_charge(charge_id, signature, pdf_path, pdf_filename, file_size)
+    close_sol_charge(charge_id, signature, process_status, pdf_path, pdf_filename, file_size)
 
     try:
         copy_pdf_to_usb_instant(pdf_path, pdf_filename)

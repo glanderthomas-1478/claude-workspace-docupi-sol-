@@ -67,7 +67,8 @@ def init_db():
             status TEXT DEFAULT 'open',
             pdf_path TEXT DEFAULT '',
             pdf_filename TEXT DEFAULT '',
-            file_size INTEGER DEFAULT 0
+            file_size INTEGER DEFAULT 0,
+            process_status TEXT DEFAULT ''
         );
         CREATE TABLE IF NOT EXISTS sol_bottles (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -88,6 +89,8 @@ def init_db():
     existing_cols = {row[1] for row in conn.execute("PRAGMA table_info(sol_charges)").fetchall()}
     if "confirmed_signature" not in existing_cols:
         conn.execute("ALTER TABLE sol_charges ADD COLUMN confirmed_signature TEXT DEFAULT ''")
+    if "process_status" not in existing_cols:
+        conn.execute("ALTER TABLE sol_charges ADD COLUMN process_status TEXT DEFAULT ''")
     conn.commit()
     conn.close()
 
@@ -336,15 +339,16 @@ def delete_sol_bottle(bottle_id):
     conn.close()
 
 
-def close_sol_charge(charge_id, confirmed_signature, pdf_path, pdf_filename, file_size):
+def close_sol_charge(charge_id, confirmed_signature, process_status, pdf_path, pdf_filename, file_size):
     """Schliesst eine Charge ab. Bestaetigt wird ausschliesslich durch den Bediener/Abfueller
     (dessen Name schon bei create_sol_charge() erfasst wurde) per digitaler Unterschrift -
-    kein separater LQK-Schritt (User-Entscheidung 2026-07-08)."""
+    kein separater LQK-Schritt (User-Entscheidung 2026-07-08). process_status haelt fest, ob der
+    Bediener den Ablauf als ordnungsgemaess oder gestoert eingestuft hat (User-Vorgabe 2026-07-08)."""
     conn = get_db()
     conn.execute(
         "UPDATE sol_charges SET status='completed', closed_at=?, confirmed_signature=?, "
-        "pdf_path=?, pdf_filename=?, file_size=? WHERE id=?",
-        (datetime.now().isoformat(), confirmed_signature, pdf_path, pdf_filename, file_size, charge_id)
+        "process_status=?, pdf_path=?, pdf_filename=?, file_size=? WHERE id=?",
+        (datetime.now().isoformat(), confirmed_signature, process_status, pdf_path, pdf_filename, file_size, charge_id)
     )
     conn.commit()
     conn.close()

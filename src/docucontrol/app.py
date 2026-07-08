@@ -1408,15 +1408,12 @@ def api_system_alerts():
         sol_cfg = load_config().get('sol', {})
         mac = (sol_cfg.get('scanner_bt_mac') or '').strip()
         if sol_cfg.get('scanner_enabled', True):
-            if not mac:
-                alerts.append({'type': 'sol_scanner_unconfigured', 'icon': 'bi-upc-scan',
-                                'label': 'Barcode-Scanner nicht konfiguriert'})
-            elif not _bluetooth_device_connected(mac):
+            if not mac or not _bluetooth_device_connected(mac):
                 alerts.append({'type': 'sol_scanner_disconnected', 'icon': 'bi-upc-scan',
                                 'label': 'Barcode-Scanner nicht verbunden'})
         if sol_cfg.get('temp_sensor_enabled', True):
-            alerts.append({'type': 'sol_temp_sensor_unconfigured', 'icon': 'bi-thermometer-half',
-                            'label': 'Temperatur-Sensor nicht angebunden'})
+            alerts.append({'type': 'sol_temp_sensor_disconnected', 'icon': 'bi-thermometer-half',
+                            'label': 'Temperatur-Scanner nicht verbunden'})
     except Exception:
         pass
 

@@ -562,13 +562,11 @@
             // "Aktiviert, aber nicht erreichbar" gilt sowohl bei fehlender Konfiguration
             // (keine MAC hinterlegt / noch keine Anbindung) als auch bei echter Trennung -
             // aus Betreiber-Sicht ist beides "Geraet nicht da".
-            if (scanner.enabled && !scanner.configured) {
-                messages.push('Barcode-Scanner aktiviert, aber keine MAC-Adresse hinterlegt (Einstellungen → Externe Geräte).');
-            } else if (scanner.enabled && scanner.connected === false) {
-                messages.push('Barcode-Scanner nicht verbunden! Bitte Akku/Bluetooth-Verbindung prüfen.');
+            if (scanner.enabled && (!scanner.configured || scanner.connected === false)) {
+                messages.push('Barcode-Scanner nicht verbunden');
             }
             if (tempSensor.enabled && !tempSensor.configured) {
-                messages.push('Temperatur-Sensor nicht angebunden (noch keine digitale Integration).');
+                messages.push('Temperatur-Scanner nicht verbunden');
             }
             if (messages.length) {
                 document.getElementById('solDeviceAlarmText').textContent = messages.join(' | ');

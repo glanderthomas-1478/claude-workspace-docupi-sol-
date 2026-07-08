@@ -3,28 +3,17 @@
 
 {% block extra_css %}
 <style>
-@keyframes spin { to { transform: rotate(360deg); } }
-@keyframes slideInToast { from { transform: translateX(120%); opacity:0; } to { transform: translateX(0); opacity:1; } }
-@keyframes fadeOutToast { to { transform: translateX(120%); opacity:0; } }
-
-.print-toast {
+.sol-open-banner {
     display: none;
-    position: fixed; bottom: 28px; right: 28px; z-index: 1000;
-    background: var(--primary); color: #fff;
-    border-radius: 12px; box-shadow: 0 8px 24px rgba(31,78,121,.32), var(--glass-hi);
-    padding: 14px 18px 14px 16px;
-    align-items: center; gap: 13px;
-    min-width: 280px; max-width: 360px;
-    border: 1px solid rgba(255,255,255,0.18);
-    -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+    align-items: center; gap: 16px;
+    background: linear-gradient(135deg, rgba(31,78,121,0.08), rgba(46,117,182,0.04));
+    border: 1px solid var(--primary); border-radius: 14px;
+    padding: 16px 20px; margin-bottom: 18px;
 }
-.print-toast.error { background: var(--danger); }
-.print-toast .pt-icon { font-size: 22px; flex-shrink: 0; }
-.print-toast .pt-body { flex: 1; }
-.print-toast .pt-text { font-weight: 600; font-size: 14px; }
-.print-toast .pt-sub  { font-size: 12px; opacity: .8; margin-top: 2px; }
-.print-toast .pt-close { cursor: pointer; opacity: .7; font-size: 16px; flex-shrink: 0; }
-.print-toast .pt-close:hover { opacity: 1; }
+.sol-open-banner .icon-tile { flex-shrink: 0; }
+.sol-open-banner .ob-main { flex: 1; }
+.sol-open-banner .ob-title { font-weight: 700; font-size: 15px; }
+.sol-open-banner .ob-sub { font-size: 13px; color: var(--muted); margin-top: 2px; }
 </style>
 {% endblock %}
 
@@ -34,36 +23,20 @@
 <div class="page-head">
     <div>
         <div class="over">Übersicht</div>
-        <h1>Chargenprotokolle</h1>
-        <div class="lede">Gespeicherte Sterilisations-Chargen ansehen, filtern und drucken.</div>
+        <h1>Druckgasflaschen-Chargen</h1>
+        <div class="lede">Gespeicherte Abfüll-Chargen ansehen, filtern und als PDF öffnen.</div>
     </div>
+    <a href="/sol/scan" class="btn btn-primary"><i class="bi bi-upc-scan"></i> Charge scannen</a>
 </div>
 
-<!-- Ausstehende Chargen-Dokumentation -->
-<div class="pending-section card" id="pendingSection" style="display:none">
-  <div class="card-head">
-    <span class="ttl"><i class="bi bi-exclamation-triangle-fill"></i> Ausstehende Dokumentation</span>
-    <span style="font-size:12px;color:#92400e" id="pendingSubTitle"></span>
-  </div>
-  <div id="pendingList"></div>
-</div>
-
-<!-- Machine-Bar -->
-<div class="machine-bar">
-    <div class="mb-icon"><i class="bi bi-safe2"></i></div>
-    <div class="mb-main">
-        <div class="mb-name">{{ machine_name }}</div>
+<!-- Offene Charge -->
+<div class="sol-open-banner" id="solOpenBanner">
+    <div class="icon-tile navy"><i class="bi bi-upc-scan"></i></div>
+    <div class="ob-main">
+        <div class="ob-title">Charge <span id="obChargeNr">—</span> läuft</div>
+        <div class="ob-sub"><span id="obCount">0</span> Flaschen erfasst — weiter scannen oder abschließen</div>
     </div>
-    <div class="mb-chips">
-        {% if machine_protocol %}
-        <span class="chip"><i class="bi bi-diagram-3"></i> {{ machine_protocol }}</span>
-        {% endif %}
-        <span class="chip"><i class="bi bi-file-earmark-code"></i> VAFI / KOST</span>
-    </div>
-    <span class="mb-status" id="machineStatus">
-        <i class="bi bi-hdd-network-fill" id="machineStatusIcon"></i>
-        <span id="machineStatusText">Verbindung prüfen …</span>
-    </span>
+    <a href="/sol/scan" class="btn btn-primary"><i class="bi bi-arrow-right-circle"></i> Fortsetzen</a>
 </div>
 
 <!-- Stat-Karten -->
@@ -72,25 +45,25 @@
         <div class="icon-tile navy"><i class="bi bi-hash"></i></div>
         <div class="label">Chargen gesamt</div>
         <div class="big" id="totalCount">—</div>
-        <div class="sub" id="totalSub">Höchster Chargenzähler</div>
+        <div class="sub">Alle abgefüllten Chargen</div>
     </div>
     <div class="stat">
         <div class="icon-tile blue"><i class="bi bi-calendar-day"></i></div>
         <div class="label">Chargen heute</div>
         <div class="big" id="todayCount">—</div>
-        <div class="sub" id="todaySub">Wird geladen …</div>
+        <div class="sub">Seit Mitternacht</div>
     </div>
     <div class="stat">
         <div class="icon-tile green"><i class="bi bi-calendar3"></i></div>
         <div class="label">Chargen diesen Monat</div>
         <div class="big" id="monthCount">—</div>
-        <div class="sub" id="monthSub">Wird geladen …</div>
+        <div class="sub">Laufender Monat</div>
     </div>
     <div class="stat">
-        <div class="icon-tile navy"><i class="bi bi-safe2"></i></div>
-        <div class="label">Maschine</div>
-        <div class="big" id="machineNrBig" style="font-size:26px">—</div>
-        <div class="sub" id="machineNameSub">Wird geladen …</div>
+        <div class="icon-tile navy"><i class="bi bi-basket2-fill"></i></div>
+        <div class="label">Flaschen heute</div>
+        <div class="big" id="totalBottles">—</div>
+        <div class="sub">Seit Mitternacht</div>
     </div>
 </div>
 
@@ -100,17 +73,13 @@
         <label>Status</label>
         <select class="ctrl" id="fStatus">
             <option value="">Alle</option>
-            <option value="Bestanden">Bestanden</option>
-            <option value="Störung">Störung</option>
-            <option value="Wartet auf Formular">Wartet auf Formular</option>
-            <option value="Fehlgeschlagen">Fehlgeschlagen</option>
+            <option value="open">Offen</option>
+            <option value="completed">Abgeschlossen</option>
         </select>
     </div>
     <div class="fld">
-        <label>Programm</label>
-        <select class="ctrl" id="fProg">
-            <option value="">Alle</option>
-        </select>
+        <label>Charge-Nr.</label>
+        <input type="text" class="ctrl" id="fChargeNr" placeholder="Suche …">
     </div>
     <div class="fld">
         <label>Datum</label>
@@ -120,211 +89,52 @@
             <input type="date" class="ctrl date" id="fDateTo">
         </div>
     </div>
-    <div class="fld">
-        <label>Charge-Nr.</label>
-        <div class="range-pair">
-            <input type="number" class="ctrl num" id="fChargeFrom" placeholder="von">
-            <span class="sep">bis</span>
-            <input type="number" class="ctrl num" id="fChargeTo" placeholder="bis">
-        </div>
-    </div>
     <div class="spacer"></div>
     <button class="btn btn-primary" id="btnFilter"><i class="bi bi-funnel"></i> Filter anwenden</button>
     <button class="btn btn-glass" id="btnReset"><i class="bi bi-arrow-counterclockwise"></i> Zurücksetzen</button>
 </div>
 
-<!-- Protokoll-Tabelle -->
+<!-- Chargen-Tabelle -->
 <div class="card">
     <div class="table-wrap">
         <table class="data">
             <thead>
                 <tr>
-                    <th data-sort="charge_nr" id="thCharge">Charge-Nr. <i class="bi bi-chevron-expand sort"></i></th>
-                    <th data-sort="timestamp" id="thDate" class="sorted">Datum &amp; Uhrzeit <i class="bi bi-arrow-down sort"></i></th>
-                    <th>Programm</th>
-                    <th data-sort="duration">Dauer <i class="bi bi-chevron-expand sort"></i></th>
+                    <th>Charge-Nr.</th>
+                    <th>Datum &amp; Uhrzeit</th>
+                    <th>Flaschen</th>
+                    <th>Davon NOK</th>
+                    <th>Abfüller</th>
                     <th>Status</th>
                     <th class="right">Aktionen</th>
                 </tr>
             </thead>
-            <tbody id="protocolBody">
-                <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--muted)">
+            <tbody id="chargeBody">
+                <tr><td colspan="7" style="text-align:center;padding:32px;color:var(--muted)">
                     <i class="bi bi-hourglass-split"></i> Daten werden geladen …
                 </td></tr>
             </tbody>
         </table>
     </div>
     <div class="table-foot">
-        <span id="countInfo">0 Protokolle</span>
+        <span id="countInfo">0 Chargen</span>
         <div class="pager" id="pager"></div>
     </div>
 </div>
 
-<!-- Print-Status Toast -->
-<div class="print-toast" id="printToast">
-    <span class="pt-icon"><i class="bi bi-printer-fill"></i></span>
-    <div class="pt-body">
-        <div class="pt-text">Druckauftrag gesendet</div>
-        <div class="pt-sub"></div>
-    </div>
-    <span class="pt-close" id="printToastClose"><i class="bi bi-x-lg"></i></span>
-</div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
 (function() {
     var currentPage = 1;
-    var sortBy = 'timestamp';
-    var sortDir = 'desc';
-    var printerReady = false;
 
-    // ── Programm-Icon Mapping ─────────────────────────────────────────────
-
-    function getProgramIcon(prog) {
-        var p = (prog || '').toLowerCase();
-        if (p.indexOf('instrument') !== -1) return 'bi-wrench-adjustable';
-        if (p.indexOf('bowie') !== -1 || p.indexOf('bd-test') !== -1) return 'bi-clipboard-check';
-        if (p.indexOf('vpr') !== -1 || p.indexOf('vakuum') !== -1) return 'bi-arrow-repeat';
-        if (p.indexOf('textil') !== -1) return 'bi-droplet';
-        return 'bi-collection';
-    }
-
-    // ── Stats laden ───────────────────────────────────────────────────────
-
-    function loadStats() {
-        fetch('/api/dashboard/stats')
-            .then(function(r) { return r.json(); })
-            .then(function(d) {
-                // Gesamt
-                document.getElementById('totalCount').textContent = d.max_charge_nr || d.total;
-
-                // Heute
-                document.getElementById('todayCount').textContent = d.today;
-                document.getElementById('todaySub').textContent = d.today_last_time
-                    ? 'Letzte um ' + d.today_last_time + ' Uhr'
-                    : 'Noch keine heute';
-
-                // Monat
-                document.getElementById('monthCount').textContent = (d.month || 0).toLocaleString('de-DE');
-                if (d.month_trend_pct !== null && d.month_trend_pct !== undefined) {
-                    var sign = d.month_trend_pct >= 0 ? '↑' : '↓';
-                    var cls  = d.month_trend_pct >= 0 ? 'up' : 'down';
-                    document.getElementById('monthSub').innerHTML =
-                        '<span class="trend ' + cls + '">' + sign + ' ' +
-                        Math.abs(d.month_trend_pct) + ' %</span> ggü. Vormonat';
-                } else {
-                    document.getElementById('monthSub').textContent = 'Kein Vormonats-Vergleich';
-                }
-            })
-            .catch(function() {
-                // Fallback: gesamt via protocols endpoint
-                fetch('/api/protocols?per_page=1')
-                    .then(function(r) { return r.json(); })
-                    .then(function(d) {
-                        document.getElementById('totalCount').textContent = (d.total || 0).toLocaleString('de-DE');
-                    }).catch(function() {});
-            });
-    }
-
-    // ── Maschinen-Info ────────────────────────────────────────────────────
-
-    function loadMachineInfo() {
-        fetch('/api/machine/config')
-            .then(function(r) { return r.json(); })
-            .then(function(d) {
-                document.getElementById('machineNrBig').textContent = d.machine_nr || '—';
-                document.getElementById('machineNameSub').textContent = d.name || 'Kein Name hinterlegt';
-            })
-            .catch(function() {});
-    }
-
-    // ── Machine-Status ────────────────────────────────────────────────────
-
-    function updateMachineStatus() {
-        fetch('/api/machine/ping')
-            .then(function(r) { return r.json(); })
-            .then(function(d) {
-                var el   = document.getElementById('machineStatus');
-                var txt  = document.getElementById('machineStatusText');
-                var icon = document.getElementById('machineStatusIcon');
-                if (!d.configured) {
-                    el.className = 'mb-status offline';
-                    txt.textContent = 'IP nicht konfiguriert';
-                    icon.className = 'bi bi-hdd-network';
-                } else if (d.reachable) {
-                    el.className = 'mb-status';
-                    txt.textContent = 'Erreichbar';
-                    icon.className = 'bi bi-hdd-network-fill';
-                } else {
-                    el.className = 'mb-status offline';
-                    txt.textContent = 'Keine Verbindung';
-                    icon.className = 'bi bi-hdd-network';
-                }
-            })
-            .catch(function() {});
-    }
-
-    // ── Drucker-Status ────────────────────────────────────────────────────
-
-    function loadPrinterStatus() {
-        return fetch('/api/printer/ready')
-            .then(function(r) { return r.json(); })
-            .then(function(d) { printerReady = d.ready; })
-            .catch(function() { printerReady = false; });
-    }
-
-    // ── Programmfilter befüllen ───────────────────────────────────────────
-
-    function loadPrograms() {
-        fetch('/api/protocols/programs')
-            .then(function(r) { return r.json(); })
-            .then(function(progs) {
-                var sel = document.getElementById('fProg');
-                progs.forEach(function(p) {
-                    var opt = document.createElement('option');
-                    opt.value = p; opt.textContent = p;
-                    sel.appendChild(opt);
-                });
-            }).catch(function() {});
-    }
-
-    // ── Tabelle laden ─────────────────────────────────────────────────────
-
-    function buildParams() {
-        var p = new URLSearchParams({
-            page: currentPage, per_page: 20,
-            sort_by: sortBy, sort_dir: sortDir,
-        });
-        var st = document.getElementById('fStatus').value;
-        var pr = document.getElementById('fProg').value;
-        var df = document.getElementById('fDateFrom').value;
-        var dt = document.getElementById('fDateTo').value;
-        var cf = document.getElementById('fChargeFrom').value;
-        var ct = document.getElementById('fChargeTo').value;
-        if (st) p.set('status', st);
-        if (pr) p.set('program', pr);
-        if (df) p.set('date_from', df);
-        if (dt) p.set('date_to', dt);
-        if (cf) p.set('charge_from', cf);
-        if (ct) p.set('charge_to', ct);
-        return p;
-    }
-
-    function loadProtocols(page) {
-        currentPage = page || 1;
-        fetch('/api/protocols?' + buildParams())
-            .then(function(r) { return r.json(); })
-            .then(function(d) { renderTable(d); })
-            .catch(function() {
-                document.getElementById('protocolBody').innerHTML =
-                    '<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--danger)">' +
-                    '<i class="bi bi-exclamation-triangle"></i> Fehler beim Laden der Protokolle</td></tr>';
-            });
+    function isKiosk() {
+        return location.hostname === 'localhost' || location.hostname === '127.0.0.1';
     }
 
     function escHtml(s) {
-        return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+        return (s || '').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
     }
 
     function formatTs(ts) {
@@ -336,50 +146,99 @@
         return { date: d, time: t };
     }
 
+    // ── Stats laden ───────────────────────────────────────────────────────
+
+    function loadStats() {
+        fetch('/api/sol/charges/stats')
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                document.getElementById('totalCount').textContent = (d.total_charges || 0).toLocaleString('de-DE');
+                document.getElementById('todayCount').textContent = d.today_charges || 0;
+                document.getElementById('monthCount').textContent = (d.month_charges || 0).toLocaleString('de-DE');
+                document.getElementById('totalBottles').textContent = (d.today_bottles || 0).toLocaleString('de-DE');
+            })
+            .catch(function() {});
+    }
+
+    // ── Offene Charge ─────────────────────────────────────────────────────
+
+    function loadOpenBanner() {
+        fetch('/api/sol/charges/open')
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                var banner = document.getElementById('solOpenBanner');
+                if (d.open) {
+                    banner.style.display = 'flex';
+                    document.getElementById('obChargeNr').textContent = d.charge.charge_nr;
+                    document.getElementById('obCount').textContent = (d.charge.bottles || []).length;
+                } else {
+                    banner.style.display = 'none';
+                }
+            }).catch(function() {});
+    }
+
+    // ── Tabelle laden ─────────────────────────────────────────────────────
+
+    function buildParams() {
+        var p = new URLSearchParams({ page: currentPage, per_page: 20 });
+        var st = document.getElementById('fStatus').value;
+        var cn = document.getElementById('fChargeNr').value;
+        var df = document.getElementById('fDateFrom').value;
+        var dt = document.getElementById('fDateTo').value;
+        if (st) p.set('status', st);
+        if (cn) p.set('charge_nr', cn);
+        if (df) p.set('date_from', df);
+        if (dt) p.set('date_to', dt);
+        return p;
+    }
+
+    function loadCharges(page) {
+        currentPage = page || 1;
+        fetch('/api/sol/charges?' + buildParams())
+            .then(function(r) { return r.json(); })
+            .then(function(d) { renderTable(d); })
+            .catch(function() {
+                document.getElementById('chargeBody').innerHTML =
+                    '<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--danger)">' +
+                    '<i class="bi bi-exclamation-triangle"></i> Fehler beim Laden der Chargen</td></tr>';
+            });
+    }
+
     function renderTable(data) {
-        var tbody = document.getElementById('protocolBody');
-        if (!data.protocols || data.protocols.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--muted)">' +
-                '<i class="bi bi-inbox"></i> Keine Protokolle gefunden</td></tr>';
-            document.getElementById('countInfo').textContent = '0 Protokolle';
+        var tbody = document.getElementById('chargeBody');
+        if (!data.charges || data.charges.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--muted)">' +
+                '<i class="bi bi-inbox"></i> Keine Chargen gefunden</td></tr>';
+            document.getElementById('countInfo').textContent = '0 Chargen';
             document.getElementById('pager').innerHTML = '';
             return;
         }
 
-        var rows = data.protocols.map(function(p) {
-            var ts = formatTs(p.timestamp);
-            var badge;
-            if (p.status === 'Bestanden') {
-                badge = '<span class="badge ok"><span class="bdot"></span> Bestanden</span>';
-            } else if (p.status === 'Störung') {
-                badge = '<span class="badge fail"><i class="bi bi-exclamation-triangle-fill" style="font-size:10px;margin-right:4px"></i> Störung</span>';
-            } else if (p.status === 'Wartet auf Formular') {
-                badge = '<span class="badge warn"><span class="bdot"></span> Wartet auf Formular</span>';
-            } else {
-                badge = '<span class="badge fail"><span class="bdot"></span> Fehlgeschlagen</span>';
-            }
-            var progIcon = getProgramIcon(p.program);
-            var prog = '<span class="prog-tag"><i class="bi ' + progIcon + ' ic"></i> ' + escHtml(p.program) + '</span>';
-            var dur = escHtml(p.duration || '—');
+        var rows = data.charges.map(function(c) {
+            var ts = formatTs(c.started_at);
+            var badge = c.status === 'completed'
+                ? '<span class="badge ok"><span class="bdot"></span> Abgeschlossen</span>'
+                : '<span class="badge warn"><span class="bdot"></span> Offen</span>';
+            var nokBadge = c.nok_count > 0
+                ? '<span class="badge fail">' + c.nok_count + '</span>'
+                : '<span class="badge ok">0</span>';
 
             var actions = '<div class="act">';
-            if (p.pdf_filename) {
-                actions += '<button class="icon-btn" title="PDF anzeigen" onclick="pdfOpen(' + p.id + ',\'' + escHtml(p.pdf_filename) + '\')"><i class="bi bi-file-earmark-pdf"></i></button>';
-                if (printerReady) {
-                    actions += '<button class="icon-btn" title="Drucken" onclick="printPdf(this,' + p.id + ')"><i class="bi bi-printer"></i></button>';
-                }
-            } else if (p.db_status === 'pdf_failed') {
-                actions += '<button class="icon-btn retry-pdf-btn" title="PDF erneut generieren" onclick="retryPdf(this,' + p.id + ')"><i class="bi bi-arrow-clockwise"></i></button>';
+            if (c.pdf_filename) {
+                actions += '<button class="icon-btn" title="PDF anzeigen" onclick="pdfOpen(' + c.id + ',\'' + escHtml(c.charge_nr) + '\')"><i class="bi bi-file-earmark-pdf"></i></button>';
+            } else if (c.status === 'open') {
+                actions += '<a class="icon-btn" href="/sol/scan" title="Fortsetzen"><i class="bi bi-upc-scan"></i></a>';
             } else {
                 actions += '<button class="icon-btn" disabled title="Kein PDF"><i class="bi bi-file-earmark"></i></button>';
             }
             actions += '</div>';
 
             return '<tr>'
-                + '<td><span class="charge">' + escHtml(p.charge_nr) + '</span></td>'
+                + '<td><span class="charge">' + escHtml(c.charge_nr) + '</span></td>'
                 + '<td><div class="dt-main">' + escHtml(ts.date) + '</div><div class="dt-sub">' + escHtml(ts.time) + '</div></td>'
-                + '<td>' + prog + '</td>'
-                + '<td class="dur">' + dur + '</td>'
+                + '<td>' + (c.bottle_count || 0) + '</td>'
+                + '<td>' + nokBadge + '</td>'
+                + '<td>' + escHtml(c.operator_name || '—') + '</td>'
                 + '<td>' + badge + '</td>'
                 + '<td class="right">' + actions + '</td>'
                 + '</tr>';
@@ -389,38 +248,23 @@
         var from = (data.page - 1) * data.per_page + 1;
         var to   = Math.min(data.page * data.per_page, data.total);
         document.getElementById('countInfo').textContent =
-            from + '–' + to + ' von ' + data.total.toLocaleString('de-DE') + ' Protokollen';
+            (data.total > 0 ? (from + '–' + to + ' von ') : '') + data.total.toLocaleString('de-DE') + ' Chargen';
 
         renderPager(data.page, data.pages);
-
-        document.querySelectorAll('th[data-sort]').forEach(function(th) {
-            th.classList.remove('sorted');
-            var icon = th.querySelector('.sort');
-            if (icon) icon.className = 'bi bi-chevron-expand sort';
-        });
-        var activeTh = document.querySelector('th[data-sort="' + sortBy + '"]');
-        if (activeTh) {
-            activeTh.classList.add('sorted');
-            var icon = activeTh.querySelector('.sort');
-            if (icon) icon.className = 'bi bi-arrow-' + (sortDir === 'desc' ? 'down' : 'up') + ' sort';
-        }
     }
 
     function renderPager(page, pages) {
         var pager = document.getElementById('pager');
         if (pages <= 1) { pager.innerHTML = ''; return; }
         var html = '';
-
         if (page <= 1) {
             html += '<span class="pg disabled"><i class="bi bi-chevron-left"></i></span>';
         } else {
             html += '<span class="pg" onclick="goPage(' + (page-1) + ')"><i class="bi bi-chevron-left"></i></span>';
         }
-
         var start = Math.max(1, page - 2);
         var end   = Math.min(pages, start + 4);
         start = Math.max(1, end - 4);
-
         if (start > 1) {
             html += '<span class="pg" onclick="goPage(1)">1</span>';
             if (start > 2) html += '<span class="pg disabled">…</span>';
@@ -432,25 +276,22 @@
             if (end < pages - 1) html += '<span class="pg disabled">…</span>';
             html += '<span class="pg" onclick="goPage(' + pages + ')">' + pages + '</span>';
         }
-
         if (page >= pages) {
             html += '<span class="pg disabled"><i class="bi bi-chevron-right"></i></span>';
         } else {
             html += '<span class="pg" onclick="goPage(' + (page+1) + ')"><i class="bi bi-chevron-right"></i></span>';
         }
-
         pager.innerHTML = html;
     }
 
     // ── Globale Hilfsfunktionen ───────────────────────────────────────────
 
-    window.goPage = function(p) { loadProtocols(p); };
-
-    window.dlPdf = function(id) { window.pdfOpen(id); };
+    window.goPage = function(p) { loadCharges(p); };
 
     window.pdfOpen = function(id, title) {
-        document.getElementById('pdfFrame').src = '/view/' + id + '#zoom=89&pagemode=none';
-        document.getElementById('pdfModalTitle').textContent = title || 'Protokoll';
+        var frag = '#zoom=125&pagemode=none' + (isKiosk() ? '&toolbar=0' : '');
+        document.getElementById('pdfFrame').src = '/sol/view/' + id + frag;
+        document.getElementById('pdfModalTitle').textContent = title || 'Charge';
         document.getElementById('pdfOverlay').classList.add('show');
     };
 
@@ -460,171 +301,29 @@
         setTimeout(function() { document.getElementById('pdfFrame').src = ''; }, 200);
     };
 
-    window.retryPdf = function(btn, id) {
-        if (btn.disabled) return;
-        btn.disabled = true;
-        btn.innerHTML = '<i class="bi bi-hourglass-split" style="animation:spin .8s linear infinite"></i>';
-        fetch('/api/charges/' + id + '/retry-pdf', { method: 'POST' })
-            .then(function(r) { return r.json(); })
-            .then(function(d) {
-                if (d.ok) {
-                    btn.innerHTML = '<i class="bi bi-check-lg" style="color:var(--success)"></i>';
-                    setTimeout(function() { loadProtocols(currentPage); }, 4000);
-                } else {
-                    btn.innerHTML = '<i class="bi bi-x-lg" style="color:var(--danger)"></i>';
-                    setTimeout(function() { btn.innerHTML = '<i class="bi bi-arrow-clockwise"></i>'; btn.disabled = false; }, 3000);
-                }
-            }).catch(function() {
-                btn.innerHTML = '<i class="bi bi-x-lg" style="color:var(--danger)"></i>';
-                setTimeout(function() { btn.innerHTML = '<i class="bi bi-arrow-clockwise"></i>'; btn.disabled = false; }, 3000);
-            });
-    };
-
-    window.printPdf = function(btn, id) {
-        if (btn.disabled) return;
-        btn.disabled = true;
-        btn.innerHTML = '<i class="bi bi-hourglass-split" style="animation:spin .8s linear infinite"></i>';
-
-        fetch('/api/print/' + id, { method: 'POST' })
-            .then(function(r) { return r.json(); })
-            .then(function(d) {
-                if (d.success) {
-                    btn.innerHTML = '<i class="bi bi-check-lg" style="color:var(--success)"></i>';
-                    showPrintToast(d.job_id, d.message || '');
-                } else {
-                    btn.innerHTML = '<i class="bi bi-x-lg" style="color:var(--danger)"></i>';
-                    showPrintToast(null, d.error || 'Druckfehler', true);
-                }
-                setTimeout(function() { btn.innerHTML = '<i class="bi bi-printer"></i>'; btn.disabled = false; }, 3000);
-            }).catch(function() {
-                btn.innerHTML = '<i class="bi bi-x-lg" style="color:var(--danger)"></i>';
-                showPrintToast(null, 'Verbindungsfehler', true);
-                setTimeout(function() { btn.innerHTML = '<i class="bi bi-printer"></i>'; btn.disabled = false; }, 3000);
-            });
-    };
-
-    // ── Print-Toast ───────────────────────────────────────────────────────
-
-    var printToastTimer = null;
-
-    function showPrintToast(jobId, message, isError) {
-        var toast = document.getElementById('printToast');
-        if (!toast) return;
-        var icon = toast.querySelector('.pt-icon');
-        var text = toast.querySelector('.pt-text');
-        var sub  = toast.querySelector('.pt-sub');
-
-        if (isError) {
-            toast.className = 'print-toast error';
-            icon.innerHTML = '<i class="bi bi-x-circle-fill"></i>';
-            text.textContent = 'Druckfehler';
-            sub.textContent = message;
-        } else {
-            toast.className = 'print-toast';
-            icon.innerHTML = '<i class="bi bi-printer-fill"></i>';
-            text.textContent = jobId ? 'Druckauftrag #' + jobId + ' gesendet' : 'Druckauftrag gesendet';
-            sub.textContent = message;
-        }
-
-        toast.style.display = 'flex';
-        toast.style.animation = 'slideInToast .25s ease';
-        if (printToastTimer) clearTimeout(printToastTimer);
-        printToastTimer = setTimeout(function() {
-            toast.style.animation = 'fadeOutToast .3s ease forwards';
-            setTimeout(function() { toast.style.display = 'none'; }, 300);
-        }, 6000);
-    }
-
-    document.getElementById('printToastClose').addEventListener('click', function() {
-        document.getElementById('printToast').style.display = 'none';
-        if (printToastTimer) clearTimeout(printToastTimer);
-    });
-
-    // ── Sortierung ────────────────────────────────────────────────────────
-
-    document.querySelectorAll('th[data-sort]').forEach(function(th) {
-        th.addEventListener('click', function() {
-            var col = th.getAttribute('data-sort');
-            if (sortBy === col) {
-                sortDir = sortDir === 'desc' ? 'asc' : 'desc';
-            } else {
-                sortBy = col; sortDir = 'desc';
-            }
-            loadProtocols(1);
-        });
-    });
-
     // ── Filter ────────────────────────────────────────────────────────────
 
-    document.getElementById('btnFilter').addEventListener('click', function() { loadProtocols(1); });
+    document.getElementById('btnFilter').addEventListener('click', function() { loadCharges(1); });
 
     document.getElementById('btnReset').addEventListener('click', function() {
         document.getElementById('fStatus').value = '';
-        document.getElementById('fProg').value = '';
+        document.getElementById('fChargeNr').value = '';
         document.getElementById('fDateFrom').value = '';
         document.getElementById('fDateTo').value = '';
-        document.getElementById('fChargeFrom').value = '';
-        document.getElementById('fChargeTo').value = '';
-        loadProtocols(1);
+        loadCharges(1);
     });
 
     // ── Init + Auto-Refresh ───────────────────────────────────────────────
 
     loadStats();
-    loadPrograms();
-    loadMachineInfo();
-    loadPrinterStatus().then(function() { loadProtocols(1); });
-    updateMachineStatus();
+    loadOpenBanner();
+    loadCharges(1);
 
     setInterval(function() {
         loadStats();
-        loadPrinterStatus().then(function() { loadProtocols(currentPage); });
+        loadOpenBanner();
+        loadCharges(currentPage);
     }, 30000);
-
-    setInterval(updateMachineStatus, 60000);
-
-    // ── Pending Charges Sektion ───────────────────────────────────────────────
-
-    window.renderPendingSection = function(pendingList) {
-        var section = document.getElementById('pendingSection');
-        var listEl = document.getElementById('pendingList');
-        var subtitle = document.getElementById('pendingSubTitle');
-        if (!section) return;
-        if (!pendingList || pendingList.length === 0) {
-            section.style.display = 'none';
-            return;
-        }
-        section.style.display = '';
-        var n = pendingList.length;
-        subtitle.textContent = n + ' Charge' + (n !== 1 ? 'n' : '') + ' warte' + (n !== 1 ? 'n' : 't') + ' auf Formular';
-        listEl.innerHTML = '';
-        pendingList.forEach(function(p) {
-            var ts = (p.timestamp || '').replace('T', ' ').substring(0, 16);
-            var chargeLabel = p.charge_nr_int ? 'CH' + p.charge_nr_int : '#' + p.id;
-            var progLabel = (p.program || '').substring(0, 60);
-            var item = document.createElement('div');
-            item.className = 'pending-item';
-            item.innerHTML =
-                '<div class="pi-icon"><i class="bi bi-journal-text"></i></div>' +
-                '<div class="pi-main">' +
-                  '<div class="pi-charge">' + escHtml(chargeLabel) + '</div>' +
-                  '<div class="pi-meta">' + escHtml(p.device_name || '') + ' &middot; ' + escHtml(ts) + ' &middot; ' + escHtml(progLabel) + '</div>' +
-                '</div>' +
-                '<div class="pi-actions">' +
-                  '<button class="btn btn-primary" onclick="abOpen(' + p.id + ')">' +
-                  '<i class="bi bi-pencil-fill"></i> Formular ausfüllen</button>' +
-                '</div>';
-            listEl.appendChild(item);
-        });
-    };
-
-    // Initial laden
-    (function() {
-        fetch('/api/pending-charges')
-            .then(function(r) { return r.json(); })
-            .then(function(d) { if (window.renderPendingSection) window.renderPendingSection(d.pending || []); })
-            .catch(function() {});
-    })();
 
 })();
 </script>
@@ -633,7 +332,7 @@
 <div class="modal-overlay" id="pdfOverlay" onclick="pdfClose(event)">
   <div class="modal modal-pdf" id="pdfModal">
     <div class="pdf-modal-head">
-      <span class="pdf-title" id="pdfModalTitle">Protokoll</span>
+      <span class="pdf-title" id="pdfModalTitle">Charge</span>
       <button class="pdf-close" onclick="pdfClose()" title="Schließen">&#x2715;</button>
     </div>
     <iframe class="pdf-modal-frame" id="pdfFrame" src="" title="PDF-Ansicht"></iframe>

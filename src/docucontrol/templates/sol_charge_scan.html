@@ -1,0 +1,497 @@
+{% extends "base.html" %}
+{% block title %}Charge scannen{% endblock %}
+
+{% block extra_css %}
+<style>
+.sol-toast {
+    display: none;
+    position: fixed; bottom: 28px; right: 28px; z-index: 1000;
+    background: var(--primary); color: #fff;
+    border-radius: 12px; box-shadow: 0 8px 24px rgba(31,78,121,.32), var(--glass-hi);
+    padding: 14px 18px 14px 16px;
+    align-items: center; gap: 13px;
+    min-width: 280px; max-width: 360px;
+    border: 1px solid rgba(255,255,255,0.18);
+}
+.sol-toast.warn { background: #d97706; }
+.sol-toast.error { background: var(--danger); }
+.sol-toast .st-icon { font-size: 22px; flex-shrink: 0; }
+.sol-toast .st-text { font-weight: 600; font-size: 14px; }
+
+.sol-start-card { max-width: 520px; margin: 0 auto; }
+
+.sol-scan-bar {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 18px 22px; margin-bottom: 18px; box-shadow: var(--shadow-sm);
+}
+.sol-scan-bar .sb-item { display: flex; flex-direction: column; gap: 2px; }
+.sol-scan-bar .sb-item .lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.sol-scan-bar .sb-item .val { font-size: 15px; font-weight: 600; }
+.sol-scan-bar .sb-count { margin-left: auto; text-align: right; }
+.sol-scan-bar .sb-count .val { font-size: 28px; font-weight: 700; color: var(--primary); }
+.sol-scan-bar .sb-count .val.warn { color: #d97706; }
+
+.sol-scan-input-row { display: flex; gap: 12px; margin-bottom: 12px; }
+.sol-scan-input-row input.ctrl {
+    font-size: 20px; padding: 14px 18px; height: auto;
+}
+#solScanInput { flex: 2; }
+#solTempInput { flex: 1; }
+
+.sol-nok-bar {
+    display: none; align-items: center; gap: 12px;
+    background: var(--danger-soft); border: 1px solid rgba(220,53,69,0.3); border-radius: 10px;
+    padding: 12px 16px; margin-bottom: 18px;
+}
+.sol-nok-bar .nb-text { flex: 1; font-weight: 600; color: var(--danger); font-size: 14px; }
+
+.sol-bottle-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.sol-bottle-table th {
+    text-align: left; font-size: 10.5px; font-weight: 700; letter-spacing: .04em;
+    text-transform: uppercase; color: var(--muted); padding: 8px 12px; border-bottom: 1px solid var(--border);
+}
+.sol-bottle-table td { padding: 9px 12px; border-bottom: 1px solid var(--border); }
+.sol-bottle-table tr.nok td { background: var(--danger-soft); }
+.sol-bottle-table .del-btn { cursor: pointer; color: var(--muted); }
+.sol-bottle-table .del-btn:hover { color: var(--danger); }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="page-head">
+    <div>
+        <div class="over">Druckgasflaschen-Abfüllung</div>
+        <h1>Charge scannen</h1>
+        <div class="lede">Flaschen per Barcode/QR-Scanner erfassen und IR-Temperatur dokumentieren.</div>
+    </div>
+</div>
+
+<!-- Zustand: keine offene Charge -->
+<div class="card sol-start-card" id="solStartCard" style="display:none">
+    <div class="card-head"><span><i class="bi bi-play-circle"></i> Charge starten</span></div>
+    <div class="card-body">
+        <form id="solStartForm" autocomplete="off">
+            <div class="set-row">
+                <div class="info"><div class="name">Charge-Nr. *</div><div class="desc">Einmalig eingeben oder scannen (Arbeitsschein)</div></div>
+                <input type="text" class="ctrl" id="solChargeNrInput" style="width:200px" required>
+            </div>
+            <div class="set-row">
+                <div class="info"><div class="name">Referenztemperatur °C *</div><div class="desc">Einmalige Messung direkt nach dem Scannen der Charge</div></div>
+                <input type="number" step="0.1" class="ctrl" id="solRoomTempInput" style="width:120px" required>
+            </div>
+            <div class="set-row">
+                <div class="info"><div class="name">Abfüller *</div></div>
+                <input type="text" class="ctrl" id="solOperatorInput" style="width:200px">
+            </div>
+            <div class="set-row">
+                <div class="info"><div class="name">Verwendete Fühler</div></div>
+                <input type="text" class="ctrl" id="solSensorInput" style="width:260px" value="{{ config.sol.sensor_names }}">
+            </div>
+        </form>
+    </div>
+    <div class="modal-foot" style="padding:0 22px 20px">
+        <button class="btn btn-primary" onclick="solStartCharge()"><i class="bi bi-play-fill"></i> Charge starten</button>
+    </div>
+</div>
+
+<!-- Zustand: Charge läuft -->
+<div id="solScanSection" style="display:none">
+
+    <div class="sol-scan-bar">
+        <div class="sb-item"><span class="lbl">Charge</span><span class="val" id="solInfoChargeNr">—</span></div>
+        <div class="sb-item"><span class="lbl">Start</span><span class="val" id="solInfoStarted">—</span></div>
+        <div class="sb-item"><span class="lbl">Referenztemp.</span><span class="val" id="solInfoRoomTemp">—</span></div>
+        <div class="sb-item"><span class="lbl">Fühler</span><span class="val" id="solInfoSensor">—</span></div>
+        <div class="sb-count">
+            <span class="lbl">Flaschen erfasst</span>
+            <span class="val" id="solBottleCount">0</span>
+        </div>
+    </div>
+
+    <div class="sol-scan-input-row">
+        <input type="text" class="ctrl" id="solScanInput" placeholder="Flaschen-Code scannen …" autocomplete="off">
+        <input type="number" step="0.1" class="ctrl" id="solTempInput" placeholder="IR-Temp °C" autocomplete="off" style="display:none">
+    </div>
+
+    <div class="sol-nok-bar" id="solNokBar">
+        <span class="nb-text" id="solNokBarText"></span>
+        <button class="btn btn-outline" id="solNokRetryBtn" onclick="solRetryLastMeasurement()"><i class="bi bi-arrow-counterclockwise"></i> Nochmal messen</button>
+    </div>
+
+    <div class="card">
+        <div class="card-head">
+            <span><i class="bi bi-list-ul"></i> Erfasste Flaschen</span>
+            <button class="btn btn-primary" id="solCloseBtn" onclick="solOpenConfirmOverlay()" disabled>
+                <i class="bi bi-check2-circle"></i> Charge abschließen
+            </button>
+        </div>
+        <div class="card-body" style="padding:0">
+            <table class="sol-bottle-table">
+                <thead>
+                    <tr>
+                        <th>Protokoll Nr.</th><th>Zeit</th><th>Flaschen-Code</th><th>IR-Temp</th><th>Status</th><th></th>
+                    </tr>
+                </thead>
+                <tbody id="solBottleTbody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Abschluss Schritt 1: Bestätigung -->
+<div class="modal-overlay" id="solConfirmOverlay">
+    <div class="modal" style="max-width:440px">
+        <div class="modal-head">
+            <div class="mi warn"><i class="bi bi-clipboard-check"></i></div>
+            <div><h3>Charge abschließen</h3></div>
+        </div>
+        <div class="modal-body">
+            <p id="solConfirmSummary" style="margin:0 0 14px"></p>
+            <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;font-size:14px">
+                <input type="checkbox" id="solConfirmCheck" style="margin-top:3px;width:18px;height:18px">
+                <span>Ich bestätige, dass ich alle Flaschen korrekt gemessen habe.</span>
+            </label>
+        </div>
+        <div class="modal-foot">
+            <button class="btn btn-outline" onclick="solCloseConfirmOverlay()">Abbrechen</button>
+            <button class="btn btn-primary" id="solConfirmNextBtn" onclick="solGoToSignature()" disabled>Weiter</button>
+        </div>
+    </div>
+</div>
+
+<!-- Abschluss Schritt 2: Unterschrift -->
+<div class="modal-overlay" id="solSigOverlay">
+    <div class="modal modal-lg" style="max-width:560px">
+        <div class="modal-head">
+            <div class="mi"><i class="bi bi-pen"></i></div>
+            <div><h3>Unterschrift Bediener/Abfüller</h3></div>
+        </div>
+        <div class="modal-body">
+            <div class="set-row" style="border:none;padding-top:0">
+                <div class="info"><div class="name">Name *</div></div>
+                <input type="text" class="ctrl" id="solSigNameInput" style="width:220px">
+            </div>
+            <p style="font-size:13px;color:var(--muted);margin:12px 0 8px">Bitte im Feld unterschreiben.</p>
+            <canvas id="solSigCanvas" width="500" height="200" style="border:1px solid var(--border);border-radius:8px;width:100%;height:200px;touch-action:none;background:#fff;display:block"></canvas>
+        </div>
+        <div class="modal-foot">
+            <button class="btn btn-outline" onclick="solSigClear()"><i class="bi bi-eraser"></i> Löschen</button>
+            <button class="btn btn-outline" onclick="solSigBack()">Zurück</button>
+            <button class="btn btn-primary" onclick="solSigConfirmAndClose()"><i class="bi bi-check-lg"></i> Bestätigen &amp; PDF erstellen</button>
+        </div>
+    </div>
+</div>
+
+<div class="sol-toast" id="solToast">
+    <span class="st-icon"><i class="bi bi-info-circle-fill"></i></span>
+    <span class="st-text" id="solToastText"></span>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    var currentCharge = null;
+
+    function showToast(text, kind) {
+        var t = document.getElementById('solToast');
+        t.className = 'sol-toast' + (kind ? ' ' + kind : '');
+        document.getElementById('solToastText').textContent = text;
+        t.style.display = 'flex';
+        clearTimeout(t._hideTimer);
+        t._hideTimer = setTimeout(function() { t.style.display = 'none'; }, 3000);
+    }
+
+    // ── Fehlerton (Web Audio API, kein externes Asset noetig) ──────────────
+    function playErrorTone() {
+        try {
+            var Ctx = window.AudioContext || window.webkitAudioContext;
+            var ctx = new Ctx();
+            [0, 220].forEach(function(delay) {
+                setTimeout(function() {
+                    var osc = ctx.createOscillator();
+                    var gain = ctx.createGain();
+                    osc.type = 'square';
+                    osc.frequency.value = 420;
+                    gain.gain.value = 0.18;
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start();
+                    setTimeout(function() { osc.stop(); }, 160);
+                }, delay);
+            });
+            setTimeout(function() { ctx.close(); }, 500);
+        } catch (e) { /* Web Audio nicht verfuegbar - kein Blocker */ }
+    }
+
+    function fmtTime(iso) {
+        if (!iso) return '—';
+        var d = new Date(iso);
+        if (isNaN(d)) return iso;
+        return d.toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+    }
+
+    function renderCharge(charge) {
+        currentCharge = charge;
+        var hasOpen = !!charge;
+        document.getElementById('solStartCard').style.display = hasOpen ? 'none' : '';
+        document.getElementById('solScanSection').style.display = hasOpen ? '' : 'none';
+        if (!hasOpen) {
+            document.getElementById('solChargeNrInput').focus();
+            return;
+        }
+        document.getElementById('solInfoChargeNr').textContent = charge.charge_nr;
+        document.getElementById('solInfoStarted').textContent = fmtTime(charge.started_at);
+        document.getElementById('solInfoRoomTemp').textContent = (charge.room_temp != null ? charge.room_temp.toFixed(1) + ' °C' : '—');
+        document.getElementById('solInfoSensor').textContent = charge.sensor_names || '—';
+
+        var bottles = charge.bottles || [];
+        var countEl = document.getElementById('solBottleCount');
+        countEl.textContent = bottles.length;
+        countEl.className = 'val' + (bottles.length >= {{ config.sol.bottle_warn_count }} ? ' warn' : '');
+
+        var tbody = document.getElementById('solBottleTbody');
+        tbody.innerHTML = '';
+        bottles.forEach(function(b) {
+            var tr = document.createElement('tr');
+            if (b.is_nok) tr.className = 'nok';
+            tr.innerHTML =
+                '<td>' + b.seq_nr + '</td>' +
+                '<td>' + fmtTime(b.scanned_at) + '</td>' +
+                '<td>' + b.scan_code + '</td>' +
+                '<td>' + (b.ir_temp != null ? b.ir_temp.toFixed(1) + ' °C' : '—') + '</td>' +
+                '<td>' + (b.is_nok
+                    ? '<span class="badge fail"><span class="bdot"></span> NOK</span>'
+                    : '<span class="badge ok"><span class="bdot"></span> OK</span>') + '</td>' +
+                '<td><i class="bi bi-trash del-btn" onclick="solDeleteBottle(' + b.id + ')"></i></td>';
+            tbody.appendChild(tr);
+        });
+        document.getElementById('solCloseBtn').disabled = bottles.length === 0;
+        if (document.getElementById('solScanInput').style.display !== 'none') {
+            document.getElementById('solScanInput').focus();
+        }
+    }
+
+    function loadOpenCharge() {
+        fetch('/api/sol/charges/open').then(function(r) { return r.json(); }).then(function(d) {
+            renderCharge(d.open ? d.charge : null);
+        }).catch(function() {});
+    }
+
+    window.solStartCharge = function() {
+        var chargeNr = document.getElementById('solChargeNrInput').value.trim();
+        var roomTemp = document.getElementById('solRoomTempInput').value;
+        var operatorName = document.getElementById('solOperatorInput').value.trim();
+        if (!chargeNr) { showToast('Charge-Nr. fehlt', 'error'); return; }
+        if (roomTemp === '') { showToast('Referenztemperatur fehlt', 'error'); return; }
+        if (!operatorName) { showToast('Name des Abfüllers fehlt', 'error'); return; }
+        fetch('/api/sol/charges', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                charge_nr: chargeNr, room_temp: parseFloat(roomTemp),
+                operator_name: operatorName,
+                sensor_names: document.getElementById('solSensorInput').value.trim(),
+            })
+        }).then(function(r) { return r.json(); }).then(function(d) {
+            if (d.ok) { showToast('Charge ' + chargeNr + ' gestartet'); renderCharge(d.charge); }
+            else showToast(d.error || 'Fehler', 'error');
+        }).catch(function() { showToast('Netzwerkfehler', 'error'); });
+    };
+
+    // Pro Flasche: Barcode scannen, dann IR-Temp eingeben. Der Chargen-Barcode
+    // wird nur EINMAL beim Charge-Start gescannt (nicht pro Flasche).
+    var pendingScanCode = null;
+    var lastAddedBottleId = null;
+    var lastAddedScanCode = null;
+
+    function resetScanFlow() {
+        pendingScanCode = null;
+        document.getElementById('solTempInput').style.display = 'none';
+        document.getElementById('solTempInput').value = '';
+        var scanInput = document.getElementById('solScanInput');
+        scanInput.style.display = '';
+        scanInput.value = '';
+        scanInput.focus();
+    }
+
+    function hideNokBar() {
+        document.getElementById('solNokBar').style.display = 'none';
+    }
+
+    function scanInputHandler(e) {
+        if (e.key !== 'Enter') return;
+        var code = document.getElementById('solScanInput').value.trim();
+        if (!code) return;
+        hideNokBar();
+        pendingScanCode = code;
+        document.getElementById('solScanInput').style.display = 'none';
+        var tempInput = document.getElementById('solTempInput');
+        tempInput.style.display = '';
+        tempInput.value = '';
+        tempInput.focus();
+    }
+
+    function submitMeasurement(scanCode, tempVal) {
+        fetch('/api/sol/charges/' + currentCharge.id + '/bottles', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({scan_code: scanCode, ir_temp: parseFloat(tempVal)})
+        }).then(function(r) { return r.json(); }).then(function(d) {
+            if (!d.ok) { showToast(d.error || 'Fehler', 'error'); resetScanFlow(); return; }
+            if (d.duplicate) showToast('Achtung: Flasche "' + scanCode + '" wurde in dieser Charge bereits gescannt', 'warn');
+            if (d.warn_count_reached) showToast('Warnschwelle erreicht (' + {{ config.sol.bottle_warn_count }} + ' Flaschen)', 'warn');
+
+            lastAddedBottleId = d.bottle.id;
+            lastAddedScanCode = scanCode;
+            if (d.bottle.is_nok) {
+                playErrorTone();
+                var bar = document.getElementById('solNokBar');
+                document.getElementById('solNokBarText').textContent =
+                    'NOK: Flasche "' + scanCode + '" — Temperatur zu niedrig gegenüber Referenztemperatur (' +
+                    currentCharge.room_temp.toFixed(1) + ' °C).';
+                bar.style.display = 'flex';
+            } else {
+                hideNokBar();
+            }
+            resetScanFlow();
+            loadOpenCharge();
+        }).catch(function() { showToast('Netzwerkfehler', 'error'); });
+    }
+
+    function tempInputHandler(e) {
+        if (e.key !== 'Enter') return;
+        var tempVal = document.getElementById('solTempInput').value;
+        if (tempVal === '' || !pendingScanCode || !currentCharge) return;
+        submitMeasurement(pendingScanCode, tempVal);
+    }
+
+    document.getElementById('solScanInput').addEventListener('keydown', scanInputHandler);
+    document.getElementById('solTempInput').addEventListener('keydown', tempInputHandler);
+
+    // "Nochmal messen": letzte (NOK-)Messung loeschen und die Temperatur fuer
+    // dieselbe Flasche direkt erneut abfragen, ohne den Barcode neu zu scannen.
+    window.solRetryLastMeasurement = function() {
+        if (!lastAddedBottleId || !currentCharge) return;
+        fetch('/api/sol/charges/' + currentCharge.id + '/bottles/' + lastAddedBottleId, {method: 'DELETE'})
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                hideNokBar();
+                if (!d.ok) { showToast(d.error || 'Fehler', 'error'); return; }
+                pendingScanCode = lastAddedScanCode;
+                document.getElementById('solScanInput').style.display = 'none';
+                var tempInput = document.getElementById('solTempInput');
+                tempInput.style.display = '';
+                tempInput.value = '';
+                tempInput.focus();
+                loadOpenCharge();
+            }).catch(function() { showToast('Netzwerkfehler', 'error'); });
+    };
+
+    window.solDeleteBottle = function(bottleId) {
+        if (!currentCharge) return;
+        if (!confirm('Diese Flasche aus der Charge entfernen?')) return;
+        fetch('/api/sol/charges/' + currentCharge.id + '/bottles/' + bottleId, {method: 'DELETE'})
+            .then(function(r) { return r.json(); })
+            .then(function(d) { if (d.ok) loadOpenCharge(); else showToast(d.error || 'Fehler', 'error'); })
+            .catch(function() { showToast('Netzwerkfehler', 'error'); });
+    };
+
+    // ── Abschluss Schritt 1: Bestaetigung ───────────────────────────────────
+
+    window.solOpenConfirmOverlay = function() {
+        var bottles = (currentCharge && currentCharge.bottles) || [];
+        var nokCount = bottles.filter(function(b) { return b.is_nok; }).length;
+        document.getElementById('solConfirmSummary').textContent =
+            bottles.length + ' Flasche' + (bottles.length !== 1 ? 'n' : '') + ' erfasst' +
+            (nokCount > 0 ? ', davon ' + nokCount + ' NOK' : '') + '.';
+        document.getElementById('solConfirmCheck').checked = false;
+        document.getElementById('solConfirmNextBtn').disabled = true;
+        document.getElementById('solConfirmOverlay').classList.add('show');
+    };
+    window.solCloseConfirmOverlay = function() {
+        document.getElementById('solConfirmOverlay').classList.remove('show');
+    };
+    document.getElementById('solConfirmCheck').addEventListener('change', function() {
+        document.getElementById('solConfirmNextBtn').disabled = !this.checked;
+    });
+
+    // ── Abschluss Schritt 2: Unterschrift ───────────────────────────────────
+
+    var sigCtx = null, sigDrawing = false, sigHasInk = false, sigInited = false;
+
+    function sigPos(canvas, e) {
+        var rect = canvas.getBoundingClientRect();
+        var scaleX = canvas.width / rect.width;
+        var scaleY = canvas.height / rect.height;
+        return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
+    }
+
+    function sigInit() {
+        if (sigInited) return;
+        sigInited = true;
+        var canvas = document.getElementById('solSigCanvas');
+        sigCtx = canvas.getContext('2d');
+        sigCtx.lineWidth = 2.5;
+        sigCtx.lineCap = 'round';
+        sigCtx.lineJoin = 'round';
+        sigCtx.strokeStyle = '#1a1a2e';
+        canvas.addEventListener('pointerdown', function(e) {
+            sigDrawing = true; sigHasInk = true;
+            var p = sigPos(canvas, e);
+            sigCtx.beginPath();
+            sigCtx.moveTo(p.x, p.y);
+            e.preventDefault();
+        });
+        canvas.addEventListener('pointermove', function(e) {
+            if (!sigDrawing) return;
+            var p = sigPos(canvas, e);
+            sigCtx.lineTo(p.x, p.y);
+            sigCtx.stroke();
+            e.preventDefault();
+        });
+        ['pointerup', 'pointerleave', 'pointercancel'].forEach(function(evt) {
+            canvas.addEventListener(evt, function() { sigDrawing = false; });
+        });
+    }
+
+    window.solSigClear = function() {
+        var canvas = document.getElementById('solSigCanvas');
+        if (sigCtx) sigCtx.clearRect(0, 0, canvas.width, canvas.height);
+        sigHasInk = false;
+    };
+
+    window.solGoToSignature = function() {
+        document.getElementById('solConfirmOverlay').classList.remove('show');
+        sigInit();
+        window.solSigClear();
+        document.getElementById('solSigNameInput').value = (currentCharge && currentCharge.operator_name) || '';
+        document.getElementById('solSigOverlay').classList.add('show');
+    };
+
+    window.solSigBack = function() {
+        document.getElementById('solSigOverlay').classList.remove('show');
+        window.solOpenConfirmOverlay();
+    };
+
+    window.solSigConfirmAndClose = function() {
+        var name = document.getElementById('solSigNameInput').value.trim();
+        if (!name) { showToast('Name fehlt', 'error'); return; }
+        if (!sigHasInk) { showToast('Bitte zuerst unterschreiben', 'error'); return; }
+        var dataUrl = document.getElementById('solSigCanvas').toDataURL('image/png');
+        fetch('/api/sol/charges/' + currentCharge.id + '/close', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({confirmed: true, signature: dataUrl})
+        }).then(function(r) { return r.json(); }).then(function(d) {
+            if (!d.ok) { showToast(d.error || 'Fehler', 'error'); return; }
+            document.getElementById('solSigOverlay').classList.remove('show');
+            showToast('Charge abgeschlossen, PDF erstellt');
+            setTimeout(function() { window.location.href = '/'; }, 1200);
+        }).catch(function() { showToast('Netzwerkfehler', 'error'); });
+    };
+
+    loadOpenCharge();
+})();
+</script>
+{% endblock %}

@@ -18,67 +18,54 @@
     <div class="subtab" id="tabSystem" onclick="switchTab('system')">
         <i class="bi bi-cpu"></i> System
     </div>
-    <div class="subtab" id="tabMonitor" onclick="switchTab('monitor')">
-        <i class="bi bi-terminal"></i> Live-Monitor
-    </div>
 </div>
 
 <!-- ══ Tab: Geräte & Netzwerk ══════════════════════════════════════════════ -->
 <div id="panelDevices">
     <div class="set-grid">
 
-        <!-- Anlage -->
+        <!-- Druckgasflaschen-Abfüllung (SOL) -->
         <div class="card locked-card">
-            <div class="card-head"><span><i class="bi bi-safe2"></i> Anlage</span></div>
+            <div class="card-head"><span><i class="bi bi-basket2-fill"></i> Druckgasflaschen-Abfüllung</span></div>
             <div class="card-body">
                 <div class="set-row">
                     <div class="info">
-                        <div class="name">Maschinenname</div>
-                        <div class="desc">Angezeigter Name im Dashboard</div>
+                        <div class="name">Verwendete Fühler</div>
+                        <div class="desc">Vorbelegung beim Charge-Start (z.B. Testo-Modelle)</div>
                     </div>
                     <div style="display:flex;gap:6px;align-items:center">
-                        <input type="text" class="ctrl" id="machineNameInput" placeholder="z.B. Belimed PST 14-8-12 HS1" style="width:220px" maxlength="64">
-                        <button class="btn btn-outline" onclick="saveMachineConfig()"><i class="bi bi-check-lg"></i> Setzen</button>
+                        <input type="text" class="ctrl" id="solSensorNamesInput" style="width:220px" maxlength="120">
+                        <button class="btn btn-outline" onclick="saveSolConfig()"><i class="bi bi-check-lg"></i> Setzen</button>
                     </div>
                 </div>
                 <div class="set-row">
                     <div class="info">
-                        <div class="name">Maschinennummer</div>
-                        <div class="desc">Seriennummer im PDF-Dateinamen (z.B. 27163)</div>
+                        <div class="name">Temperatur-Toleranz °C</div>
+                        <div class="desc">Mindest-Differenz IR-Temp. zu Referenztemp. (&gt; 5°C = OK, &lt; 5°C = NOK)</div>
                     </div>
                     <div style="display:flex;gap:6px;align-items:center">
-                        <input type="text" class="ctrl" id="machineNrInput" placeholder="z.B. 27163" style="width:140px" maxlength="32">
-                        <button class="btn btn-outline" onclick="saveMachineConfig()"><i class="bi bi-check-lg"></i> Setzen</button>
+                        <input type="text" inputmode="decimal" pattern="[0-9]*\.?[0-9]*" class="ctrl" id="solToleranceInput" style="width:140px">
+                        <button class="btn btn-outline" onclick="saveSolConfig()"><i class="bi bi-check-lg"></i> Setzen</button>
                     </div>
                 </div>
                 <div class="set-row">
                     <div class="info">
-                        <div class="name">IP-Adresse</div>
-                        <div class="desc">IP der Anlage für Ping-Test</div>
+                        <div class="name">Warnschwelle Flaschenanzahl</div>
+                        <div class="desc">Ab dieser Anzahl erscheint ein Warnhinweis beim Scannen (kein hartes Limit)</div>
                     </div>
                     <div style="display:flex;gap:6px;align-items:center">
-                        <input type="text" class="ctrl mono-ip" id="machineIpInput" placeholder="192.168.0.x" style="width:140px" maxlength="15">
-                        <button class="btn btn-outline" onclick="saveMachineConfig()"><i class="bi bi-check-lg"></i> Setzen</button>
+                        <input type="text" inputmode="numeric" pattern="[0-9]*" class="ctrl" id="solWarnCountInput" style="width:140px">
+                        <button class="btn btn-outline" onclick="saveSolConfig()"><i class="bi bi-check-lg"></i> Setzen</button>
                     </div>
                 </div>
                 <div class="set-row">
                     <div class="info">
-                        <div class="name">Standort / Location</div>
-                        <div class="desc">Wird im Autoklavenbuch automatisch vorausgefüllt</div>
+                        <div class="name">Standort-Kürzel</div>
+                        <div class="desc">Erscheint im Kopf des Temperaturprotokoll-PDFs</div>
                     </div>
                     <div style="display:flex;gap:6px;align-items:center">
-                        <input type="text" class="ctrl" id="machineLocationInput" placeholder="z.B. Tierlabor Uni Essen" style="width:220px" maxlength="100">
-                        <button class="btn btn-outline" onclick="saveMachineConfig()"><i class="bi bi-check-lg"></i> Setzen</button>
-                    </div>
-                </div>
-                <div class="set-row">
-                    <div class="info">
-                        <div class="name">Verbindungstest</div>
-                        <div class="desc">Ping zur konfigurierten IP</div>
-                    </div>
-                    <div style="display:flex;gap:8px;align-items:center">
-                        <span class="value" id="machinePingResult" style="font-size:12.5px;color:var(--muted)">—</span>
-                        <button class="btn btn-outline" data-always-enabled="1" onclick="testMachinePing()"><i class="bi bi-wifi"></i> Ping</button>
+                        <input type="text" class="ctrl" id="solStandortInput" style="width:140px" maxlength="20">
+                        <button class="btn btn-outline" onclick="saveSolConfig()"><i class="bi bi-check-lg"></i> Setzen</button>
                     </div>
                 </div>
             </div>
@@ -135,51 +122,6 @@
                         <input type="checkbox" id="autoPrintToggle" onchange="toggleAutoPrint(this.checked)">
                         <span class="track"></span>
                     </label>
-                </div>
-            </div>
-        </div>
-
-        <!-- TCP-Empfang -->
-        <div class="card locked-card">
-            <div class="card-head"><span><i class="bi bi-reception-4"></i> TCP-Empfang</span></div>
-            <div class="card-body">
-                <div class="set-row">
-                    <div class="info">
-                        <div class="name">TCP-Empfang Port 9100</div>
-                        <div class="desc">Druckaufträge auf Port 9100 empfangen</div>
-                    </div>
-                    <label class="switch">
-                        <input type="checkbox" id="tcpToggle" onchange="toggleTcp(this.checked)">
-                        <span class="track"></span>
-                    </label>
-                </div>
-                <div class="set-row">
-                    <div class="info">
-                        <div class="name">Capture-Statistik</div>
-                        <div class="desc">Empfangene Protokolle seit Start</div>
-                    </div>
-                    <span class="value" id="captureCount">—</span>
-                </div>
-                <div class="set-row">
-                    <div class="info">
-                        <div class="name">Letzter Empfang</div>
-                        <div class="desc">Zeitstempel des letzten Protokolls</div>
-                    </div>
-                    <span class="value" id="lastCapture" style="font-size:12.5px;color:var(--muted)">—</span>
-                </div>
-                <div class="set-row">
-                    <div class="info">
-                        <div class="name">Datensammlermodus</div>
-                        <div class="desc">Rohprotokoll direkt drucken — kein PDF, kein Datenbank-Eintrag</div>
-                    </div>
-                    <label class="switch">
-                        <input type="checkbox" id="collectorModeToggle" onchange="toggleCollectorMode(this.checked)">
-                        <span class="track"></span>
-                    </label>
-                </div>
-                <div id="collectorWarning" style="display:none;margin:8px 0 0 0;padding:10px 14px;background:var(--warn-banner-bg,#fff7e6);border:1px solid var(--warn-banner-border,#ffe1a8);border-radius:8px;color:var(--warn-banner-fg,#8a5a00);font-size:13px">
-                    <i class="bi bi-exclamation-triangle-fill" style="margin-right:6px"></i>
-                    <strong>Sammelmodus aktiv</strong> — Empfangene Protokolle werden nicht verarbeitet. Bitte nach der Datenbeschaffung deaktivieren.
                 </div>
             </div>
         </div>
@@ -322,24 +264,6 @@
             </div>
         </div>
 
-        <!-- Gerätename im Netzwerk -->
-        <div class="card locked-card">
-            <div class="card-head"><span><i class="bi bi-pc-display"></i> Gerätename im Netzwerk</span></div>
-            <div class="card-body">
-                <div class="set-row">
-                    <div class="info"><div class="name">Aktueller Hostname</div><div class="desc">DNS-Name im Kliniknetz</div></div>
-                    <span class="mono-ip" id="currentHostname">—</span>
-                </div>
-                <div class="set-row">
-                    <div class="info"><div class="name">Hostname ändern</div><div class="desc">Nur Buchstaben, Ziffern, Bindestrich</div></div>
-                    <div style="display:flex;gap:6px;align-items:center">
-                        <input type="text" class="ctrl" id="newHostname" placeholder="docucontrol" maxlength="63" style="width:155px">
-                        <button class="btn btn-outline" onclick="saveHostname()"><i class="bi bi-check-lg"></i> Setzen</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <!-- Zeit & Uhr (RTC + NTP) -->
         <div class="card">
             <div class="card-head"><span><i class="bi bi-clock"></i> Zeit &amp; Uhr</span></div>
@@ -448,6 +372,18 @@
                 </label>
             </div>
             <div class="card-body">
+                <div class="set-row">
+                    <div class="info"><div class="name">Aktueller Hostname</div><div class="desc">DNS-Name dieses Geräts im lokalen Netzwerk</div></div>
+                    <span class="mono-ip" id="currentHostname">—</span>
+                </div>
+                <div class="set-row">
+                    <div class="info"><div class="name">Hostname ändern</div><div class="desc">Nur Buchstaben, Ziffern, Bindestrich</div></div>
+                    <div style="display:flex;gap:6px;align-items:center">
+                        <input type="text" class="ctrl" id="newHostname" placeholder="docucontrol" maxlength="63" style="width:155px">
+                        <button class="btn btn-outline" onclick="saveHostname()"><i class="bi bi-check-lg"></i> Setzen</button>
+                    </div>
+                </div>
+                <hr style="margin:12px 0;border:none;border-top:1px solid var(--border)">
                 <div class="set-row">
                     <div class="info"><div class="name">Server (IP oder Name)</div><div class="desc">z.B. 192.168.0.50 oder PC-BUERO</div></div>
                     <input type="text" class="ctrl" id="netStorageServer" placeholder="192.168.0.50" style="width:185px">
@@ -567,70 +503,6 @@
     </div>
 </div>
 
-<!-- ══ Tab: Live-Monitor ═════════════════════════════════════════════════ -->
-<div id="panelMonitor" style="display:none">
-
-    <!-- 4 Stat-Karten -->
-    <div class="stat-row mon" id="monStatRow">
-        <div class="stat">
-            <div class="icon-tile navy"><i class="bi bi-hdd-network"></i></div>
-            <div class="label">Empfänger</div>
-            <div class="conn offline" id="monConn" style="font-size:22px">
-                <span class="dot"></span> Getrennt
-            </div>
-            <div class="sub">TCP Port 9100</div>
-        </div>
-        <div class="stat">
-            <div class="icon-tile blue"><i class="bi bi-file-earmark-pdf"></i></div>
-            <div class="label">Protokolle heute</div>
-            <div class="big" id="monToday">—</div>
-            <div class="sub">seit 00:00 Uhr</div>
-        </div>
-        <div class="stat">
-            <div class="icon-tile navy"><i class="bi bi-collection"></i></div>
-            <div class="label">Protokolle gesamt</div>
-            <div class="big" id="monTotal">—</div>
-            <div class="sub">seit Inbetriebnahme</div>
-        </div>
-        <div class="stat">
-            <div class="icon-tile green"><i class="bi bi-check2-circle"></i></div>
-            <div class="label">Letzte Charge</div>
-            <div class="big" id="monLastCharge" style="font-family:var(--mono);font-size:22px">—</div>
-            <div class="sub" id="monLastProg"></div>
-        </div>
-    </div>
-
-    <!-- Letztes Protokoll gespeichert Banner -->
-    <div class="last-pdf" id="lastPdfBanner" style="display:none">
-        <span class="ic"><i class="bi bi-check-circle-fill"></i></span>
-        <span><strong>Neues Protokoll gespeichert:</strong> <span id="lastPdfName" style="font-family:var(--mono)"></span></span>
-    </div>
-
-    <!-- Terminal -->
-    <div class="monitor-head">
-        <h6><i class="bi bi-terminal"></i> TCP Live-Monitor</h6>
-        <div class="monitor-tools">
-            <span class="badge mono">
-                <i class="bi bi-arrow-down-circle"></i>
-                <span id="byteCount">0</span> Bytes
-            </span>
-            <label class="switch-mini">
-                <input type="checkbox" id="autoScroll" checked> Auto-Scroll
-            </label>
-            <button class="btn btn-outline-danger sm" onclick="clearTerminal()">
-                <i class="bi bi-trash"></i> Leeren
-            </button>
-        </div>
-    </div>
-    <div class="th">
-        <span><i class="bi bi-hdd-network"></i> TCP :9100</span>
-        <span><span id="rxDot" class="blink" style="color:#00ff41;visibility:hidden;">&#9679;</span> RX</span>
-    </div>
-    <div id="terminal">
-        <span style="color:#888">— warte auf Daten …</span>
-    </div>
-
-</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -647,10 +519,6 @@
 <script>
 (function() {
     var activeTab = 'devices';
-    var lastPdfFilename = '';
-    var rxBytes = 0;
-    var lastText = '';
-    var monitorInterval = null;
     var systemInterval = null;
     var clockInterval = null;
     var ipPollInterval = null;
@@ -659,19 +527,11 @@
 
     window.switchTab = function(tab) {
         activeTab = tab;
-        ['Devices','System','Monitor'].forEach(function(t) {
+        ['Devices','System'].forEach(function(t) {
             var id = t.toLowerCase();
             document.getElementById('tab' + t).classList.toggle('active', id === tab);
             document.getElementById('panel' + t).style.display = id === tab ? '' : 'none';
         });
-
-        if (tab === 'monitor') {
-            loadMonitorStats();
-            updateTerminal();
-            if (!monitorInterval) monitorInterval = setInterval(tickMonitor, 5000);
-        } else {
-            if (monitorInterval) { clearInterval(monitorInterval); monitorInterval = null; }
-        }
 
         if (tab === 'system') {
             loadSystemStatus();
@@ -687,63 +547,40 @@
         }
     };
 
-    if (window.location.hash === '#monitor') window.switchTab('monitor');
     if (window.location.hash === '#system') window.switchTab('system');
 
     // ── Tab: Geräte & Netzwerk ────────────────────────────────────────────
 
-    function loadMachineConfig() {
-        fetch('/api/machine/config')
+    function loadSolConfig() {
+        fetch('/api/sol/config')
             .then(function(r) { return r.json(); })
             .then(function(d) {
-                document.getElementById('machineNameInput').value = d.name || '';
-                document.getElementById('machineNrInput').value = d.machine_nr || '';
-                document.getElementById('machineIpInput').value = d.ip || '';
-                document.getElementById('machineLocationInput').value = d.location || '';
+                document.getElementById('solSensorNamesInput').value = d.sensor_names || '';
+                document.getElementById('solToleranceInput').value = (d.temp_tolerance_c != null ? d.temp_tolerance_c : '');
+                document.getElementById('solWarnCountInput').value = d.bottle_warn_count || '';
+                document.getElementById('solStandortInput').value = d.standort_kuerzel || '';
             }).catch(function() {});
     }
 
-    window.saveMachineConfig = function() {
-        var name = document.getElementById('machineNameInput').value.trim();
-        var machineNr = document.getElementById('machineNrInput').value.trim();
-        var ip   = document.getElementById('machineIpInput').value.trim();
-        var location = document.getElementById('machineLocationInput').value.trim();
-        fetch('/api/machine/config', {
+    window.saveSolConfig = function() {
+        fetch('/api/sol/config', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({name: name, machine_nr: machineNr, ip: ip, location: location})
+            body: JSON.stringify({
+                sensor_names: document.getElementById('solSensorNamesInput').value.trim(),
+                temp_tolerance_c: document.getElementById('solToleranceInput').value,
+                bottle_warn_count: document.getElementById('solWarnCountInput').value,
+                standort_kuerzel: document.getElementById('solStandortInput').value.trim(),
+            })
         }).then(function(r) { return r.json(); })
           .then(function(d) {
-              if (d.success) showToast('Gespeichert', 'Anlage-Konfiguration aktualisiert.');
+              if (d.ok) showToast('Gespeichert', 'Abfüllungs-Einstellungen aktualisiert.');
+              else showToast('Fehler', d.error || 'Speichern fehlgeschlagen.');
           }).catch(function() {});
     };
 
-    window.testMachinePing = function() {
-        var el = document.getElementById('machinePingResult');
-        el.textContent = 'Prüfen …';
-        el.style.color = 'var(--muted)';
-        fetch('/api/machine/ping')
-            .then(function(r) { return r.json(); })
-            .then(function(d) {
-                if (!d.configured) {
-                    el.textContent = 'IP nicht konfiguriert';
-                    el.style.color = 'var(--muted)';
-                } else if (d.reachable) {
-                    var lat = d.latency_ms ? ' (' + d.latency_ms.toFixed(1) + ' ms)' : '';
-                    el.textContent = 'Erreichbar' + lat;
-                    el.style.color = '#2fce7f';
-                } else {
-                    el.textContent = 'Nicht erreichbar (' + (d.ip || '—') + ')';
-                    el.style.color = 'var(--danger)';
-                }
-            }).catch(function() {
-                el.textContent = 'Fehler';
-                el.style.color = 'var(--danger)';
-            });
-    };
-
     function loadDeviceSettings() {
-        loadMachineConfig();
+        loadSolConfig();
         // Drucker
         fetch('/api/printer/status')
             .then(function(r) { return r.json(); })
@@ -755,21 +592,6 @@
                 document.getElementById('printerName').textContent = 'Kein Drucker angeschlossen';
             });
         loadPrinterConfig();
-
-        // TCP-Status
-        fetch('/api/tcp_capture/status')
-            .then(function(r) { return r.json(); })
-            .then(function(d) {
-                document.getElementById('tcpToggle').checked = d.tcp_enabled || false;
-                var count = d.captures ? d.captures.length : (d.job_count || 0);
-                document.getElementById('captureCount').textContent = count.toLocaleString('de-DE');
-                var lc = d.last_job_ts || d.last_capture || '';
-                if (lc) {
-                    document.getElementById('lastCapture').textContent = lc.replace('T', ' ').split('.')[0] + ' Uhr';
-                } else {
-                    document.getElementById('lastCapture').textContent = '—';
-                }
-            }).catch(function() {});
 
         // USB Sync
         loadSyncSettings();
@@ -1297,14 +1119,6 @@
             });
     };
 
-    window.toggleTcp = function(checked) {
-        var endpoint = checked ? '/api/tcp_capture/start' : '/api/tcp_capture/stop';
-        fetch(endpoint, {method: 'POST'})
-            .then(function(r) { return r.json(); })
-            .then(function() { loadDeviceSettings(); })
-            .catch(function() {});
-    };
-
     // ── Tab: System ───────────────────────────────────────────────────────
 
     function loadSystemStatus() {
@@ -1348,72 +1162,6 @@
             });
     };
 
-    // ── Tab: Live-Monitor ─────────────────────────────────────────────────
-
-    function loadMonitorStats() {
-        fetch('/api/tcp_capture/status')
-            .then(function(r) { return r.json(); })
-            .then(function(d) {
-                var conn = document.getElementById('monConn');
-                var on = d.tcp_enabled || d.enabled;
-                conn.className = 'conn ' + (on ? 'online' : 'offline');
-                conn.innerHTML = '<span class="dot"></span> ' + (on ? 'Verbunden' : 'Getrennt');
-            }).catch(function() {});
-
-        var today = new Date().toISOString().split('T')[0];
-        fetch('/api/protocols?per_page=1&date_from=' + today + '&date_to=' + today)
-            .then(function(r) { return r.json(); })
-            .then(function(d) {
-                document.getElementById('monToday').textContent = d.total;
-            }).catch(function() {});
-
-        fetch('/api/protocols?per_page=1&sort_by=timestamp&sort_dir=desc')
-            .then(function(r) { return r.json(); })
-            .then(function(d) {
-                document.getElementById('monTotal').textContent = d.total.toLocaleString('de-DE');
-                if (d.protocols && d.protocols.length > 0) {
-                    var p = d.protocols[0];
-                    document.getElementById('monLastCharge').textContent = p.charge_nr || '—';
-                    document.getElementById('monLastProg').textContent = p.program || '';
-                    if (p.pdf_filename && p.pdf_filename !== lastPdfFilename) {
-                        lastPdfFilename = p.pdf_filename;
-                        document.getElementById('lastPdfName').textContent = p.pdf_filename;
-                        var banner = document.getElementById('lastPdfBanner');
-                        banner.style.display = 'flex';
-                        setTimeout(function() { banner.style.display = 'none'; }, 15000);
-                    }
-                }
-            }).catch(function() {});
-    }
-
-    function updateTerminal() {
-        fetch('/api/tcp_capture/last_text')
-            .then(function(r) { return r.json(); })
-            .then(function(d) {
-                var text = d.content || d.text || '';
-                if (text && text !== lastText) {
-                    lastText = text;
-                    rxBytes += text.length;
-                    document.getElementById('byteCount').textContent = rxBytes.toLocaleString('de-DE');
-                    var rx = document.getElementById('rxDot');
-                    rx.style.visibility = 'visible';
-                    setTimeout(function() { rx.style.visibility = 'hidden'; }, 220);
-                    var term = document.getElementById('terminal');
-                    term.textContent = text;
-                    var as = document.getElementById('autoScroll');
-                    if (as && as.checked) term.scrollTop = term.scrollHeight;
-                }
-            }).catch(function() {});
-    }
-
-    function tickMonitor() { loadMonitorStats(); updateTerminal(); }
-
-    window.clearTerminal = function() {
-        document.getElementById('terminal').innerHTML = '<span style="color:#888">— geleert —</span>';
-        lastText = ''; rxBytes = 0;
-        document.getElementById('byteCount').textContent = '0';
-    };
-
     // ── Toast-Benachrichtigungen ──────────────────────────────────────────
 
     function showToast(title, msg) {
@@ -1430,45 +1178,10 @@
         }, 2500);
     }
 
-    // ── Datensammlermodus ─────────────────────────────────────────────────
-
-    function loadCollectorMode() {
-        fetch('/api/capture/collector')
-            .then(function(r) { return r.json(); })
-            .then(function(d) {
-                var cb = document.getElementById('collectorModeToggle');
-                if (cb) cb.checked = !!d.collector_mode;
-                document.getElementById('collectorWarning').style.display =
-                    d.collector_mode ? 'block' : 'none';
-            }).catch(function() {});
-    }
-
-    window.toggleCollectorMode = function(enabled) {
-        fetch('/api/capture/collector', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({enabled: enabled})
-        })
-            .then(function(r) { return r.json(); })
-            .then(function(d) {
-                var cb = document.getElementById('collectorModeToggle');
-                if (cb) cb.checked = !!d.collector_mode;
-                document.getElementById('collectorWarning').style.display =
-                    d.collector_mode ? 'block' : 'none';
-                showToast(
-                    d.collector_mode ? 'Sammelmodus aktiv' : 'Normalmodus aktiv',
-                    d.collector_mode ? 'Protokolle werden roh gedruckt' : 'Protokolle werden als PDF gespeichert'
-                );
-            }).catch(function() {
-                showToast('Fehler', 'Konnte Modus nicht speichern');
-            });
-    };
-
     // ── Init ─────────────────────────────────────────────────────────────
 
     loadDeviceSettings();        // Drucker, TCP, USB — auch alle 30s
     loadStaticSettings();        // Interfaces, Hostname, Zeit — nur einmalig
-    loadCollectorMode();         // Sammelmodus-Toggle — einmalig, nicht im 30s-Interval
     setInterval(loadDeviceSettings, 30000);
     if (!ipPollInterval) ipPollInterval = setInterval(pollCurrentIPs, 5000);
 })();

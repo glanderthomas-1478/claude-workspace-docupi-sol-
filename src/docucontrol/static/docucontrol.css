@@ -3,6 +3,9 @@
    v3: Liquid Glass, Machine-Bar, Square-Font, neue Stat-Karten
 */
 
+/* Kiosk-Display: Mauszeiger ausblenden (kein Mausbetrieb, nur Touch/Scanner) */
+* { cursor: none !important; }
+
 /* ============ BILDSCHIRMSCHONER ============ */
 #screensaverOverlay {
   position: fixed; inset: 0; background: #0b0f14;

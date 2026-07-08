@@ -2,7 +2,7 @@
 
 ## Produkt
 
-**DocuControl-SOL** — Dokumentationstool fuer die Abfuellung von Sauerstoffflaschen: erfasst
+**DocuControl-SOL** — Dokumentationstool fuer die Abfuellung von Druckgasflaschen: erfasst
 Flaschen-Barcode (Scanner) und Temperaturverlauf waehrend des Fuellvorgangs, dokumentiert dies
 pruefbar (Dashboard + PDF).
 

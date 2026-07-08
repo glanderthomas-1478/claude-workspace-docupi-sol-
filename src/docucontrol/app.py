@@ -8,7 +8,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from config import load_config, save_config
 from database import (get_protocols, get_protocol_count, get_today_count, get_system_logs, log_event, get_db,
     get_pending_protocols, get_pending_protocol, save_form_draft, confirm_form, discard_pending,
-    set_pdf_failed, get_form_confirmed_protocols)
+    set_pdf_failed, get_form_confirmed_protocols,
+    create_sol_charge, get_open_sol_charge, get_sol_charge, add_sol_bottle,
+    bottle_code_exists_in_charge, delete_sol_bottle, close_sol_charge,
+    list_sol_charges, count_sol_charges, get_sol_charges_stats,
+    get_sol_charge_pdf_path, delete_sol_charge)
+from sol_pdf_generator import generate_sol_pdf
 from serial_receiver import SerialReceiver
 from network_manager import (load_network_config, save_network_config,
     start_hotspot, stop_hotspot, update_hotspot_config, get_hotspot_status,
@@ -30,12 +35,12 @@ from storage_manager import (
     list_files, get_storage_stats, sync_pdfs_to_usb,
     load_sync_config, save_sync_config, start_auto_sync,
     delete_file, delete_directory, copy_file,
-    try_mount_usb_on_boot, dongle_present,
+    try_mount_usb_on_boot, dongle_present, copy_pdf_to_usb_instant,
     SD_PDF_DIR, USB_MOUNT_POINT, USB_PDF_SUBDIR, USB_CAPTURE_SUBDIR)
 from network_storage_manager import (
     load_network_config, save_network_config, get_network_storage_status,
     test_network_connection, sync_pdfs_to_network, sync_captures_to_network,
-    start_network_sync)
+    start_network_sync, copy_pdf_to_network_instant)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
     handlers=[logging.FileHandler("/home/docucontrol/docupi/logs/docupi.log"), logging.StreamHandler()])
@@ -595,11 +600,12 @@ def api_network_storage_test():
 
 @app.route("/api/storage/network/sync", methods=["POST"])
 def api_network_storage_sync():
+    # sync_captures_to_network() bewusst nicht mehr aufgerufen - SOL hat keinen
+    # TCP/9100-Empfang, es gibt nie Capture-Dateien, der Aufruf legte aber
+    # trotzdem einen leeren "captures"-Ordner auf dem Netzwerk-Share an.
     ok1, msg1, n1 = sync_pdfs_to_network()
-    ok2, msg2, n2 = sync_captures_to_network()
-    ok = ok1 and ok2
-    log_event("INFO" if ok else "ERROR", f"Netzwerk-Sync: {msg1} / {msg2}")
-    return jsonify({"success": ok, "message": f"{msg1}; {msg2}", "count": n1 + n2})
+    log_event("INFO" if ok1 else "ERROR", f"Netzwerk-Sync: {msg1}")
+    return jsonify({"success": ok1, "message": msg1, "count": n1})
 
 @app.route("/api/storage/copy", methods=["POST"])
 def api_storage_copy():
@@ -2414,21 +2420,311 @@ def api_retry_pdf(pid):
     return jsonify({'ok': True, 'message': 'PDF-Generierung läuft'})
 
 
+# ─────────────────────────────────────────────────────────────
+# SOL CHARGEN-WORKFLOW — Flaschen-Scan (Druckgasflaschen-Abfuellung)
+#
+# Start/Scannen/Abschliessen einer Charge sind die taegliche Kernaufgabe
+# dieses Geraets (analog zum Autoklavenbuch-Formular: api_pending_form_save/
+# api_pending_form_confirm sind dort ebenfalls NICHT hinter _require_service()
+# gesperrt) - der Service-Dongle schuetzt Einstellungen/Administration, nicht
+# die normale taegliche Dateneingabe. Nur die SOL-Einstellungen (Toleranz,
+# Sensor-Namen etc.) liegen hinter dem Service-Dongle-Gate, siehe weiter unten.
+# ─────────────────────────────────────────────────────────────
+
+@app.route("/sol/scan")
+def sol_charge_scan_page():
+    return render_template("sol_charge_scan.html", config=load_config())
+
+
+@app.route("/sol/download/<int:charge_id>")
+def sol_download_pdf(charge_id):
+    charge = get_sol_charge(charge_id)
+    if charge and charge.get("pdf_path") and os.path.exists(charge["pdf_path"]):
+        return send_file(charge["pdf_path"], as_attachment=True, download_name=charge["pdf_filename"])
+    return "PDF nicht gefunden", 404
+
+
+@app.route("/sol/view/<int:charge_id>")
+def sol_view_pdf(charge_id):
+    charge = get_sol_charge(charge_id)
+    if charge and charge.get("pdf_path") and os.path.exists(charge["pdf_path"]):
+        return send_file(charge["pdf_path"], mimetype="application/pdf")
+    return "PDF nicht gefunden", 404
+
+
+def _sol_is_nok(ir_temp, room_temp, tolerance):
+    """Eine Flasche gilt als NOK, wenn ihre IR-Temperatur nicht ausreichend ueber
+    der Referenztemperatur liegt (zu geringe Erwaermung durch die Abfuellung deutet
+    auf einen unvollstaendigen/fehlerhaften Fuellvorgang hin). Vom User bestaetigt
+    (2026-07-08): Differenz > 5°C = OK, Differenz < 5°C = NOK. Schwelle per
+    Einstellungen (config['sol']['temp_tolerance_c']) konfigurierbar, Default 5.0."""
+    if ir_temp is None or room_temp is None:
+        return False
+    return (ir_temp - room_temp) < tolerance
+
+
+@app.route('/api/sol/charges/open')
+def api_sol_charge_open():
+    charge = get_open_sol_charge()
+    if not charge:
+        return jsonify({'open': False})
+    full = get_sol_charge(charge['id'])
+    return jsonify({'open': True, 'charge': full})
+
+
+@app.route('/api/sol/charges', methods=['POST'])
+def api_sol_charge_start():
+    if get_open_sol_charge():
+        return jsonify({'ok': False, 'error': 'Es ist bereits eine Charge offen'}), 409
+    data = request.get_json(silent=True) or {}
+    charge_nr = (data.get('charge_nr') or '').strip()
+    if not charge_nr:
+        return jsonify({'ok': False, 'error': 'Charge-Nr. ist ein Pflichtfeld'}), 400
+    try:
+        room_temp = float(data.get('room_temp'))
+    except (TypeError, ValueError):
+        return jsonify({'ok': False, 'error': 'Referenztemperatur ist ein Pflichtfeld'}), 400
+    cfg = load_config()
+    sensor_names = (data.get('sensor_names') or '').strip() or cfg.get('sol', {}).get('sensor_names', '')
+    operator_name = (data.get('operator_name') or '').strip()
+    charge_id = create_sol_charge(charge_nr, room_temp, sensor_names, operator_name)
+    log_event("INFO", f"SOL-Charge gestartet: {charge_nr} (id={charge_id})")
+    return jsonify({'ok': True, 'charge': get_sol_charge(charge_id)})
+
+
+@app.route('/api/sol/charges/<int:charge_id>/bottles', methods=['POST'])
+def api_sol_bottle_add(charge_id):
+    charge = get_sol_charge(charge_id)
+    if not charge or charge['status'] != 'open':
+        return jsonify({'ok': False, 'error': 'Charge nicht gefunden oder bereits abgeschlossen'}), 404
+    data = request.get_json(silent=True) or {}
+    scan_code = (data.get('scan_code') or '').strip()
+    if not scan_code:
+        return jsonify({'ok': False, 'error': 'Flaschen-Code fehlt'}), 400
+    try:
+        ir_temp = float(data.get('ir_temp'))
+    except (TypeError, ValueError):
+        return jsonify({'ok': False, 'error': 'IR-Temperatur ist ein Pflichtfeld'}), 400
+
+    duplicate = bottle_code_exists_in_charge(charge_id, scan_code)
+    cfg = load_config()
+    tolerance = float(cfg.get('sol', {}).get('temp_tolerance_c', 5.0))
+    is_nok = _sol_is_nok(ir_temp, charge['room_temp'], tolerance)
+    bottle_id, seq_nr = add_sol_bottle(charge_id, scan_code, ir_temp, is_nok)
+    warn_count = int(cfg.get('sol', {}).get('bottle_warn_count', 160))
+    return jsonify({
+        'ok': True,
+        'bottle': {'id': bottle_id, 'seq_nr': seq_nr, 'scan_code': scan_code, 'ir_temp': ir_temp, 'is_nok': is_nok},
+        'duplicate': duplicate,
+        'warn_count_reached': seq_nr >= warn_count,
+    })
+
+
+@app.route('/api/sol/charges/<int:charge_id>/bottles/<int:bottle_id>', methods=['DELETE'])
+def api_sol_bottle_delete(charge_id, bottle_id):
+    charge = get_sol_charge(charge_id)
+    if not charge or charge['status'] != 'open':
+        return jsonify({'ok': False, 'error': 'Charge nicht gefunden oder bereits abgeschlossen'}), 404
+    delete_sol_bottle(bottle_id)
+    return jsonify({'ok': True})
+
+
+@app.route('/api/sol/charges/<int:charge_id>/close', methods=['POST'])
+def api_sol_charge_close(charge_id):
+    charge = get_sol_charge(charge_id)
+    if not charge or charge['status'] != 'open':
+        return jsonify({'ok': False, 'error': 'Charge nicht gefunden oder bereits abgeschlossen'}), 404
+    data = request.get_json(silent=True) or {}
+    confirmed = bool(data.get('confirmed'))
+    signature = (data.get('signature') or '').strip()
+    if not confirmed:
+        return jsonify({'ok': False, 'error': 'Bestätigung fehlt'}), 400
+    if not signature.startswith('data:image/'):
+        return jsonify({'ok': False, 'error': 'Unterschrift fehlt'}), 400
+    if not charge.get('operator_name'):
+        return jsonify({'ok': False, 'error': 'Name des Bedieners fehlt'}), 400
+    if not charge.get('bottles'):
+        return jsonify({'ok': False, 'error': 'Es wurde noch keine Flasche gescannt'}), 400
+
+    charge['confirmed_signature'] = signature
+
+    cfg = load_config()
+    try:
+        pdf_path, pdf_filename, file_size = generate_sol_pdf(charge, charge['bottles'], cfg)
+    except Exception as e:
+        logger.error("SOL-PDF-Generierung fehlgeschlagen (charge_id=%d): %s", charge_id, e)
+        return jsonify({'ok': False, 'error': f'PDF-Generierung fehlgeschlagen: {e}'}), 500
+
+    close_sol_charge(charge_id, signature, pdf_path, pdf_filename, file_size)
+
+    try:
+        copy_pdf_to_usb_instant(pdf_path, pdf_filename)
+    except Exception as e:
+        logger.warning("USB-Copy (SOL-Charge) fehlgeschlagen: %s", e)
+    try:
+        copy_pdf_to_network_instant(pdf_path, pdf_filename)
+    except Exception as e:
+        logger.warning("Netzwerk-Copy (SOL-Charge) fehlgeschlagen: %s", e)
+    try:
+        auto_print_pdf(pdf_path)
+    except Exception as e:
+        logger.warning("Auto-Print (SOL-Charge) fehlgeschlagen: %s", e)
+
+    log_event("INFO", f"SOL-Charge abgeschlossen: {charge['charge_nr']} ({len(charge['bottles'])} Flaschen, "
+                       f"bestaetigt von {charge['operator_name']}), PDF {pdf_filename}")
+    return jsonify({'ok': True, 'pdf_filename': pdf_filename})
+
+
+@app.route('/api/sol/charges')
+def api_sol_charges_list():
+    page = max(1, int(request.args.get('page', 1)))
+    per_page = min(max(1, int(request.args.get('per_page', 20))), 100)
+    status_f = request.args.get('status', '').strip() or None
+    date_from = request.args.get('date_from', '').strip() or None
+    date_to = request.args.get('date_to', '').strip() or None
+    charge_nr_search = request.args.get('charge_nr', '').strip() or None
+    total = count_sol_charges(status_f, date_from, date_to, charge_nr_search)
+    offset = (page - 1) * per_page
+    rows = list_sol_charges(per_page, offset, status_f, date_from, date_to, charge_nr_search)
+    pages = max(1, (total + per_page - 1) // per_page)
+    return jsonify({'total': total, 'page': page, 'per_page': per_page, 'pages': pages, 'charges': rows})
+
+
+@app.route('/api/sol/charges/<int:charge_id>')
+def api_sol_charge_detail(charge_id):
+    charge = get_sol_charge(charge_id)
+    if not charge:
+        return jsonify({'error': 'Nicht gefunden'}), 404
+    return jsonify(charge)
+
+
+@app.route('/api/sol/charges/<int:charge_id>', methods=['DELETE'])
+def api_sol_charge_delete_route(charge_id):
+    # Loeschen einer bereits abgeschlossenen/dokumentierten Charge ist eine administrative,
+    # nicht die tägliche Kernaufgabe - anders als Scannen/Abschluss daher hinter dem
+    # Service-Dongle gesperrt (analog zum Autoklavenbuch-"discard").
+    guard = _require_service()
+    if guard: return guard
+    pdf_path = get_sol_charge_pdf_path(charge_id)
+    if pdf_path is None:
+        return jsonify({'ok': False, 'error': 'Charge nicht gefunden'}), 404
+    delete_sol_charge(charge_id)
+    if pdf_path and os.path.exists(pdf_path):
+        try:
+            os.remove(pdf_path)
+        except Exception as e:
+            logger.warning("PDF-Datei konnte nicht geloescht werden (charge_id=%d): %s", charge_id, e)
+    log_event("WARN", f"SOL-Charge geloescht: id={charge_id}")
+    return jsonify({'ok': True})
+
+
+@app.route('/api/sol/charges/bulk-delete', methods=['POST'])
+def api_sol_charges_bulk_delete():
+    guard = _require_service()
+    if guard: return guard
+    data = request.get_json(silent=True) or {}
+    ids = data.get('ids', [])
+    if not ids:
+        return jsonify({'ok': False, 'error': 'keine IDs'}), 400
+    deleted = 0
+    errors = 0
+    for cid in ids:
+        try:
+            pdf_path = get_sol_charge_pdf_path(cid)
+            if pdf_path is None:
+                continue
+            delete_sol_charge(cid)
+            if pdf_path and os.path.exists(pdf_path):
+                os.remove(pdf_path)
+            deleted += 1
+        except Exception as e:
+            logger.error("Bulk-Delete SOL-Charge %s: %s", cid, e)
+            errors += 1
+    log_event("WARN", f"Bulk-Delete: {deleted} SOL-Chargen geloescht")
+    return jsonify({'ok': True, 'deleted': deleted, 'errors': errors})
+
+
+@app.route('/api/sol/charges/bulk-download-zip', methods=['POST'])
+def api_sol_charges_bulk_download_zip():
+    import zipfile
+    import io
+    data = request.get_json(silent=True) or {}
+    ids = data.get('ids', [])
+    if not ids:
+        return jsonify({'ok': False, 'error': 'keine IDs'}), 400
+    mem_zip = io.BytesIO()
+    added = 0
+    with zipfile.ZipFile(mem_zip, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for cid in ids:
+            charge = get_sol_charge(cid)
+            if not charge or not charge.get('pdf_path') or not os.path.exists(charge['pdf_path']):
+                continue
+            zf.write(charge['pdf_path'], charge.get('pdf_filename') or os.path.basename(charge['pdf_path']))
+            added += 1
+    if added == 0:
+        return jsonify({'ok': False, 'error': 'Keine Dateien gefunden'}), 404
+    mem_zip.seek(0)
+    ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+    return send_file(mem_zip, mimetype='application/zip', as_attachment=True,
+                      download_name=f'DocuControl-SOL_Chargen_{ts}.zip')
+
+
+@app.route('/api/sol/charges/stats')
+def api_sol_charges_stats():
+    return jsonify(get_sol_charges_stats())
+
+
+@app.route('/api/sol/config', methods=['GET'])
+def api_sol_config_get():
+    cfg = load_config()
+    return jsonify(cfg.get('sol', {}))
+
+
+@app.route('/api/sol/config', methods=['POST'])
+def api_sol_config_save():
+    guard = _require_service()
+    if guard: return guard
+    data = request.get_json(silent=True) or {}
+    cfg = load_config()
+    sol_cfg = cfg.setdefault('sol', {})
+    if 'sensor_names' in data:
+        sol_cfg['sensor_names'] = str(data['sensor_names']).strip()
+    if 'temp_tolerance_c' in data:
+        try:
+            sol_cfg['temp_tolerance_c'] = float(data['temp_tolerance_c'])
+        except (TypeError, ValueError):
+            return jsonify({'ok': False, 'error': 'Ungültige Toleranz'}), 400
+    if 'bottle_warn_count' in data:
+        try:
+            sol_cfg['bottle_warn_count'] = int(data['bottle_warn_count'])
+        except (TypeError, ValueError):
+            return jsonify({'ok': False, 'error': 'Ungültige Flaschenanzahl'}), 400
+    if 'standort_kuerzel' in data:
+        sol_cfg['standort_kuerzel'] = str(data['standort_kuerzel']).strip()
+    save_config(cfg)
+    log_event("INFO", "SOL-Einstellungen gespeichert")
+    return jsonify({'ok': True, 'sol': sol_cfg})
+
+
 if __name__ == "__main__":
     config = load_config()
     log_event("INFO", "DocuControl gestartet")
     init_hotspot_on_boot()
     start_hotspot_monitor()
-    # TCP/9100 Print-Capture (DocuControl)
-    try:
-        _cap_cfg = load_capture_config()
-        if _cap_cfg.get("tcp_enabled", True):
-            start_capture_server(auto_print=_cap_cfg.get("auto_print", False))
-            logger.info(f"TCP/{_cap_cfg.get('port', 9100)} Capture-Server gestartet")
-        else:
-            logger.info("TCP-Capture deaktiviert (capture_config.json)")
-    except Exception as e:
-        logger.warning(f"TCP capture Init-Fehler: {e}")
+    # TCP/9100 Print-Capture (Herkunftsprojekt DocuControl/Sterilisator) -
+    # SOL hat keine Maschine, die Protokolle per TCP/9100 sendet (Druckgas-
+    # flaschen werden manuell per Barcode/QR-Scanner erfasst, siehe /api/sol/*).
+    # Code bleibt als Referenz erhalten, wird aber bewusst nicht gestartet.
+    # try:
+    #     _cap_cfg = load_capture_config()
+    #     if _cap_cfg.get("tcp_enabled", True):
+    #         start_capture_server(auto_print=_cap_cfg.get("auto_print", False))
+    #         logger.info(f"TCP/{_cap_cfg.get('port', 9100)} Capture-Server gestartet")
+    #     else:
+    #         logger.info("TCP-Capture deaktiviert (capture_config.json)")
+    # except Exception as e:
+    #     logger.warning(f"TCP capture Init-Fehler: {e}")
+    logger.info("TCP/9100-Empfang deaktiviert (SOL nutzt Barcode/QR-Scan statt Maschinenprotokoll)")
     # USB beim Boot mounten (nach Stromausfall/Reboot)
     try:
         try_mount_usb_on_boot()

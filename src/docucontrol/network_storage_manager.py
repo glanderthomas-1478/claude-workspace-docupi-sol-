@@ -141,9 +141,8 @@ def mount_network_share(cfg=None):
 
     if ok:
         pdf_dir = os.path.join(NETWORK_MOUNT_POINT, NETWORK_PDF_SUBDIR)
-        capture_dir = os.path.join(NETWORK_MOUNT_POINT, NETWORK_CAPTURE_SUBDIR)
         os.makedirs(pdf_dir, exist_ok=True)
-        os.makedirs(capture_dir, exist_ok=True)
+        # Captures-Ordner wird bewusst nicht mehr angelegt - SOL hat keinen TCP/9100-Empfang.
         cfg["last_error"] = ""
         save_network_config(cfg)
         logger.info(f"Netzwerk-Freigabe gemountet: {unc} -> {NETWORK_MOUNT_POINT}")
@@ -418,7 +417,10 @@ def _network_sync_loop():
         if time.time() - last_sync_time >= interval_secs:
             try:
                 sync_pdfs_to_network()
-                sync_captures_to_network()
+                # Captures-Sync deaktiviert: SOL hat keinen TCP/9100-Empfang, es gibt nie
+                # Capture-Dateien - der Aufruf legte bisher trotzdem staendig einen leeren
+                # "captures"-Ordner auf dem Netzwerk-Share an. sync_captures_to_network()
+                # bleibt als Referenz erhalten, wird aber nicht mehr automatisch aufgerufen.
             except OSError as e:
                 logger.error(f"Netzwerk-Sync I/O-Fehler: {e}")
                 _run(["sudo", "/usr/bin/umount", "-l", NETWORK_MOUNT_POINT])

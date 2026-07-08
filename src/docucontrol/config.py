@@ -44,6 +44,13 @@ DEFAULT_CONFIG = {
         "name": "Belimed PST 14-8-12 HS1",
         "ip": "",
         "protocol": "6050 / 6060 FIS"
+    },
+    "sol": {
+        "sensor_names": "Testo 835-T1 / Testo 608-H1",
+        "temp_tolerance_c": 5.0,
+        "bottle_warn_count": 160,
+        "standort_kuerzel": "",
+        "rows_per_page": 18
     }
 }
 

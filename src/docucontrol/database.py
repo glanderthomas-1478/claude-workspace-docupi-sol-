@@ -54,7 +54,40 @@ def init_db():
             FOREIGN KEY (protocol_id) REFERENCES protocols(id) ON DELETE CASCADE
         );
         CREATE INDEX IF NOT EXISTS idx_charge_forms_protocol ON charge_forms(protocol_id);
+        CREATE TABLE IF NOT EXISTS sol_charges (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            charge_nr TEXT NOT NULL,
+            started_at TEXT NOT NULL,
+            closed_at TEXT DEFAULT NULL,
+            room_temp REAL DEFAULT NULL,
+            sensor_names TEXT DEFAULT '',
+            operator_name TEXT DEFAULT '',
+            lqk_name TEXT DEFAULT '',
+            lqk_initials TEXT DEFAULT '',
+            status TEXT DEFAULT 'open',
+            pdf_path TEXT DEFAULT '',
+            pdf_filename TEXT DEFAULT '',
+            file_size INTEGER DEFAULT 0
+        );
+        CREATE TABLE IF NOT EXISTS sol_bottles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            charge_id INTEGER NOT NULL,
+            seq_nr INTEGER NOT NULL,
+            scan_code TEXT NOT NULL,
+            scanned_at TEXT NOT NULL,
+            ir_temp REAL DEFAULT NULL,
+            is_nok INTEGER DEFAULT 0,
+            FOREIGN KEY (charge_id) REFERENCES sol_charges(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_sol_charges_status ON sol_charges(status);
+        CREATE INDEX IF NOT EXISTS idx_sol_charges_started ON sol_charges(started_at);
+        CREATE INDEX IF NOT EXISTS idx_sol_bottles_charge ON sol_bottles(charge_id);
     """)
+    # Idempotente Mini-Migration: neue Spalte fuer bereits existierende sol_charges-Tabellen
+    # (CREATE TABLE IF NOT EXISTS greift nicht mehr, sobald die Tabelle einmal angelegt wurde).
+    existing_cols = {row[1] for row in conn.execute("PRAGMA table_info(sol_charges)").fetchall()}
+    if "confirmed_signature" not in existing_cols:
+        conn.execute("ALTER TABLE sol_charges ADD COLUMN confirmed_signature TEXT DEFAULT ''")
     conn.commit()
     conn.close()
 
@@ -220,6 +253,186 @@ def get_form_confirmed_protocols():
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+# ─────────────────────────────────────────────────────────────
+# SOL CHARGEN-WORKFLOW — Flaschen-Scan (Druckgasflaschen-Abfuellung)
+# ─────────────────────────────────────────────────────────────
+
+def create_sol_charge(charge_nr, room_temp, sensor_names, operator_name):
+    """Startet eine neue offene Charge. Aufrufer muss vorher sicherstellen,
+    dass keine andere Charge offen ist (get_open_sol_charge())."""
+    conn = get_db()
+    cur = conn.execute(
+        "INSERT INTO sol_charges (charge_nr, started_at, room_temp, sensor_names, operator_name, status) "
+        "VALUES (?, ?, ?, ?, ?, 'open')",
+        (charge_nr, datetime.now().isoformat(), room_temp, sensor_names, operator_name)
+    )
+    charge_id = cur.lastrowid
+    conn.commit()
+    conn.close()
+    return charge_id
+
+
+def get_open_sol_charge():
+    """Die aktuell offene Charge (es darf immer nur eine geben), oder None."""
+    conn = get_db()
+    row = conn.execute(
+        "SELECT * FROM sol_charges WHERE status='open' ORDER BY started_at DESC LIMIT 1"
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def get_sol_charge(charge_id):
+    """Eine Charge (egal welcher Status) samt aller gescannten Flaschen."""
+    conn = get_db()
+    charge_row = conn.execute("SELECT * FROM sol_charges WHERE id=?", (charge_id,)).fetchone()
+    if not charge_row:
+        conn.close()
+        return None
+    charge = dict(charge_row)
+    bottle_rows = conn.execute(
+        "SELECT * FROM sol_bottles WHERE charge_id=? ORDER BY seq_nr ASC", (charge_id,)
+    ).fetchall()
+    conn.close()
+    charge["bottles"] = [dict(r) for r in bottle_rows]
+    return charge
+
+
+def add_sol_bottle(charge_id, scan_code, ir_temp, is_nok):
+    """Fuegt eine Flaschen-Messung hinzu. seq_nr wird automatisch fortlaufend vergeben."""
+    conn = get_db()
+    next_seq = conn.execute(
+        "SELECT COALESCE(MAX(seq_nr), 0) + 1 FROM sol_bottles WHERE charge_id=?", (charge_id,)
+    ).fetchone()[0]
+    cur = conn.execute(
+        "INSERT INTO sol_bottles (charge_id, seq_nr, scan_code, scanned_at, ir_temp, is_nok) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (charge_id, next_seq, scan_code, datetime.now().isoformat(), ir_temp, 1 if is_nok else 0)
+    )
+    bottle_id = cur.lastrowid
+    conn.commit()
+    conn.close()
+    return bottle_id, next_seq
+
+
+def bottle_code_exists_in_charge(charge_id, scan_code):
+    """True wenn dieser Barcode/QR-Code in dieser Charge bereits gescannt wurde (fuer Duplikat-Warnung)."""
+    conn = get_db()
+    row = conn.execute(
+        "SELECT COUNT(*) FROM sol_bottles WHERE charge_id=? AND scan_code=?", (charge_id, scan_code)
+    ).fetchone()
+    conn.close()
+    return bool(row[0])
+
+
+def delete_sol_bottle(bottle_id):
+    """Loescht eine fehlerhafte Scan-Zeile (Korrektur). seq_nr der uebrigen Zeilen
+    wird bewusst NICHT neu durchnummeriert, damit die Protokoll-Nr. nachvollziehbar bleibt."""
+    conn = get_db()
+    conn.execute("DELETE FROM sol_bottles WHERE id=?", (bottle_id,))
+    conn.commit()
+    conn.close()
+
+
+def close_sol_charge(charge_id, confirmed_signature, pdf_path, pdf_filename, file_size):
+    """Schliesst eine Charge ab. Bestaetigt wird ausschliesslich durch den Bediener/Abfueller
+    (dessen Name schon bei create_sol_charge() erfasst wurde) per digitaler Unterschrift -
+    kein separater LQK-Schritt (User-Entscheidung 2026-07-08)."""
+    conn = get_db()
+    conn.execute(
+        "UPDATE sol_charges SET status='completed', closed_at=?, confirmed_signature=?, "
+        "pdf_path=?, pdf_filename=?, file_size=? WHERE id=?",
+        (datetime.now().isoformat(), confirmed_signature, pdf_path, pdf_filename, file_size, charge_id)
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_sol_charge_pdf_path(charge_id):
+    conn = get_db()
+    row = conn.execute("SELECT pdf_path FROM sol_charges WHERE id=?", (charge_id,)).fetchone()
+    conn.close()
+    return row["pdf_path"] if row else None
+
+
+def delete_sol_charge(charge_id):
+    """Loescht eine Charge samt aller Flaschen. `PRAGMA foreign_keys` ist in dieser
+    App nicht aktiviert, daher ON DELETE CASCADE wirkungslos - sol_bottles wird explizit
+    zuerst geloescht. Die PDF-Datei auf der Platte muss der Aufrufer separat entfernen
+    (pdf_path vorher per get_sol_charge_pdf_path() abfragen)."""
+    conn = get_db()
+    conn.execute("DELETE FROM sol_bottles WHERE charge_id=?", (charge_id,))
+    conn.execute("DELETE FROM sol_charges WHERE id=?", (charge_id,))
+    conn.commit()
+    conn.close()
+
+
+def _sol_charges_where(status_filter, date_from, date_to, charge_nr_search):
+    where = []
+    params = []
+    if status_filter:
+        where.append("status = ?")
+        params.append(status_filter)
+    if date_from:
+        where.append("date(started_at) >= ?")
+        params.append(date_from)
+    if date_to:
+        where.append("date(started_at) <= ?")
+        params.append(date_to)
+    if charge_nr_search:
+        where.append("charge_nr LIKE ?")
+        params.append(f"%{charge_nr_search}%")
+    where_sql = ("WHERE " + " AND ".join(where)) if where else ""
+    return where_sql, params
+
+
+def list_sol_charges(limit=20, offset=0, status_filter=None, date_from=None, date_to=None, charge_nr_search=None):
+    conn = get_db()
+    where_sql, params = _sol_charges_where(status_filter, date_from, date_to, charge_nr_search)
+    rows = conn.execute(
+        f"SELECT c.*, (SELECT COUNT(*) FROM sol_bottles b WHERE b.charge_id = c.id) AS bottle_count, "
+        f"(SELECT COUNT(*) FROM sol_bottles b WHERE b.charge_id = c.id AND b.is_nok = 1) AS nok_count "
+        f"FROM sol_charges c {where_sql} ORDER BY c.started_at DESC LIMIT ? OFFSET ?",
+        params + [limit, offset]
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def count_sol_charges(status_filter=None, date_from=None, date_to=None, charge_nr_search=None):
+    conn = get_db()
+    where_sql, params = _sol_charges_where(status_filter, date_from, date_to, charge_nr_search)
+    count = conn.execute(f"SELECT COUNT(*) FROM sol_charges {where_sql}", params).fetchone()[0]
+    conn.close()
+    return count
+
+
+def get_sol_charges_stats():
+    """Kennzahlen fuer die Dashboard-Stat-Karten."""
+    conn = get_db()
+    today = datetime.now().strftime("%Y-%m-%d")
+    month_start = datetime.now().replace(day=1).strftime("%Y-%m-%d")
+    total = conn.execute("SELECT COUNT(*) FROM sol_charges").fetchone()[0]
+    today_count = conn.execute(
+        "SELECT COUNT(*) FROM sol_charges WHERE date(started_at) = ?", (today,)
+    ).fetchone()[0]
+    month_count = conn.execute(
+        "SELECT COUNT(*) FROM sol_charges WHERE started_at >= ?", (month_start,)
+    ).fetchone()[0]
+    total_bottles = conn.execute("SELECT COUNT(*) FROM sol_bottles").fetchone()[0]
+    today_bottles = conn.execute(
+        "SELECT COUNT(*) FROM sol_bottles WHERE date(scanned_at) = ?", (today,)
+    ).fetchone()[0]
+    conn.close()
+    return {
+        "total_charges": total,
+        "today_charges": today_count,
+        "month_charges": month_count,
+        "total_bottles": total_bottles,
+        "today_bottles": today_bottles,
+    }
 
 
 try:

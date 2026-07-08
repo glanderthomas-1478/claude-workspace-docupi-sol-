@@ -552,10 +552,10 @@ def _auto_sync_loop():
             if should_sync:
                 try:
                     ok, msg, count = sync_pdfs_to_usb()
-                    try:
-                        sync_captures_to_usb()
-                    except Exception as e:
-                        logger.error(f"Captures Auto-Sync Fehler: {e}")
+                    # Captures-Sync deaktiviert: SOL hat keinen TCP/9100-Empfang, es gibt nie
+                    # Capture-Dateien - der Aufruf legte bisher trotzdem staendig einen leeren
+                    # "captures"-Ordner auf dem USB-Stick an. sync_captures_to_usb() bleibt als
+                    # Referenz erhalten, wird aber nicht mehr automatisch aufgerufen.
                     last_sync_time = time.time()
                     if newly_inserted:
                         logger.info(f"USB Sofort-Sync nach Einstecken: {msg}")

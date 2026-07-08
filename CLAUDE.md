@@ -1,4 +1,4 @@
-# CLAUDE.md — DocuControl-SOL (Sauerstoffflaschen-Abfuellung)
+# CLAUDE.md — DocuControl-SOL (Druckgasflaschen-Abfuellung)
 
 Diese Datei gibt Claude Code Anweisungen fuer die Arbeit in diesem Repository.
 
@@ -6,7 +6,7 @@ Diese Datei gibt Claude Code Anweisungen fuer die Arbeit in diesem Repository.
 
 ## Was das hier ist
 
-**DocuControl-SOL** — Dokumentationstool fuer die **Abfuellung von Sauerstoffflaschen**: erfasst
+**DocuControl-SOL** — Dokumentationstool fuer die **Abfuellung von Druckgasflaschen**: erfasst
 Flaschen-Barcodes (Scanner) und Temperaturmessung waehrend des Fuellvorgangs, generiert daraus
 pruefbare Dokumentation (Dashboard + PDF), auf einem Raspberry Pi 5 mit SSD und Display.
 
@@ -15,7 +15,7 @@ Sterilisator-Felddiagnostik). Die Pi5+SSD+Display+Dashboard-Architektur, das Web
 (Dashboard/Settings/Datei-Manager) und diverse Backend-Bausteine (Netzwerk, Speicher, Drucker,
 Security-Haertung) werden **1:1 wiederverwendet** — nur die Datenquelle (RS232-Maschinenprotokoll)
 und die Dokumentinhalte (Sterilisationscharge) werden durch Barcode-Scan + Temperaturverlauf
-(Sauerstoffflaschen-Abfuellung) ersetzt. Die vollstaendige Entwicklungshistorie der Herkunfts-Codebasis
+(Druckgasflaschen-Abfuellung) ersetzt. Die vollstaendige Entwicklungshistorie der Herkunfts-Codebasis
 liegt in `github.com/lordboombastic/claude-workspace-docupi` (Origin-Remote dieses Repos zeigt aktuell
 noch dorthin — muss vor dem ersten eigenen Commit/Push geklaert werden, siehe unten).
 
@@ -46,10 +46,16 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
 
 ### Offene Entscheidungen (Stand 2026-07-07)
 
-- **Barcode-Scanner:** USB-HID/Tastatur-Emulation — bestaetigt. Kein serieller Listener noetig.
-- **Temperatursensor:** noch nicht festgelegt (1-Wire/I2C direkt am Pi vs. externes Messgeraet per
-  RS232/Modbus) — bestimmt, ob ein neuer GPIO-Sensor-Reader oder ein serieller Listener (aehnlich
-  `serial_receiver.py`/`wd_protocol_parser.py` aus dem Herkunftsprojekt) gebraucht wird
+- **Barcode-Scanner:** **Modell entschieden (2026-07-08):** Inateck BCST-70 (kabellos, Bluetooth,
+  35m Funkreichweite, 180 Tage Standby). Laeuft im Bluetooth-**HID-Modus** (Tastatur-Emulation) —
+  bestaetigt die schon länger angenommene USB-HID/Tastatur-Emulation-Anbindung, tippt gescannte Codes
+  direkt als Tastatureingabe, **kein Code noetig** (Scan-Seite `sol_charge_scan.html` funktioniert
+  bereits unveraendert damit). Physisches Geraet fuer die eigentliche Bluetooth-Kopplung noch nicht
+  verfuegbar — Vorbereitung + Pairing-Anleitung siehe "Wichtiger Kontext" unten
+- **Temperatursensor:** **entschieden (2026-07-08):** BTMETER Infrarot-Thermometer mit Bluetooth
+  (Modell BT-1500APP oder aehnlich, 30:1 Dual-Laser-Pyrometer, -50..1500°C). Anbindung per BLE geplant
+  (nicht RS232/1-Wire) — physisches Geraet fuer die Protokoll-Erfassung noch nicht verfuegbar,
+  Vorbereitung siehe "Wichtiger Kontext" unten (`scripts/ble_scan_thermometer.py`)
 - **Dokumentationsfelder:** Minimal bestaetigt (Flaschen-ID, Zeitstempel, Temperaturverlauf);
   Bediener/Fuelldruck/weitere Prozesswerte noch offen
 - **Hardware:** **erstes Geraet in Betrieb** (2026-07-07) — Raspberry Pi 5, Hostname `DocuControlSOL`,
@@ -85,9 +91,10 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
 │   │   ├── dashboard.html  # Haupt-Dashboard
 │   │   └── captive.html    # Captive Portal (Hotspot)
 │   └── docucontrol/        # Wiederverwendete Backend+Design-System-Basis aus DocuControl (Herkunftsprojekt) — Ausgangspunkt fuer SOL
-│       ├── app.py                 # Flask-Backend, alle Routen/API-Endpunkte — Barcode/Temp-Routen werden hier ergaenzt, TCP/9100-Route entfaellt
-│       ├── config.py              # load_config/save_config (config.json)
-│       ├── database.py            # SQLite-Layer (protocols-Tabelle, Pagination)
+│       ├── app.py                 # Flask-Backend, alle Routen/API-Endpunkte, inkl. neuer /api/sol/charges*-Routen (Chargenseite Flaschen-Scan, 2026-07-07); TCP/9100-Start auskommentiert
+│       ├── config.py              # load_config/save_config (config.json), inkl. neuer "sol"-Sektion (Sensor-Namen, Toleranz, Warnschwelle, Standort-Kuerzel)
+│       ├── database.py            # SQLite-Layer: protocols/charge_forms (Sterilisator-Referenz) + neue sol_charges/sol_bottles-Tabellen (Flaschen-Scan, 2026-07-07)
+│       ├── sol_pdf_generator.py   # NEU (2026-07-07): PDF-Generator Temperaturprotokoll (Struktur wie IF.103A), DejaVu-Sans-Unicode-Font
 │       ├── network_manager.py     # Hotspot/LAN/Multi-Interface/Hostname/NTP/RTC/nftables
 │       ├── network_storage_manager.py  # SMB/CIFS-Netzwerkfreigabe: Mount, Verbindungstest, Auto-Sync (PDFs + Captures)
 │       ├── print_manager.py       # Drucker-Management (CUPS, pycups)
@@ -97,10 +104,11 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
 │       │   ├── bootstrap/, bootstrap-icons/, socketio/  # CDN-Bibliotheken lokal vendored (Offline-Faehigkeit, 2026-06-22)
 │       │   └── screensaver-logo.png
 │       ├── templates/
-│       │   ├── base.html          # Topbar "DocuControl by GeTmatic", 3-Tab-Nav, Footer
-│       │   ├── dashboard.html     # 2 Stat-Karten + Filter + Protokoll-Tabelle + Print-Toast
-│       │   ├── settings.html      # 3 Sub-Tabs: Geraete & Netzwerk / System / Live-Monitor + USB-Sync-Toggle
-│       │   └── filemanager.html   # Dual-Pane intern (aus DB) + USB (Dateiliste rekursiv)
+│       │   ├── base.html          # Topbar, Nav, Footer (Autoklavenbuch-Modal bleibt als inerte Referenz, wird von SOL nicht mehr ausgeloest)
+│       │   ├── dashboard.html     # SOL-Chargenuebersicht (2026-07-07 umgebaut): Stat-Karten, Filter, Chargen-Tabelle, offene-Charge-Banner
+│       │   ├── sol_charge_scan.html  # NEU (2026-07-07): Charge starten/scannen/abschliessen (Kernseite der Flaschen-Dokumentation)
+│       │   ├── settings.html      # 2 Sub-Tabs: Geraete & Netzwerk (inkl. SOL-Einstellungskarte) / System — TCP-Empfang-Karte + Live-Monitor-Tab am 2026-07-08 entfernt (TCP/9100 inaktiv)
+│       │   └── filemanager.html   # Dual-Pane intern (aus sol_charges) + USB, Rohdaten/Captures-Tab entfernt (2026-07-08, TCP-Listener inaktiv)
 │       └── app_additions.py       # Context Processor + /api/protocols (Inhalt bereits in app.py integriert, Datei als Referenz behalten)
 ├── tests/                  # Test-Skripte
 │   ├── fixtures/           # Test-PDFs + WD390-Fixture
@@ -134,9 +142,13 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
     ├── deploy_docucontrol_win.ps1     # Deployment-Script fuer Windows (OpenSSH)
     ├── send_test_charges.py  # Referenz: simulierte Belimed-Protokolle via TCP/9100 (Herkunftsprojekt, fuer SOL nicht direkt nutzbar)
     ├── migrate_sd_to_nvme.sh  # SD → NVMe Migration (Referenzskript, gilt auch fuer SOL-Hardware-Setup)
-    ├── clone_ssd_to_sd.sh     # SSD → SD Klon (Notfall-Backup, gilt auch fuer SOL)
+    ├── clone_ssd_to_sd.sh     # Referenz: unverschluesselter SSD → SD Klon (Herkunftsprojekt-Vorlage, fuer SOL durch setup_luks_sd_failover.sh ersetzt, da SOL-SD auch dongle-pflichtig sein muss)
+    ├── setup_luks_sd_failover.sh  # NEU (2026-07-08): verschluesselter SD-Notfall-Klon der SSD, eigene LUKS-UUID, KEIN Keyfile auf SD-Boot-Partition (nur per Dongle/Backup-Passphrase entsperrbar) — siehe "Wichtiger Kontext" unten
     ├── setup_kiosk_display.sh # Kiosk-Display-Setup (Referenzskript, gilt auch fuer SOL)
     ├── setup_luks_nvme.sh     # LUKS-Verschluesselung — Referenz, muss fuer SOL auf 2 USB-Dongle-Slots erweitert werden (bisher 1 Dongle + Backup-Passphrase)
+    ├── ble_scan_thermometer.py  # NEU (2026-07-08): BLE-Diagnosewerkzeug (Scan + GATT-Inspect) fuer die BTMETER-Thermometer-Anbindung, laeuft auf dem Pi-Host (python3-bleak)
+    ├── usb_scan_thermometer.py  # NEU (2026-07-08): USB-Diagnosewerkzeug (lsusb-Scan + Deskriptor-Inspect) fuer die Testo-835-T1-Anbindung, laeuft auf dem Pi-Host (python3-serial/python3-usb)
+    ├── simulate_sol_charge.py  # NEU (2026-07-08): simuliert eine komplette SOL-Charge (Start bis PDF-Abschluss) realistischer Groessenordnung inkl. NOK-Faellen gegen die laufende Pi-App, fuer End-to-End-Tests
     └── saia_test_toolkit/     # Referenz: SAIA-S-Bus-Testtools (Herkunftsprojekt, fuer SOL nicht relevant)
 ```
 
@@ -213,6 +225,25 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
   komplett haengen bleiben): zweiter LUKS-Key-Slot mit Passphrase (Wert in `secrets/`, gitignored),
   nutzt den bereits im Keyscript vorhandenen Passphrase-Fallback nach 15s ohne Dongle. Per
   `--test-passphrase` verifiziert, echter Boot-Prompt-Test steht noch aus
+- **SD-Karte als verschluesselter Notfall-Klon der SSD eingerichtet** (2026-07-08, User-Vorgabe:
+  bei SSD-Ausfall soll die SD-Karte mit vollem App-Betrieb einspringen, dabei aber genau wie die SSD
+  nur per Dongle lesbar/veraenderbar sein): alte, unverschluesselte SD-Karte komplett geloescht,
+  neues Skript `scripts/setup_luks_sd_failover.sh` legt einen eigenen LUKS2-Container auf
+  `/dev/mmcblk0p2` an (eigene UUID, unabhaengig von der SSD) und klont das komplette Root-Dateisystem
+  per rsync hinein (Docker-Layer ausgeschlossen). **Zentraler Unterschied zur SSD:** die SD-Karte
+  bekommt bewusst **kein** Keyfile auf ihrer eigenen Boot-Partition — waehrend die SSD dadurch
+  automatisch ohne Dongle bootet, faellt das identische Keyscript bei der SD-Karte sofort auf die
+  Dongle-Suche zurueck. Slot 0 = dasselbe Keyfile wie die SSD (beide physischen SOLDONGLE-Sticks
+  funktionieren unveraendert auch fuer die SD), Slot 1 = dieselbe Backup-Passphrase wie die SSD.
+  fstab/crypttab/cmdline.txt auf die neuen SD-eigenen UUIDs umgeschrieben, Initramfs im Chroot neu
+  gebaut. **Bug gefunden+gefixt:** `luksAddKey` fuer die Passphrase ohne explizites `--key-slot 1`
+  erzeugte einen Slot, der sich per Keyfile-Vergleich aber nicht per interaktiver Tastatureingabe
+  entsperren liess — mit explizitem `--key-slot 1` behoben. Verifiziert: kein Keyfile auf der
+  SD-Boot-Partition, beide Entsperrwege (Dongle-Keyfile + Backup-Passphrase, auch per stdin-Eingabe)
+  funktionieren. EEPROM-Bootreihenfolge (`0xf416`, NVMe zuerst) war bereits korrekt gesetzt. **Ein
+  echter physischer Boot-Failover-Test (SSD abklemmen, von SD booten) steht noch aus.** SD-Klon muss
+  nach groesseren SSD-Aenderungen manuell erneut mit dem Skript aktualisiert werden (kein
+  laufender Sync)
 - Fix: Settings-Karten hatten einen Flexbox-Overflow-Bug (`.set-row`-Kinder ohne `min-width:0`) —
   der "Setzen"-Button lief bei 220px-breiten Eingabefeldern (Anlage-Karte: Maschinenname/Standort)
   ueber den Kartenrand hinaus und wurde abgeschnitten. In `docucontrol.css` gefixt (2026-07-07)
@@ -235,6 +266,140 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
   Herkunftsprojekt bei Bedarf)
 - Geschaeftsmodell/Vertriebskontext (Kunde, Betreiber, Vertriebsweg): noch offen, siehe
   `context/business-info.md`
+- **Chargenseite umgebaut auf Flaschen-Scan** (2026-07-07, per `/create-plan` + `/implement`,
+  Plan: `plans/2026-07-07-sol-chargenseite-flaschen-scan-umbau.md`): Referenzfotos des echten
+  SOL-Temperaturprotokolls (IF.103A) und der Chargennummern-Verfahrensanweisung (PR.128.07.9) in
+  `reference/screenshots/Bilder SOL Daten/` ausgewertet. Neue Tabellen `sol_charges`/`sol_bottles`,
+  neue Routen `/api/sol/charges*` (Start/Scan/Abschluss bewusst NICHT hinter dem Service-Dongle
+  gesperrt — das ist die taegliche Kernaufgabe des Geraets, analog zum bisherigen
+  Autoklavenbuch-Formular; nur die SOL-Einstellungen sind gesperrt), neuer PDF-Generator
+  `sol_pdf_generator.py`, neue Scan-Seite `templates/sol_charge_scan.html`, Dashboard komplett auf
+  SOL-Chargen umgebaut. TCP/9100-Capture-Server-Start in `app.py` deaktiviert (Code bleibt als
+  Referenz). Charge-Nummer wird vom Techniker eingegeben/gescannt (kein eigenes RAMSES-Nachbau).
+  NOK-Kriterium vorlaeufig: IR-Temp minus Raumtemp < Toleranz (Default 5°C, konfigurierbar in
+  Settings) — muss mit SOL final bestaetigt werden. End-to-End auf dem Pi getestet (inkl. NOK-Fall,
+  Duplikat-Scan, Fehlzeilen-Loeschung, PDF-Kontrolle, USB-Sofortkopie), Testdaten danach entfernt.
+  **Finaler Ablauf nach mehreren User-Korrekturen (Stand 2026-07-08):** Charge-Start = Chargen-Barcode
+  EINMALIG scannen + **Referenztemperatur** EINMALIG messen (UI/PDF-Label von "Raumtemperatur"
+  umbenannt, DB-Feldname `room_temp` unveraendert) + Abfueller-Name. Danach pro Flasche NUR NOCH
+  2 Schritte (kein Chargen-Barcode-Rescan mehr, ein zwischenzeitlich gebautes "Chargen-Barcode pro
+  Flasche"-Sicherheitsmodell wurde per User-Korrektur wieder entfernt): Flaschen-Code scannen → IR-Temp
+  eingeben. OK/NOK-Formel final bestaetigt: Differenz IR-Temp minus Referenztemp. > 5°C = OK,
+  < 5°C = NOK. Bei NOK spielt die Seite automatisch einen Fehlerton (Web-Audio-API-Doppelpiepton)
+  und bietet eine "Nochmal messen"-Schnellkorrektur (loescht die NOK-Zeile, oeffnet direkt wieder
+  die Temp-Eingabe fuer denselben Flaschen-Code, kein erneuter Barcode-Scan noetig) — NOK-Werte
+  werden trotzdem gespeichert, wenn nicht erneut gemessen wird. **Abschluss-Ablauf:** "Charge
+  abschließen" → Bestaetigungs-Checkbox ("Ich bestätige, dass ich alle Flaschen korrekt gemessen
+  habe") mit Zusammenfassung (Anzahl/NOK-Anzahl) → eigenstaendiges Canvas-Unterschriften-Pad
+  (Pointer-Events, PNG-Export, NICHT das bestehende `#sigOverlay` aus `base.html` wiederverwendet,
+  da eng an den inerten Autoklavenbuch-Flow gekoppelt) → Abfueller-Name + Unterschrift sind
+  Pflichtfelder. Ersetzt die urspruengliche separate LQK-Name/-Kuerzel-Eingabe komplett (User-
+  Entscheidung: nur der Bediener/Abfueller bestaetigt+unterschreibt, kein zweiter LQK-Schritt) —
+  neue DB-Spalte `sol_charges.confirmed_signature` (Base64-PNG, per idempotenter Inline-Migration in
+  `init_db()` ergaenzt, da `CREATE TABLE IF NOT EXISTS` bei bereits existierender Tabelle keine neue
+  Spalte mehr anlegt). PDF-Fusszeile zeigt das eingebettete Unterschriftsbild statt zweier reiner
+  Textzeilen. **PDF ist jetzt "nicht beschreibbar":** `fpdf2.set_encryption()` mit Owner-Passwort +
+  eingeschraenkten Permissions (Drucken/Kopieren erlaubt, Bearbeiten/Kommentieren/Formularfelder/
+  Neuzusammenstellen gesperrt), kein User-Passwort noetig zum Ansehen — bewusst als "weicher"
+  Manipulationsschutz dokumentiert, keine kryptografische Sicherheitsgarantie. Alles auf dem Pi
+  end-to-end verifiziert (inkl. `/Encrypt`-Objekt + restriktive `/P`-Permissions im Roh-PDF, echtes
+  nicht-transparentes Test-Unterschriftsbild korrekt eingebettet). **Nachtrag 2026-07-08 (3):**
+  PDF-Tabelle auf **zweispaltiges Layout + dynamische Paginierung** umgebaut (`sol_pdf_generator.py`,
+  `_paginate()`), Zeilenhoehe 7mm→5mm — Seitenzahl richtet sich jetzt nach tatsaechlich verfuegbarem
+  Platz statt festem `rows_per_page`-Wert (der Config-Wert bleibt bestehen, wird aber nicht mehr
+  gelesen). Ergebnis: volle 160-Flaschen-Charge passt auf **2 Seiten** statt vorher 9. Neues
+  Test-Hilfsskript `scripts/simulate_sol_charge.py` (simuliert komplette Chargen realistischer
+  Groessenordnung inkl. NOK-Faellen gegen die laufende Pi-App) — damit 3/45/160-Flaschen-Chargen
+  end-to-end verifiziert, alle korrekt paginiert, Testdaten jeweils entfernt.
+  **Nachtrag 2026-07-08 (4):** `templates/filemanager.html` war beim urspruenglichen Umbau übersehen
+  worden — interne Dateiliste hing noch komplett an der alten `protocols`-Tabelle, SOL-PDFs waren dort
+  unsichtbar (nicht nur ohne Vorschau). Neue Routen `DELETE /api/sol/charges/<id>`,
+  `POST /api/sol/charges/bulk-delete`, `POST /api/sol/charges/bulk-download-zip` (hinter
+  `_require_service()`, da destruktive Aktion an bereits abgeschlossenen Chargen); `filemanager.html`
+  auf `/api/sol/charges?status=completed` + `/sol/view|download/<id>` umgestellt. Bug beim Schreiben
+  vermieden: `sol_bottles.ON DELETE CASCADE` greift nicht, da `PRAGMA foreign_keys` in dieser App nie
+  aktiviert wird — `delete_sol_charge()` loescht `sol_bottles` deshalb explizit zuerst.
+  Details: `context/current-data.md`
+- **GeTMatic-Boot-Splash eingerichtet** (2026-07-08): Auf dem SOL-Pi war noch kein Plymouth-Theme
+  vorhanden (anders als evtl. bei anderen Geraeten des Herkunftsprojekts erwartet — dieser Pi wurde
+  komplett neu aufgesetzt). `plymouth` + `plymouth-themes` + `librsvg2-bin` installiert, eigenes
+  Script-Theme `getmatic` unter `/usr/share/plymouth/themes/getmatic/` angelegt (Logo aus
+  `reference/boot_splash_logo.svg`, per `rsvg-convert` auf exakt die Kiosk-Aufloesung 1024×600
+  gerendert), per `plymouth-set-default-theme -R getmatic` aktiviert + initramfs neu gebaut,
+  `splash quiet plymouth.ignore-serial-consoles` in `/boot/firmware/cmdline.txt` ergaenzt (Backup:
+  `cmdline.txt.bak-plymouth`). Auf Wunsch des Users soll das Logo waehrend des **gesamten**
+  Boot-Vorgangs sichtbar bleiben (nicht nur frueher Boot) — dafuer `plymouth-quit.service` und
+  `plymouth-quit-wait.service` maskiert (kein automatisches Wegschalten mehr beim Erreichen von
+  `multi-user.target`) und `kiosk.service` um zwei `ExecStartPre`-Schritte erweitert: (1) Warteschleife
+  bis `curl http://localhost:5000/` antwortet (max. 30s Timeout als Fail-Safe), (2) danach `plymouth quit`
+  — dadurch bleibt das Logo bis kurz vor dem tatsaechlichen Chromium-Rendering sichtbar, praktisch
+  nahtloser Uebergang statt Luecke waehrend Docker-Container-Start. **Bug gefunden+gefixt:**
+  `ExecStartPre=/usr/bin/plymouth quit` schlug beim ersten Testreboot fehl (lief als `User=docucontrol`
+  ohne Root-Rechte auf die Plymouth-Kontrollsteckdose) und riss dadurch `kiosk.service` in eine
+  Neustart-Schleife (Kiosk startete gar nicht mehr) — klassischer Fall von "nur per manuellem Restart
+  getestet waere der Bug nicht aufgefallen", diesmal aber sofort per echtem Reboot erkannt. Fix:
+  `ExecStartPre=-+/usr/bin/plymouth quit` (`+` = mit vollen/Root-Rechten ausfuehren trotz `User=docucontrol`
+  im Service, `-` = Fehler dieses Schritts nicht fatal fuer den restlichen Service). Per zwei
+  aufeinanderfolgenden echten Kaltstart-Reboots verifiziert (User-Bestaetigung: Logo durchgehend
+  sichtbar, sauberer Uebergang zum Dashboard, kein Crash-Loop, `kiosk.service` startet genau einmal)
+- **Temperatursensor entschieden: BTMETER-Bluetooth-Thermometer** (2026-07-08): User nutzt ein
+  BTMETER Infrarot-Thermometer mit Bluetooth (30:1 Dual-Laser-Pyrometer, -50..1500°C, vermutlich
+  Modell BT-1500APP). BTMETER veroeffentlicht **kein** SDK/Protokoll fuer die BLE-Anbindung (per
+  Websuche bestaetigt: weder auf btmeter-store.com noch in verfuegbaren Handbuechern) — die genaue
+  GATT-Struktur (Services/Characteristics/Datenformat einer Messung) muss empirisch mit dem
+  physischen Geraet ermittelt werden. Vorbereitung abgeschlossen: `python3-bleak` 0.22.3 auf dem
+  SOL-Pi-**Host** installiert (nicht im Docker-Container, da BLE direkten BlueZ/D-Bus-Zugriff
+  braucht), Bluetooth-Adapter (`hci0`, onboard Pi5) bestaetigt aktiv. Neues Diagnose-Skript
+  `scripts/ble_scan_thermometer.py`: ohne Argument scannt es nach BLE-Geraeten in Reichweite (Name/
+  MAC/RSSI/Advertisement-Daten, hilft die MAC-Adresse des Thermometers zu identifizieren); mit
+  MAC-Adresse als Argument verbindet es sich, listet alle GATT-Services/Characteristics inkl.
+  read/write/notify-Eigenschaften, liest lesbare Characteristics einmalig aus und abonniert alle
+  notify/indicate-Characteristics 30s lang (waehrenddessen am Geraet eine Messung ausloesen, um das
+  Rohdatenformat zu sehen) — per Scan-Smoke-Test auf dem Pi verifiziert (fand zwei andere BLE-Geraete
+  in Reichweite, Thermometer selbst war zu diesem Zeitpunkt nicht eingeschaltet/anwesend). **Naechster
+  Schritt sobald Geraet physisch verfuegbar:** `python3 /home/docucontrol/ble_scan_thermometer.py`
+  (Scan) → MAC identifizieren → `python3 /home/docucontrol/ble_scan_thermometer.py <MAC>` (Inspect,
+  dabei am Geraet eine Messung ausloesen) → Rohdaten-Hexdump analysieren → darauf aufbauend echtes
+  Anbindungsmodul `src/docucontrol/ble_thermometer.py` schreiben, das `ir_temp` in
+  `sol_charge_scan.html` automatisch befuellt statt manueller Eingabe
+- **Zweites Thermometer-Modell in Vorbereitung: Testo 835-T1** (2026-07-08) — dasselbe Geraet, das
+  bereits als Default-Wert in `config['sol']['sensor_names']` hinterlegt ist (stammt aus den echten
+  SOL-Referenzfotos des Papierformulars). **Wichtiger Unterschied zum BTMETER:** der Testo 835-T1 hat
+  **kein Bluetooth**, nur USB, und Testo bietet fuer Live-Werte-Abfrage offiziell nur ein
+  **Windows-only .NET-SDK** ("Toolbox", Teil der PC-Software EasyClimate, siehe
+  `github.com/testo/toolbox_example_t480_t835`) — kein offenes/dokumentiertes Protokoll gefunden
+  (Websuche inkl. Handbuch-Fetch ohne Ergebnis). Eine Linux-native Anbindung ist dadurch **nicht
+  garantiert moeglich** (anders als beim BLE-basierten BTMETER) — haengt davon ab, ob sich das Geraet
+  am Pi als einfacher CDC-virtueller-COM-Port zeigt (guter Fall, direkt per `pyserial` lesbar) oder
+  als HID/vendor-spezifisches USB-Geraet (schwieriger Fall, braucht Windows-SDK oder USB-Paketmitschnitt).
+  Vorbereitung abgeschlossen: `python3-serial`+`python3-usb` auf dem SOL-Pi-Host installiert,
+  `usbutils`(`lsusb`) war schon vorhanden. Neues Diagnose-Skript `scripts/usb_scan_thermometer.py`:
+  ohne Argument listet es alle angeschlossenen USB-Geraete (`lsusb`, hilft die Vendor:Product-ID des
+  Testo-Geraets zu identifizieren); mit `Vendor:Product-ID` als Argument zeigt es per `pyusb` die
+  vollstaendigen USB-Deskriptoren (Interface-Klasse, Endpoints) — die Geraeteklasse verraet direkt den
+  moeglichen Integrationsweg (CDC/HID/Vendor-spezifisch). Per Scan-Smoke-Test auf dem Pi verifiziert
+  (Testo-Geraet noch nicht angeschlossen). **Naechster Schritt sobald Geraet physisch verfuegbar:**
+  `python3 /home/docucontrol/usb_scan_thermometer.py` (Scan) → Vendor:Product-ID identifizieren →
+  `python3 /home/docucontrol/usb_scan_thermometer.py <VID:PID>` (Inspect) → je nach gefundener
+  USB-Klasse entscheiden, ob eine Linux-native Anbindung ueberhaupt realistisch ist oder ob auf den
+  BTMETER als primaeres Messgeraet gesetzt werden sollte
+- **Barcode-Scanner-Modell entschieden: Inateck BCST-70** (2026-07-08): kabelloser Bluetooth-Scanner,
+  laeuft im **HID-Modus** (Bluetooth-Tastatur-Emulation) — im Gegensatz zum Thermometer braucht das
+  **keine eigene Code-Integration**: einmal gekoppelt, tippt der Scanner gescannte Barcodes einfach
+  als Tastatureingabe + Enter direkt ins fokussierte Feld, genau das Verhalten, auf das
+  `sol_charge_scan.html` (Chargen-Barcode/Flaschen-Code-Eingabefelder) schon ausgelegt ist. Pi-seitig
+  geprueft und bereit: `bluetooth.service` aktiv, `hci0`-Adapter (onboard Pi5) laeuft, User
+  `docucontrol` ist bereits Mitglied der `input`-Gruppe (noetig, damit cage/Wayland die
+  Tastatur-Events eines neu gekoppelten Bluetooth-HID-Geraets lesen kann), keine widerspruechlichen
+  bereits gekoppelten Geraete vorhanden. Physischer Scanner noch nicht verfuegbar — **Kopplungsablauf
+  sobald verfuegbar** (laut Inateck-Anleitung): am Scanner den "Enter Setup"-Barcode aus dem
+  mitgelieferten Handbuch scannen, danach den "Bluetooth Mode (HID)"-Barcode scannen, dann am Pi
+  `bluetoothctl` → `agent on` → `default-agent` → `scan on` → Scanner in der Liste per MAC/Namen
+  identifizieren → `pair <MAC>` → `trust <MAC>` → `connect <MAC>` (Bestaetigungston am Scanner =
+  erfolgreich gekoppelt). Laut Hersteller verbindet sich der Scanner nach einmaliger Kopplung bei
+  jedem Einschalten automatisch wieder mit dem zuletzt gekoppelten Geraet — keine erneute Kopplung
+  pro Boot noetig. Test danach: Scan-Seite (`/sol/scan`) am Kiosk oeffnen, Eingabefeld fokussiert
+  (Standardzustand), Testbarcode scannen — sollte wie eine Tastatureingabe im Feld erscheinen
 
 ## Wiederverwendete Architektur aus DocuControl (Herkunftsprojekt)
 
@@ -246,10 +411,9 @@ eines anderen Projekts. Vollstaendige Historie: `github.com/lordboombastic/claud
 Fuer SOL direkt wiederverwendbar (aus `src/docucontrol/`):
 
 - **Web-Frontend-Geruest**: `templates/base.html` (Topbar, Nav, Footer, Soft-Keyboard, Screensaver-Hooks),
-  `dashboard.html` (Stat-Karten + Filter + Tabelle + Print-Toast), `settings.html` (Tab-Struktur,
-  Service-Login-Sperre `.locked-card`), `filemanager.html` (Dual-Pane intern/extern) — Layout/CSS
-  (`static/docucontrol.css`) 1:1 uebernehmbar, Inhalte (Spalten, Felder) muessen auf Flaschen-ID/
-  Temperaturverlauf statt Charge-Nr./Programm umgestellt werden
+  `settings.html` (Tab-Struktur, Service-Login-Sperre `.locked-card`), `filemanager.html`
+  (Dual-Pane intern/extern) — Layout/CSS (`static/docucontrol.css`) 1:1 uebernommen.
+  `dashboard.html` wurde bereits auf SOL-Chargen umgestellt (2026-07-07, siehe oben)
 - **Backend-Infrastruktur**: `config.py` (Config-Persistenz), `database.py`-Muster (SQLite +
   Pagination), `network_manager.py` (Hotspot/LAN/Multi-Interface/Hostname/NTP/RTC/nftables),
   `network_storage_manager.py` (SMB/CIFS-Sync), `storage_manager.py` (USB-Erkennung/Mount/Auto-Sync,
@@ -271,16 +435,21 @@ Fuer SOL direkt wiederverwendbar (aus `src/docucontrol/`):
 - **`scripts/migrate_sd_to_nvme.sh`, `clone_ssd_to_sd.sh`, `setup_kiosk_display.sh`**: Referenzskripte
   fuer Pi5-SSD-Boot-Setup + Kiosk-Display, gelten unveraendert auch fuer SOL-Hardware
 
-Nicht uebertragbar / muss neu gebaut werden:
+Nicht uebertragbar, bereits neu gebaut (siehe "Chargenseite umgebaut" oben):
 
 - TCP/9100-Capture + RS232/S-Bus-Parser (`app.py`-Route, `wd_protocol_parser.py`,
-  `serial_receiver.py`) — SOL hat keine Maschinenprotokoll-Quelle, sondern Barcode-Scan (USB-HID,
-  laeuft ueber normale Browser-Input-Events, kein Listener-Prozess) + Temperaturmessung (Anbindung
-  noch offen)
-- `pdf_generator.py`/`chart_generator.py`-Inhalte (Sterilisationscharge-spezifische Felder) — Konzept
-  (PDF mit eingebettetem Chart) wiederverwendbar, Inhalt/Layout fuer Flaschen-Dokumentation neu
-- Autoklavenbuch-Formular-Workflow (`pending_form`, `charge_forms`-Tabelle) — als Vorbild fuer ein
-  moegliches SOL-Pflichtfeld-Formular (Bediener/Fuelldruck) relevant, aber Feldinhalte Uni-Essen-spezifisch
+  `serial_receiver.py`) — SOL hat keine Maschinenprotokoll-Quelle. Ersetzt durch Barcode/QR-Scan
+  (USB-HID, laeuft ueber normale Browser-Input-Events in `sol_charge_scan.html`) + manuelle
+  IR-Temperatur-Eingabe (Sensor-Hardware-Anbindung weiterhin offen, Datenmodell aendert sich bei
+  Anbindung eines digitalen Sensors nicht). TCP/9100-Start in `app.py` auskommentiert, Code bleibt
+  als Referenz
+- `pdf_generator.py`/`chart_generator.py`-Inhalte (Sterilisationscharge-spezifische Felder) — durch
+  neues `sol_pdf_generator.py` ersetzt (Temperaturprotokoll-Tabelle statt Diagramm, da das echte
+  SOL-Papierformular kein Diagramm zeigt)
+- Autoklavenbuch-Formular-Workflow (`pending_form`, `charge_forms`-Tabelle) — diente als
+  Architektur-Vorbild fuer den neuen SOL-Workflow (neue eigene Tabellen `sol_charges`/`sol_bottles`,
+  da 1:n-Beziehung Charge→Flaschen nicht ins bestehende Schema passt), bleibt selbst unveraendert
+  als Referenz erhalten (Uni-Essen-spezifische Feldinhalte)
 
 ---
 

@@ -333,8 +333,9 @@
     var lastAddedBottleId = null;
     var lastAddedScanCode = null;
 
-    // Format der echten SOL-Flaschen-Barcodes: 3 Buchstaben + 9 Ziffern (z. B. EFQ227010119)
-    var SOL_BOTTLE_CODE_RE = /^[A-Z]{3}\d{9}$/;
+    // Format der echten SOL-Flaschen-Barcodes: 3 Buchstaben + 1 Ziffer + 1 Buchstabe + 7 Ziffern,
+    // 12 Zeichen (z. B. EFQ2Z7010119)
+    var SOL_BOTTLE_CODE_RE = /^[A-Z]{3}\d[A-Z]\d{7}$/;
     // Format der RAMSES-Chargennummer: 18-stellig (z. B. G750010726X000547D) - erste 3 Zeichen
     // sind alphanumerisch, nicht rein numerisch (echte Charge beginnt mit Buchstabe "G")
     var SOL_CHARGE_NR_RE = /^[A-Z0-9]{3}\d{7}[A-Z]\d{5}[A-Z0-9][A-Z]$/;
@@ -359,7 +360,7 @@
         if (!code) return;
         if (!SOL_BOTTLE_CODE_RE.test(code)) {
             playErrorTone();
-            showToast('Ungültiger Flaschen-Code "' + code + '" (erwartet: 3 Buchstaben + 9 Ziffern, z. B. EFQ227010119)', 'error');
+            showToast('Ungültiger Flaschen-Code "' + code + '" (erwartet: 12-stellig, z. B. EFQ2Z7010119)', 'error');
             document.getElementById('solScanInput').value = '';
             return;
         }

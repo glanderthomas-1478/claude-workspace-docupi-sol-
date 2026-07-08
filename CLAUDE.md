@@ -575,6 +575,21 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
   laesst sich klicken und speichert (`scanner_enabled` aendert sich tatsaechlich), waehrend ein
   Aenderungsversuch am MAC-Feld ueber die alte Route weiterhin korrekt mit "Service-Dongle
   erforderlich" abgelehnt wird — granulare Sperre funktioniert wie gewollt
+- **Fix: Flaschen-Code-Validierung lehnte echte Barcodes faelschlich ab** (2026-07-08, User meldete
+  "Flaschen-Barcode laesst sich nicht scannen" — realer Scanner-Einsatz mit gekoppeltem Inateck
+  BCST-70). Gleicher Fehlertyp wie bei der Chargen-Nr. am selben Tag: das urspruengliche Format
+  "3 Buchstaben + 9 Ziffern" (`EFQ227010119`) beruhte auf einem Lesefehler des ersten Referenzfotos —
+  Position 5 ist der Buchstabe "Z", nicht die Ziffer "2". Per klarerem Foto mit mehreren Etiketten
+  (`EFQ2Z7010119`/`EFQ2Z6010119`/`EFQ2Z5010119`) bestaetigt: echtes Format ist 3 Buchstaben + 1 Ziffer
+  + 1 Buchstabe + 7 Ziffern (12 Zeichen). `SOL_BOTTLE_CODE_RE` korrigiert von `^[A-Z]{3}\d{9}$` auf
+  `^[A-Z]{3}\d[A-Z]\d{7}$`, `simulate_sol_charge.py` (`make_bottle_code()`) entsprechend angepasst.
+  Deployed und direkt an der echten, zu dem Zeitpunkt offenen User-Charge (`G750010726X000547D`,
+  id=88) mit allen drei echten Codes verifiziert (alle akzeptiert), Test-Eintraege danach wieder
+  aus der echten Charge entfernt, damit der User sauber mit dem Scanner weiterarbeiten kann.
+  **Lehre aus beiden Faellen (Chargen-Nr. + Flaschen-Code) am selben Tag:** beim Ableiten von
+  Formaten aus Foto-Referenzen lieber ein zweites, schaerferes Foto anfordern oder den Scanner
+  selbst als Quelle nutzen (digitale Dekodierung ist zuverlaessiger als visuelles Foto-Lesen),
+  statt bei Unklarheit voreilig zur "plausibleren" Zeichenklasse (Ziffer statt Buchstabe) zu greifen
 
 ## Wiederverwendete Architektur aus DocuControl (Herkunftsprojekt)
 

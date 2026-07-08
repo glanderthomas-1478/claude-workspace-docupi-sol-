@@ -2467,8 +2467,11 @@ def sol_view_pdf(charge_id):
 
 
 # Format der echten SOL-Flaschen-Barcodes (Referenzfoto reference/screenshots/Bilder SOL Daten/
-# 20260707_224940.jpg, Beispielwert "EFQ227010119"): 3 Buchstaben + 9 Ziffern.
-SOL_BOTTLE_CODE_RE = re.compile(r'^[A-Z]{3}\d{9}$')
+# 20260707_224940.jpg + barcode.jpeg, echte Werte "EFQ2Z7010119"/"EFQ2Z6010119"/"EFQ2Z5010119"):
+# 3 Buchstaben + 1 Ziffer + 1 Buchstabe + 7 Ziffern, 12 Zeichen. Urspruenglich faelschlich als
+# "3 Buchstaben + 9 Ziffern" gelesen (Verwechslung "Z" mit "2" bei Position 5), vom User anhand
+# eines klareren Fotos mit mehreren Etiketten korrigiert (2026-07-08).
+SOL_BOTTLE_CODE_RE = re.compile(r'^[A-Z]{3}\d[A-Z]\d{7}$')
 
 # Format der RAMSES-Chargennummer (Referenzfotos reference/screenshots/Bilder SOL Daten/
 # 20260707_225122.jpg, PR.128.07.9 Kap. 4.3, und echte Charge "G750010726X000547D" vom User
@@ -2559,7 +2562,7 @@ def api_sol_bottle_add(charge_id):
     if not scan_code:
         return jsonify({'ok': False, 'error': 'Flaschen-Code fehlt'}), 400
     if not SOL_BOTTLE_CODE_RE.match(scan_code):
-        return jsonify({'ok': False, 'error': 'Ungültiger Flaschen-Code "' + scan_code + '" (erwartet: 3 Buchstaben + 9 Ziffern, z. B. EFQ227010119)'}), 400
+        return jsonify({'ok': False, 'error': 'Ungültiger Flaschen-Code "' + scan_code + '" (erwartet: 12-stellig, z. B. EFQ2Z7010119)'}), 400
     try:
         ir_temp = float(data.get('ir_temp'))
     except (TypeError, ValueError):

@@ -38,8 +38,9 @@ def make_charge_nr():
 
 
 def make_bottle_code(i):
-    """SOL-Flaschen-Barcode: 3 Buchstaben + 9 Ziffern (z. B. EFQ227010119)."""
-    return f"BTL{i:09d}"
+    """SOL-Flaschen-Barcode: 3 Buchstaben + 1 Ziffer + 1 Buchstabe + 7 Ziffern,
+    12 Zeichen (z. B. EFQ2Z7010119)."""
+    return f"BTL0X{i:07d}"
 
 
 def make_signature_png():

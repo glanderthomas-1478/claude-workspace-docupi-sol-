@@ -424,6 +424,28 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
   zu `origin/master` gepusht. Zusaetzlich lokales Pi-Backup `backups/pi-backup-2026-07-08/`
   erstellt (Code, DB, Configs/Secrets, System-Configs — LUKS-Schluessel selbst bewusst nicht
   enthalten, bleibt exklusiv auf den Dongles)
+- **Format-Validierung fuer Chargen-Nr. und Flaschen-Code** (2026-07-08): aus den Referenzfotos
+  (`reference/screenshots/Bilder SOL Daten/`) reale Barcode-Formate abgeleitet — Flaschen-Code
+  3 Buchstaben + 9 Ziffern (`SOL_BOTTLE_CODE_RE`), Chargen-Nr. 18-stelliges RAMSES-Format nach
+  PR.128.07.9 Kap. 4.3 (`SOL_CHARGE_NR_RE`, Standort-ID+Abfuellnr./Tag+Produktionsdatum+Produktcode+
+  Mitarbeiter-Nr.+Landeskennung). Backend (`app.py`, beide `/api/sol/charges*`-Start-Routen) und
+  Scan-Seite (`sol_charge_scan.html`) lehnen Eingaben ab, die nicht passen. `simulate_sol_charge.py`
+  erzeugt jetzt formatkonforme Testdaten statt der alten `SIM-<timestamp>`/`BTL0001`-Platzhalter
+- **Bug gefunden+gefixt: geloeschte SOL-Chargen blieben als Karteileichen auf USB/Netzwerk-Freigabe**
+  (2026-07-08, User meldete abweichende PDF-Anzahl SSD vs. USB): `copy_pdf_to_usb_instant()` und
+  `copy_pdf_to_network_instant()` kopieren jedes PDF beim Chargen-Abschluss sofort auf USB-Stick
+  und Netzwerkfreigabe — die Loesch-Routen (`DELETE /api/sol/charges/<id>`, Bulk-Delete) entfernten
+  bisher aber nur die SSD-Kopie, nie die USB-/Netzwerk-Kopie. Dadurch liefen die PDF-Anzahlen nach
+  jedem Loeschvorgang dauerhaft auseinander (Wichtig fuer ein Dokumentationssystem: geloeschte
+  Chargen duerfen nirgends als Geisterkopie liegen bleiben). Neue Funktionen `remove_pdf_from_usb()`
+  (`storage_manager.py`) und `remove_pdf_from_network()` (`network_storage_manager.py`), von beiden
+  Loesch-Routen aufgerufen. Zusaetzlicher Fund waehrend der Diagnose: der USB-Stick wird vom
+  Docker-Container selbst gemountet (`privileged: true`, eigener Mount-Namespace) — auf dem
+  Host-Filesystem taucht dieser Mount NICHT auf (`findmnt`/`mount` auf dem Host zeigen nichts),
+  nur `docker exec ... mount`/`ls` zeigt den echten Zustand. Fuer kuenftige Storage-Diagnosen auf
+  diesem Pi immer per `docker exec docupi-docucontrol-1 ...` pruefen, nie direkt auf dem Host.
+  Per End-to-End-Test verifiziert (Testcharge angelegt, USB-Kopie bestaetigt vorhanden, geloescht,
+  USB-Kopie automatisch mitentfernt, SSD/USB-Zaehler danach wieder identisch)
 
 ## Wiederverwendete Architektur aus DocuControl (Herkunftsprojekt)
 

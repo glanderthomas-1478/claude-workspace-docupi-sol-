@@ -657,5 +657,23 @@ def copy_pdf_to_usb_instant(pdf_path, pdf_filename):
     logger.info(f"USB Sofortkopie: {pdf_filename}")
 
 
+def remove_pdf_from_usb(pdf_path, pdf_filename):
+    """Entfernt die USB-Kopie eines geloeschten PDFs (Gegenstueck zu copy_pdf_to_usb_instant).
+    Sonst bleiben geloeschte Chargen als Karteileichen auf dem Stick, und SSD/USB-Anzahl
+    laufen dauerhaft auseinander."""
+    if not get_usb_info().get("mounted"):
+        return
+    usb_pdf_dir = os.path.join(USB_MOUNT_POINT, USB_PDF_SUBDIR)
+    if SD_PDF_DIR in pdf_path:
+        rel = os.path.relpath(pdf_path, SD_PDF_DIR)
+        dst = os.path.join(usb_pdf_dir, rel)
+    else:
+        dst = os.path.join(usb_pdf_dir, pdf_filename)
+    if os.path.exists(dst):
+        os.remove(dst)
+        _run("sync")
+        logger.info(f"USB-Kopie entfernt: {pdf_filename}")
+
+
 # Init
 os.makedirs(SD_PDF_DIR, exist_ok=True)

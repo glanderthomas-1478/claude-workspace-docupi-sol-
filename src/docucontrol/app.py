@@ -35,12 +35,12 @@ from storage_manager import (
     list_files, get_storage_stats, sync_pdfs_to_usb,
     load_sync_config, save_sync_config, start_auto_sync,
     delete_file, delete_directory, copy_file,
-    try_mount_usb_on_boot, dongle_present, copy_pdf_to_usb_instant,
+    try_mount_usb_on_boot, dongle_present, copy_pdf_to_usb_instant, remove_pdf_from_usb,
     SD_PDF_DIR, USB_MOUNT_POINT, USB_PDF_SUBDIR, USB_CAPTURE_SUBDIR)
 from network_storage_manager import (
     load_network_config, save_network_config, get_network_storage_status,
     test_network_connection, sync_pdfs_to_network, sync_captures_to_network,
-    start_network_sync, copy_pdf_to_network_instant)
+    start_network_sync, copy_pdf_to_network_instant, remove_pdf_from_network)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
     handlers=[logging.FileHandler("/home/docucontrol/docupi/logs/docupi.log"), logging.StreamHandler()])
@@ -2629,6 +2629,16 @@ def api_sol_charge_delete_route(charge_id):
             os.remove(pdf_path)
         except Exception as e:
             logger.warning("PDF-Datei konnte nicht geloescht werden (charge_id=%d): %s", charge_id, e)
+    if pdf_path:
+        pdf_filename = os.path.basename(pdf_path)
+        try:
+            remove_pdf_from_usb(pdf_path, pdf_filename)
+        except Exception as e:
+            logger.warning("USB-Kopie konnte nicht geloescht werden (charge_id=%d): %s", charge_id, e)
+        try:
+            remove_pdf_from_network(pdf_path, pdf_filename)
+        except Exception as e:
+            logger.warning("Netzwerk-Kopie konnte nicht geloescht werden (charge_id=%d): %s", charge_id, e)
     log_event("WARN", f"SOL-Charge geloescht: id={charge_id}")
     return jsonify({'ok': True})
 
@@ -2651,6 +2661,16 @@ def api_sol_charges_bulk_delete():
             delete_sol_charge(cid)
             if pdf_path and os.path.exists(pdf_path):
                 os.remove(pdf_path)
+            if pdf_path:
+                pdf_filename = os.path.basename(pdf_path)
+                try:
+                    remove_pdf_from_usb(pdf_path, pdf_filename)
+                except Exception as e:
+                    logger.warning("USB-Kopie konnte nicht geloescht werden (charge_id=%s): %s", cid, e)
+                try:
+                    remove_pdf_from_network(pdf_path, pdf_filename)
+                except Exception as e:
+                    logger.warning("Netzwerk-Kopie konnte nicht geloescht werden (charge_id=%s): %s", cid, e)
             deleted += 1
         except Exception as e:
             logger.error("Bulk-Delete SOL-Charge %s: %s", cid, e)

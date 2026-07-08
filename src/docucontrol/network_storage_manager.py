@@ -320,6 +320,27 @@ def copy_pdf_to_network_instant(pdf_path, pdf_filename):
         logger.warning(f"Netzwerk Sofortkopie fehlgeschlagen: {e}")
 
 
+def remove_pdf_from_network(pdf_path, pdf_filename):
+    """Entfernt die Netzwerk-Kopie eines geloeschten PDFs (Gegenstueck zu
+    copy_pdf_to_network_instant), damit geloeschte Chargen nicht als Karteileichen auf
+    der Netzwerkfreigabe liegen bleiben."""
+    cfg = load_network_config()
+    if not cfg.get("enabled") or not is_mounted():
+        return
+    net_pdf_dir = os.path.join(NETWORK_MOUNT_POINT, NETWORK_PDF_SUBDIR)
+    if SD_PDF_DIR in pdf_path:
+        rel = os.path.relpath(pdf_path, SD_PDF_DIR)
+        dst = os.path.join(net_pdf_dir, rel)
+    else:
+        dst = os.path.join(net_pdf_dir, pdf_filename)
+    try:
+        if os.path.exists(dst):
+            os.remove(dst)
+            logger.info(f"Netzwerk-Kopie entfernt: {pdf_filename}")
+    except Exception as e:
+        logger.warning(f"Netzwerk-Kopie loeschen fehlgeschlagen: {e}")
+
+
 def sync_captures_to_network(days=None):
     """Sync raw capture files from last N days from SD to network share."""
     cfg = load_network_config()

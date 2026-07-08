@@ -309,7 +309,7 @@
         var operatorName = document.getElementById('solOperatorInput').value.trim();
         if (!chargeNr) { showToast('Charge-Nr. fehlt', 'error'); return; }
         if (!SOL_CHARGE_NR_RE.test(chargeNr)) {
-            showToast('Ungültige Charge-Nr. "' + chargeNr + '" (erwartet: 18-stellig, z. B. 0750010726X000547D)', 'error');
+            showToast('Ungültige Charge-Nr. "' + chargeNr + '" (erwartet: 18-stellig, z. B. G750010726X000547D)', 'error');
             return;
         }
         if (roomTemp === '') { showToast('Referenztemperatur fehlt', 'error'); return; }
@@ -335,8 +335,9 @@
 
     // Format der echten SOL-Flaschen-Barcodes: 3 Buchstaben + 9 Ziffern (z. B. EFQ227010119)
     var SOL_BOTTLE_CODE_RE = /^[A-Z]{3}\d{9}$/;
-    // Format der RAMSES-Chargennummer: 18-stellig (z. B. 0750010726X000547D)
-    var SOL_CHARGE_NR_RE = /^\d{10}[A-Z]\d{5}[A-Z0-9][A-Z]$/;
+    // Format der RAMSES-Chargennummer: 18-stellig (z. B. G750010726X000547D) - erste 3 Zeichen
+    // sind alphanumerisch, nicht rein numerisch (echte Charge beginnt mit Buchstabe "G")
+    var SOL_CHARGE_NR_RE = /^[A-Z0-9]{3}\d{7}[A-Z]\d{5}[A-Z0-9][A-Z]$/;
 
     function resetScanFlow() {
         pendingScanCode = null;

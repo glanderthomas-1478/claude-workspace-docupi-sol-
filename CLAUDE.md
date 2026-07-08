@@ -440,7 +440,16 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
   PR.128.07.9 Kap. 4.3 (`SOL_CHARGE_NR_RE`, Standort-ID+Abfuellnr./Tag+Produktionsdatum+Produktcode+
   Mitarbeiter-Nr.+Landeskennung). Backend (`app.py`, beide `/api/sol/charges*`-Start-Routen) und
   Scan-Seite (`sol_charge_scan.html`) lehnen Eingaben ab, die nicht passen. `simulate_sol_charge.py`
-  erzeugt jetzt formatkonforme Testdaten statt der alten `SIM-<timestamp>`/`BTL0001`-Platzhalter
+  erzeugt jetzt formatkonforme Testdaten statt der alten `SIM-<timestamp>`/`BTL0001`-Platzhalter.
+  **Korrektur (2026-07-08, spaeter am selben Tag):** die echte Chargen-Nr. auf dem Referenzfoto
+  (`20260707_224954.jpg`) beginnt mit dem Buchstaben "G" (`G750010726X000547D`), nicht mit einer
+  Ziffer — beim ersten Auswerten faelschlich als Lesefehler ("0" mit "G" verwechselt) interpretiert,
+  da das Handbuch-Beispiel in Kap. 4.3 rein numerisch "075" zeigt. Vom User anhand des Originalfotos
+  richtiggestellt: das erste Segment (Standort-ID) ist alphanumerisch, nicht rein numerisch.
+  `SOL_CHARGE_NR_RE` entsprechend korrigiert auf `^[A-Z0-9]{3}\d{7}[A-Z]\d{5}[A-Z0-9][A-Z]$`
+  (vorher faelschlich `^\d{10}[A-Z]\d{5}[A-Z0-9][A-Z]$`, hatte echte Chargen-Nr. abgelehnt). Deployed
+  und mit dem echten Code `G750010726X000547D` gegen die laufende Pi-App verifiziert (Charge liess
+  sich anlegen, danach als Test wieder geloescht)
 - **Bug gefunden+gefixt: geloeschte SOL-Chargen blieben als Karteileichen auf USB/Netzwerk-Freigabe**
   (2026-07-08, User meldete abweichende PDF-Anzahl SSD vs. USB): `copy_pdf_to_usb_instant()` und
   `copy_pdf_to_network_instant()` kopieren jedes PDF beim Chargen-Abschluss sofort auf USB-Stick

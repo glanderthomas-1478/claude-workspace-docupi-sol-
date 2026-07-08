@@ -2471,10 +2471,12 @@ def sol_view_pdf(charge_id):
 SOL_BOTTLE_CODE_RE = re.compile(r'^[A-Z]{3}\d{9}$')
 
 # Format der RAMSES-Chargennummer (Referenzfotos reference/screenshots/Bilder SOL Daten/
-# 20260707_225122.jpg, PR.128.07.9 Kap. 4.3): 18-stellig = 3 Ziffern Standort-ID +
-# 1 Ziffer Abfuellnr./Tag + 6 Ziffern Produktionsdatum TTMMJJ + 1 Buchstabe + 5 Ziffern
-# RAMSES-Produktcode + 1 alphanumerisches Zeichen Mitarbeiter-Nr. + 1 Buchstabe Landeskennung.
-SOL_CHARGE_NR_RE = re.compile(r'^\d{10}[A-Z]\d{5}[A-Z0-9][A-Z]$')
+# 20260707_225122.jpg, PR.128.07.9 Kap. 4.3, und echte Charge "G750010726X000547D" vom User
+# bestaetigt): 18-stellig = 3 alphanumerische Zeichen Standort-ID (Beispiel im Handbuch zeigt
+# "075", echte Chargen koennen aber mit einem Buchstaben beginnen, z.B. "G75") + 1 Ziffer
+# Abfuellnr./Tag + 6 Ziffern Produktionsdatum TTMMJJ + 1 Buchstabe + 5 Ziffern RAMSES-Produktcode +
+# 1 alphanumerisches Zeichen Mitarbeiter-Nr. + 1 Buchstabe Landeskennung.
+SOL_CHARGE_NR_RE = re.compile(r'^[A-Z0-9]{3}\d{7}[A-Z]\d{5}[A-Z0-9][A-Z]$')
 
 
 def _sol_is_nok(ir_temp, room_temp, tolerance):
@@ -2534,7 +2536,7 @@ def api_sol_charge_start():
     if not charge_nr:
         return jsonify({'ok': False, 'error': 'Charge-Nr. ist ein Pflichtfeld'}), 400
     if not SOL_CHARGE_NR_RE.match(charge_nr):
-        return jsonify({'ok': False, 'error': 'Ungültige Charge-Nr. "' + charge_nr + '" (erwartet: 18-stellig, z. B. 0750010726X000547D)'}), 400
+        return jsonify({'ok': False, 'error': 'Ungültige Charge-Nr. "' + charge_nr + '" (erwartet: 18-stellig, z. B. G750010726X000547D)'}), 400
     try:
         room_temp = float(data.get('room_temp'))
     except (TypeError, ValueError):

@@ -53,7 +53,11 @@
     animation: solAlarmPulse 1.4s ease-in-out infinite;
 }
 .sol-device-alarm-bar .da-icon { font-size: 20px; flex-shrink: 0; }
-.sol-device-alarm-bar .da-text { flex: 1; font-weight: 600; font-size: 14px; }
+.sol-device-alarm-bar .da-items { flex: 1; display: flex; flex-wrap: wrap; gap: 10px; }
+.sol-device-alarm-bar .da-item {
+    font-weight: 600; font-size: 14px; background: rgba(255,255,255,0.18);
+    border-radius: 6px; padding: 3px 10px;
+}
 @keyframes solAlarmPulse {
     0%, 100% { box-shadow: 0 0 0 0 rgba(220,53,69,0.5); }
     50% { box-shadow: 0 0 0 8px rgba(220,53,69,0); }
@@ -83,7 +87,7 @@
 
 <div class="sol-device-alarm-bar" id="solDeviceAlarmBar">
     <span class="da-icon"><i class="bi bi-exclamation-triangle-fill"></i></span>
-    <span class="da-text" id="solDeviceAlarmText"></span>
+    <span class="da-items" id="solDeviceAlarmItems"></span>
 </div>
 
 <!-- Zustand: keine offene Charge -->
@@ -563,13 +567,14 @@
             // (keine MAC hinterlegt / noch keine Anbindung) als auch bei echter Trennung -
             // aus Betreiber-Sicht ist beides "Geraet nicht da".
             if (scanner.enabled && (!scanner.configured || scanner.connected === false)) {
-                messages.push('Barcode-Scanner nicht verbunden');
+                messages.push('Barcode-Scanner offline');
             }
             if (tempSensor.enabled && !tempSensor.configured) {
-                messages.push('Temperatur-Scanner nicht verbunden');
+                messages.push('Temperatur-Scanner offline');
             }
             if (messages.length) {
-                document.getElementById('solDeviceAlarmText').textContent = messages.join(' | ');
+                document.getElementById('solDeviceAlarmItems').innerHTML =
+                    messages.map(function(m) { return '<span class="da-item">' + m + '</span>'; }).join('');
                 bar.style.display = 'flex';
                 var now = Date.now();
                 if (now - lastDeviceAlarmTone > DEVICE_ALARM_REPEAT_MS) {

@@ -650,6 +650,59 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
   kollidierender Klassenname `sol-proc-opt` mit dupliziertem CSS (gleiches Erscheinungsbild, keine
   JS-Kollision mehr). Per Playwright verifiziert: nur noch eine Option gleichzeitig markiert,
   Button-Groessen exakt gleich (288×93.6px)
+- **Regulatorische Einordnung geklärt + Sichtprüfung/Restdruck als GMP-Vorprüfungen ergänzt**
+  (2026-07-09, per Recherche EU-GMP-Anhang 6 "Herstellung medizinischer Gase", AMWHV, ZLG
+  Aide-mémoire 07121401): SOL Krefeld füllt an diesem Standort **medizinischen Sauerstoff**
+  (Arzneimittel, nicht nur technisches Gas) — unser Temperaturprotokoll bildet damit nur den GMP-
+  Prüfschritt "Nachweis der Erwärmung durch den Füllvorgang" (Anhang 6 Ziffer 5.3.8) ab, nicht die
+  vollständige Chargendokumentation. **Scope-Klärung mit dem User:** unser System dokumentiert
+  bewusst nur den Abfüllprozess selbst — QM und danach die Apotheke begutachten die Ergebnisse
+  nachgelagert und außerhalb dieses Systems (kein Freigabe-Workflow hier nötig). Auf dieser
+  Grundlage ergänzt: **Sichtprüfung** (Flasche/Ventil) und **Restdruck-Prüfung** (Soll: > 3 bar,
+  EU-GMP-Anhang 6 Ziffer 5.3.5) als weitere NOK-Kriterien neben der Temperatur. Nach User-Feedback
+  zweimal iteriert: beides ist jetzt je eine **Sammel-Ja/Nein-Antwort für die ganze Charge**
+  (`sol_charges`-Abschluss-Dialog, analog zur Ablauf-Auswahl), nicht pro Flasche — echte
+  Einzelmesswerte je Flasche folgen erst, sobald die Datenquellen geklärt sind. Neue Spalten
+  `sol_bottles.visual_check_ok`/`residual_pressure_ok` (Boolean, NULL bis zum Abschluss gesetzt);
+  `residual_pressure_bar` (numerisch) bleibt für spätere echte Messwerte reserviert, aktuell
+  ungenutzt. PDF zeigt neue Spalten "Sicht."/"Restdr." (i.O./n.i.O.). **Bug gefunden+gefixt:**
+  `add_sol_bottle` wandelte ein noch unbekanntes `visual_check_ok=None` faelschlich in `0` um,
+  wodurch frisch gescannte Flaschen in der laufenden Tabelle faelschlich "n.i.O." zeigten, bevor
+  die Sammel-Sichtpruefung ueberhaupt stattgefunden hatte.
+- **Chargen-Start umgebaut: Barcode-Scan öffnet sofort, Referenztemperatur/Abfüller danach
+  nachtragbar** (2026-07-09, User-Vorgabe: "wenn ein Chargenbarcode empfangen wird und keine Charge
+  offen ist, automatisch öffnen"): `POST /api/sol/charges` verlangt `room_temp`/`operator_name`
+  nicht mehr als Pflicht beim Start (beide bleiben aber vor dem **Abschluss** Pflicht — neue Prüfung
+  in `api_sol_charge_close`). Referenztemperatur/Abfüller sind jetzt editierbare Felder direkt in
+  der Infoleiste der laufenden Charge (`solInfoRoomTempInput`/`solInfoOperatorInput`, speichern per
+  Blur/Enter über neue Route `POST /api/sol/charges/<id>/update`). **Wichtigster Teil:** ein
+  globaler Tastatur-Listener in `base.html` (läuft auf jeder Seite) puffert Tastendrücke, **solange
+  kein Eingabefeld fokussiert ist** (= Kiosk-Grundmodus/Dashboard) — erkennt er ein gültiges
+  Chargen-Barcode-Muster + Enter, öffnet er sofort eine neue Charge und springt zu `/sol/scan`.
+  Vorherige Version löste nur auf der Scan-Seite selbst aus, was nutzlos war, da der Kiosk im
+  Leerlauf das Dashboard zeigt. **Bug gefunden+gefixt:** nach dem Ausfüllen von Referenztemperatur/
+  Abfüller blieb der Fokus im gerade verlassenen Feld hängen, ein anschließender Flaschen-Scan
+  landete dort statt im Scan-Feld — behoben, Fokus springt nach dem Speichern automatisch zurück
+  ins Flaschen-Scan-Feld.
+- **Wichtige Lehre (mehrfach in dieser Session erlebt): Kiosk-Browser lädt nach Server-/Container-
+  Neustart NICHT automatisch neu** (2026-07-09) — die laufende Chromium-Kiosk-Instanz zeigt weiter
+  den alten, im Speicher geladenen JS-Stand, bis die Seite manuell neu geladen oder der Pi neu
+  gestartet wird. Mehrere "geht nicht"-Meldungen nach Deployments gingen darauf zurück. Zusätzlich
+  festgestellt: `docucontrol` hat auf diesem Pi **kein passwortloses sudo** eingerichtet (anders als
+  beim Herkunftsprojekt-Pi), ein `systemctl restart kiosk.service` per SSH ist daher nicht möglich —
+  bei zukünftigen Frontend-Deployments den User um einen Neustart/Reload bitten, statt es per SSH zu
+  versuchen.
+- **"Verbindung Maschine inaktiv"-Alarm entfernt** (2026-07-09, User-Meldung: Alarm kam
+  wiederkehrend, Verbindung war nie wirklich verloren): der Check in `/api/system/alerts` pingte
+  `config['machine']['ip']` — ein geerbter Sterilisator-Maschinen-Check aus dem Herkunftsprojekt
+  (RS232/TCP-Maschinenprotokoll), SOL hat keine angebundene Maschine. Check komplett entfernt (nicht
+  nur die Config geleert), betrifft kein anderes Alarm-Kriterium.
+- **Deployment-Workflow etabliert:** Code liegt lokal in `src/docucontrol/`, wird per `scp` nach
+  `/home/docucontrol/docupi/` auf dem Pi kopiert (SSH-Alias `docupi-sol`, dongle-gebunden — Dongle
+  muss stecken), danach `docker compose restart` (kein Rebuild nötig, `.:/app`-Bind-Mount, siehe
+  `docker-compose.yml`). **Vor jedem Neustart** `curl http://192.168.0.172:5000/api/sol/charges/open`
+  prüfen — mehrfach echte, gerade laufende User-Chargen am Kiosk vorgefunden und bewusst nicht
+  gestört (auf Abschluss gewartet statt einfach neu zu starten).
 
 ## Wiederverwendete Architektur aus DocuControl (Herkunftsprojekt)
 

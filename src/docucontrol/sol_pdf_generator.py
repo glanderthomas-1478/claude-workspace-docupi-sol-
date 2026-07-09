@@ -4,8 +4,10 @@ DocuControl-SOL - PDF Generator fuer das Temperaturprotokoll (Druckgasflaschen-A
 
 Bildet die Struktur des echten SOL-Papierformulars "Temperaturprotokoll (IF.103A)"
 nach: Kopf (Charge-Nr., Abfueller, Referenztemperatur, verwendete Fuehler), zweispaltige
-Tabelle mit einer Zeile pro gescannter Flasche (Protokoll-Nr. / Datum-Uhrzeit / IR-Temp),
-Fusszeile mit Min/Max ueber alle Messungen + digitaler Unterschrift des Bedieners.
+Tabelle mit einer Zeile pro gescannter Flasche (Protokoll-Nr. / Datum-Uhrzeit / Code /
+Sichtpruefung / Restdruck / IR-Temp), Fusszeile mit Min/Max ueber alle Messungen +
+digitaler Unterschrift des Bedieners. Sichtpruefung + Restdruck am 2026-07-09 ergaenzt
+(GMP-Vorpruefungen vor der Befuellung laut EU-GMP-Anhang 6 Ziffer 5.3.5/6).
 
 Die Tabelle nutzt pro Seite zwei nebeneinander liegende Spaltenbloecke und packt so
 deutlich mehr Flaschen-Zeilen auf jede Seite (bis zu 160 Flaschen passen dadurch meist
@@ -48,7 +50,10 @@ CONTENT_WIDTH = 190.0  # bis x=200, symmetrisch zu den 10mm links (A4=210mm brei
 COL_GAP = 6.0
 COL_WIDTH = (CONTENT_WIDTH - COL_GAP) / 2  # 92mm
 COL_X = [CONTENT_LEFT, CONTENT_LEFT + COL_WIDTH + COL_GAP]
-SUBCOL = {"nr": 14.0, "dt": 41.0, "code": 21.0, "temp": 16.0}  # Summe = COL_WIDTH (92mm)
+# Sicht./Restdr. am 2026-07-09 ergaenzt (GMP-Vorpruefungen vor der Befuellung, EU-GMP-Anhang 6
+# Ziffer 5.3.5/6); "dt" dafuer von vormals 41mm gekuerzt (Datum/Zeit passt weiterhin,
+# Summe = COL_WIDTH (92mm) bleibt unveraendert).
+SUBCOL = {"nr": 9.0, "dt": 27.0, "code": 20.0, "sicht": 11.0, "restdr": 14.0, "temp": 11.0}
 
 # DejaVu Sans unterstuetzt volle Unicode (ä/ö/ü/ß, °, — usw.), Helvetica (Latin-1
 # only) crasht dabei - gleiches Muster wie in pdf_generator.py._draw_autoklavenbuch_page().
@@ -211,6 +216,12 @@ class SolTemperaturProtokollPDF(FPDF):
             self.cell(SUBCOL["code"], TABLE_HEAD_H - 1, "Code", align="C")
             cx += SUBCOL["code"]
             self.set_xy(cx, y + 0.5)
+            self.cell(SUBCOL["sicht"], TABLE_HEAD_H - 1, "Sicht.", align="C")
+            cx += SUBCOL["sicht"]
+            self.set_xy(cx, y + 0.5)
+            self.cell(SUBCOL["restdr"], TABLE_HEAD_H - 1, "Restdr.", align="C")
+            cx += SUBCOL["restdr"]
+            self.set_xy(cx, y + 0.5)
             self.cell(SUBCOL["temp"], TABLE_HEAD_H - 1, "Temp [°C]", align="C")
         return y + TABLE_HEAD_H
 
@@ -233,8 +244,12 @@ class SolTemperaturProtokollPDF(FPDF):
             self.set_draw_color(*TABLE_BORDER)
             self.rect(x0, y, COL_WIDTH, ROW_H)
 
+            # Absichtlich immer Regular-Gewicht (nicht Bold bei NOK): DejaVu-Bold ist breiter
+            # und liess bei knapp bemessenen Spalten (insbesondere "dt") Text in die naechste
+            # Spalte hineinlaufen (gefunden 2026-07-09 im Live-Test auf dem Pi). Rote Schrift +
+            # roter Zeilenhintergrund reichen als NOK-Kennzeichnung aus.
             text_color = NOK_TEXT if is_nok else BLACK
-            self._sf("B" if is_nok else "", 7)
+            self._sf("", 7)
             self.set_text_color(*text_color)
 
             cx = x0
@@ -252,8 +267,20 @@ class SolTemperaturProtokollPDF(FPDF):
             self.cell(SUBCOL["code"], ROW_H - 1.5, self._safe(b.get("scan_code", "")), align="C")
             cx += SUBCOL["code"]
 
+            visual_ok = b.get("visual_check_ok")
+            visual_str = "i.O." if visual_ok else ("n.i.O." if visual_ok is not None else "-")
+            self.set_xy(cx, y + 0.75)
+            self.cell(SUBCOL["sicht"], ROW_H - 1.5, self._safe(visual_str), align="C")
+            cx += SUBCOL["sicht"]
+
+            pressure_ok = b.get("residual_pressure_ok")
+            pressure_str = "i.O." if pressure_ok else ("n.i.O." if pressure_ok is not None else "-")
+            self.set_xy(cx, y + 0.75)
+            self.cell(SUBCOL["restdr"], ROW_H - 1.5, self._safe(pressure_str), align="C")
+            cx += SUBCOL["restdr"]
+
             temp = b.get("ir_temp")
-            temp_str = f"{temp:.1f}" + (" NOK" if is_nok else "") if temp is not None else "-"
+            temp_str = f"{temp:.1f}" if temp is not None else "-"
             self.set_xy(cx, y + 0.75)
             self.cell(SUBCOL["temp"], ROW_H - 1.5, temp_str, align="C")
 

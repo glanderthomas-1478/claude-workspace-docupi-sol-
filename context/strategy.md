@@ -9,8 +9,14 @@ auf der Scan-Seite), der auch fuer den Temperatursensor vorbereitet ist. Barcode
 wurden anhand echter Referenzfotos zweimal korrigiert (urspruengliche Lesefehler bei aehnlich
 aussehenden Zeichen). Solange kein Temperatursensor angebunden ist, wird die IR-Temp automatisch
 mit einem Platzhalterwert (36°C) befuellt (TEMPORAER, muss beim Sensor-Anschluss wieder raus).
-Fokus jetzt: Temperatursensor beschaffen und anbinden, danach echten Praxisbetrieb mit
-SOL-Mitarbeitern testen.
+**Regulatorisch geklaert (2026-07-09):** SOL fuellt an diesem Standort medizinischen Sauerstoff
+(AMG/AMWHV/EU-GMP-Anhang 6 einschlaegig), unser System dokumentiert bewusst nur den Abfuellprozess
+selbst, Freigabe laeuft nachgelagert ueber QM/Apotheke. Auf dieser Basis Sichtpruefung + Restdruck-
+Pruefung als weitere Sammel-NOK-Kriterien beim Chargen-Abschluss ergaenzt, Chargen-Start per
+Barcode-Scan funktioniert jetzt app-weit auch aus dem Kiosk-Grundmodus (Dashboard) heraus. **Echter
+Praxisbetrieb mit SOL-Mitarbeitern laeuft bereits** (mehrfach live beobachtet). Fokus jetzt:
+Temperatursensor beschaffen und anbinden (36°C-Platzhalter entfernen), laufendes Nutzer-Feedback
+zur Scan-Seite einholen.
 
 ## Strategische Prioritaeten
 

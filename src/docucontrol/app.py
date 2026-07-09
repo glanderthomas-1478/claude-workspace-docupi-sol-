@@ -9,8 +9,8 @@ from config import load_config, save_config
 from database import (get_protocols, get_protocol_count, get_today_count, get_system_logs, log_event, get_db,
     get_pending_protocols, get_pending_protocol, save_form_draft, confirm_form, discard_pending,
     set_pdf_failed, get_form_confirmed_protocols,
-    create_sol_charge, get_open_sol_charge, get_sol_charge, add_sol_bottle,
-    bottle_code_exists_in_charge, delete_sol_bottle, close_sol_charge,
+    create_sol_charge, get_open_sol_charge, get_sol_charge, add_sol_bottle, update_sol_charge_start_fields,
+    bottle_code_exists_in_charge, delete_sol_bottle, close_sol_charge, update_bottle_final_checks,
     list_sol_charges, count_sol_charges, get_sol_charges_stats,
     get_sol_charge_pdf_path, delete_sol_charge)
 from sol_pdf_generator import generate_sol_pdf
@@ -1347,17 +1347,10 @@ def api_system_alerts():
     """Aktive Stoerungen fuer die rote Alarm-Anzeige in der Topbar."""
     alerts = []
 
-    # Verbindung zur Maschine
-    try:
-        mcfg = load_config().get('machine', {})
-        ip = mcfg.get('ip', '').strip()
-        if ip:
-            r = subprocess.run(['ping', '-c', '1', '-W', '2', ip], capture_output=True, text=True, timeout=5)
-            if r.returncode != 0:
-                alerts.append({'type': 'machine_offline', 'icon': 'bi-plug-fill',
-                                'label': 'Verbindung Maschine inaktiv'})
-    except Exception:
-        pass
+    # "Verbindung Maschine inaktiv"-Check (pingt config['machine']['ip']) am 2026-07-09 entfernt:
+    # geerbter Sterilisator-Maschinen-Check aus dem Herkunftsprojekt (DocuControl, RS232/TCP-
+    # Maschinenprotokoll) - SOL hat keine angebundene Maschine (Barcode-Scan + manuelle Temp.,
+    # TCP/9100-Empfang ist deaktiviert), der Alarm feuerte daher permanent falsch.
 
     # Drucker (nur relevant wenn Auto-Druck aktiv ist)
     try:
@@ -2481,6 +2474,10 @@ SOL_BOTTLE_CODE_RE = re.compile(r'^[A-Z]{3}\d[A-Z]\d{7}$')
 # 1 alphanumerisches Zeichen Mitarbeiter-Nr. + 1 Buchstabe Landeskennung.
 SOL_CHARGE_NR_RE = re.compile(r'^[A-Z0-9]{3}\d{7}[A-Z]\d{5}[A-Z0-9][A-Z]$')
 
+# EU-GMP-Anhang 6 Ziffer 5.3.5 / ZLG-Aide-memoire 07121401: Restdruck vor der Befuellung
+# soll > 3 bar sein, sonst ist die Flasche auszusortieren/zu reinigen statt zu befuellen.
+RESIDUAL_PRESSURE_MIN_BAR = 3.0
+
 
 def _sol_is_nok(ir_temp, room_temp, tolerance):
     """Eine Flasche gilt als NOK, wenn ihre IR-Temperatur nicht ausreichend ueber
@@ -2491,6 +2488,23 @@ def _sol_is_nok(ir_temp, room_temp, tolerance):
     if ir_temp is None or room_temp is None:
         return False
     return (ir_temp - room_temp) < tolerance
+
+
+def _sol_nok_reasons(ir_temp, room_temp, tolerance, visual_check_ok, pressure_check_ok):
+    """Sammelt alle Gruende, warum eine Flasche als NOK gilt (2026-07-09, GMP-Vorpruefungen
+    Sichtpruefung + Restdruck ergaenzt neben der bestehenden Temperaturpruefung - jede der
+    drei Pruefungen kann fuer sich allein die Flasche zur NOK machen). Sichtpruefung UND
+    Restdruck-Pruefung sind aktuell je eine Sammel-Ja/Nein-Antwort fuer die ganze Charge
+    (residual_pressure_ok), kein Einzelmesswert je Flasche - die Grenze (RESIDUAL_PRESSURE_MIN_BAR)
+    wird nur fuer den UI-Text verwendet, nicht fuer einen Zahlenvergleich hier."""
+    reasons = []
+    if _sol_is_nok(ir_temp, room_temp, tolerance):
+        reasons.append("temp")
+    if not visual_check_ok:
+        reasons.append("visual")
+    if pressure_check_ok is not None and not pressure_check_ok:
+        reasons.append("pressure")
+    return reasons
 
 
 def _bluetooth_device_connected(mac):
@@ -2540,15 +2554,48 @@ def api_sol_charge_start():
         return jsonify({'ok': False, 'error': 'Charge-Nr. ist ein Pflichtfeld'}), 400
     if not SOL_CHARGE_NR_RE.match(charge_nr):
         return jsonify({'ok': False, 'error': 'Ungültige Charge-Nr. "' + charge_nr + '" (erwartet: 18-stellig, z. B. G750010726X000547D)'}), 400
-    try:
-        room_temp = float(data.get('room_temp'))
-    except (TypeError, ValueError):
-        return jsonify({'ok': False, 'error': 'Referenztemperatur ist ein Pflichtfeld'}), 400
+    # Referenztemperatur ist beim Start NICHT mehr Pflicht (User-Vorgabe 2026-07-09): der
+    # Chargen-Barcode-Scan soll die Charge sofort oeffnen, Referenztemperatur/Abfueller werden
+    # danach in der laufenden Charge nachgetragen (siehe api_sol_charge_update). Fehlt sie beim
+    # Abschluss immer noch, verhindert api_sol_charge_close das Schliessen.
+    room_temp = None
+    if data.get('room_temp') not in (None, ''):
+        try:
+            room_temp = float(data.get('room_temp'))
+        except (TypeError, ValueError):
+            return jsonify({'ok': False, 'error': 'Referenztemperatur muss eine Zahl sein'}), 400
     cfg = load_config()
     sensor_names = (data.get('sensor_names') or '').strip() or cfg.get('sol', {}).get('sensor_names', '')
     operator_name = (data.get('operator_name') or '').strip()
     charge_id = create_sol_charge(charge_nr, room_temp, sensor_names, operator_name)
     log_event("INFO", f"SOL-Charge gestartet: {charge_nr} (id={charge_id})")
+    return jsonify({'ok': True, 'charge': get_sol_charge(charge_id)})
+
+
+@app.route('/api/sol/charges/<int:charge_id>/update', methods=['POST'])
+def api_sol_charge_update(charge_id):
+    """Traegt Referenztemperatur/Abfueller/Fuehler nachtraeglich in eine bereits offene Charge
+    ein - der Chargen-Barcode-Scan oeffnet die Charge sofort ohne diese Felder, sie werden hier
+    ergaenzt, sobald sie gemessen/eingegeben wurden (User-Vorgabe 2026-07-09)."""
+    charge = get_sol_charge(charge_id)
+    if not charge or charge['status'] != 'open':
+        return jsonify({'ok': False, 'error': 'Charge nicht gefunden oder bereits abgeschlossen'}), 404
+    data = request.get_json(silent=True) or {}
+    room_temp = None
+    if 'room_temp' in data and data.get('room_temp') not in (None, ''):
+        try:
+            room_temp = float(data.get('room_temp'))
+        except (TypeError, ValueError):
+            return jsonify({'ok': False, 'error': 'Referenztemperatur muss eine Zahl sein'}), 400
+    operator_name = None
+    if 'operator_name' in data and (data.get('operator_name') or '').strip():
+        operator_name = data.get('operator_name').strip()
+    sensor_names = None
+    if 'sensor_names' in data and data.get('sensor_names') is not None:
+        sensor_names = data.get('sensor_names').strip()
+    if room_temp is None and operator_name is None and sensor_names is None:
+        return jsonify({'ok': False, 'error': 'Keine Aenderung übergeben'}), 400
+    update_sol_charge_start_fields(charge_id, room_temp, operator_name, sensor_names)
     return jsonify({'ok': True, 'charge': get_sol_charge(charge_id)})
 
 
@@ -2576,8 +2623,12 @@ def api_sol_bottle_add(charge_id):
 
     cfg = load_config()
     tolerance = float(cfg.get('sol', {}).get('temp_tolerance_c', 5.0))
+    # Sichtpruefung/Restdruck werden hier bewusst noch NICHT erfasst (User-Vorgabe 2026-07-09):
+    # Sichtpruefung wird als Sammel-Antwort fuer die ganze Charge erst beim Abschluss gesetzt
+    # (siehe api_sol_charge_close), Restdruck ist vorerst komplett ausgeklammert (Datenquelle
+    # noch offen). is_nok basiert an dieser Stelle daher nur auf der Temperatur.
     is_nok = _sol_is_nok(ir_temp, charge['room_temp'], tolerance)
-    bottle_id, seq_nr = add_sol_bottle(charge_id, scan_code, ir_temp, is_nok)
+    bottle_id, seq_nr = add_sol_bottle(charge_id, scan_code, ir_temp, None, None, is_nok)
     warn_count = int(cfg.get('sol', {}).get('bottle_warn_count', 160))
     return jsonify({
         'ok': True,
@@ -2604,21 +2655,40 @@ def api_sol_charge_close(charge_id):
     confirmed = bool(data.get('confirmed'))
     signature = (data.get('signature') or '').strip()
     process_status = (data.get('process_status') or '').strip()
+    bottles_visual_check_ok = data.get('bottles_visual_check_ok')
+    bottles_pressure_check_ok = data.get('bottles_pressure_check_ok')
     if not confirmed:
         return jsonify({'ok': False, 'error': 'Bestätigung fehlt'}), 400
+    if bottles_visual_check_ok is None:
+        return jsonify({'ok': False, 'error': 'Sichtprüfung aller Flaschen ist ein Pflichtfeld'}), 400
+    if bottles_pressure_check_ok is None:
+        return jsonify({'ok': False, 'error': f'Restdruck aller Flaschen (über {RESIDUAL_PRESSURE_MIN_BAR:g} bar) ist ein Pflichtfeld'}), 400
+    bottles_visual_check_ok = bool(bottles_visual_check_ok)
+    bottles_pressure_check_ok = bool(bottles_pressure_check_ok)
     if process_status not in ('ordnungsgemaess', 'stoerung'):
         return jsonify({'ok': False, 'error': 'Bitte auswählen: ordnungsgemäßer Ablauf oder Störung im Ablauf'}), 400
     if not signature.startswith('data:image/'):
         return jsonify({'ok': False, 'error': 'Unterschrift fehlt'}), 400
     if not charge.get('operator_name'):
         return jsonify({'ok': False, 'error': 'Name des Bedieners fehlt'}), 400
+    if charge.get('room_temp') is None:
+        return jsonify({'ok': False, 'error': 'Referenztemperatur fehlt'}), 400
     if not charge.get('bottles'):
         return jsonify({'ok': False, 'error': 'Es wurde noch keine Flasche gescannt'}), 400
 
+    cfg = load_config()
+    # Sammel-Sichtpruefung + Sammel-Restdruck-Pruefung (User-Vorgabe 2026-07-09): werden am Ende
+    # je EINMAL fuer die ganze Charge erfasst und auf jede bereits gescannte Flasche angewendet,
+    # statt einzeln beim Scannen. NOK-Status wird dabei neu berechnet (Temperatur-Kriterium bleibt
+    # zusaetzlich bestehen).
+    tolerance = float(cfg.get('sol', {}).get('temp_tolerance_c', 5.0))
+    for b in charge['bottles']:
+        nok_reasons = _sol_nok_reasons(b['ir_temp'], charge['room_temp'], tolerance,
+                                        bottles_visual_check_ok, bottles_pressure_check_ok)
+        update_bottle_final_checks(b['id'], bottles_visual_check_ok, bottles_pressure_check_ok, bool(nok_reasons))
+    charge = get_sol_charge(charge_id)
     charge['confirmed_signature'] = signature
     charge['process_status'] = process_status
-
-    cfg = load_config()
     try:
         pdf_path, pdf_filename, file_size = generate_sol_pdf(charge, charge['bottles'], cfg)
     except Exception as e:

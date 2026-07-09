@@ -77,6 +77,9 @@ def init_db():
             scan_code TEXT NOT NULL,
             scanned_at TEXT NOT NULL,
             ir_temp REAL DEFAULT NULL,
+            visual_check_ok INTEGER DEFAULT NULL,
+            residual_pressure_bar REAL DEFAULT NULL,
+            residual_pressure_ok INTEGER DEFAULT NULL,
             is_nok INTEGER DEFAULT 0,
             FOREIGN KEY (charge_id) REFERENCES sol_charges(id) ON DELETE CASCADE
         );
@@ -91,6 +94,13 @@ def init_db():
         conn.execute("ALTER TABLE sol_charges ADD COLUMN confirmed_signature TEXT DEFAULT ''")
     if "process_status" not in existing_cols:
         conn.execute("ALTER TABLE sol_charges ADD COLUMN process_status TEXT DEFAULT ''")
+    existing_bottle_cols = {row[1] for row in conn.execute("PRAGMA table_info(sol_bottles)").fetchall()}
+    if "visual_check_ok" not in existing_bottle_cols:
+        conn.execute("ALTER TABLE sol_bottles ADD COLUMN visual_check_ok INTEGER DEFAULT NULL")
+    if "residual_pressure_bar" not in existing_bottle_cols:
+        conn.execute("ALTER TABLE sol_bottles ADD COLUMN residual_pressure_bar REAL DEFAULT NULL")
+    if "residual_pressure_ok" not in existing_bottle_cols:
+        conn.execute("ALTER TABLE sol_bottles ADD COLUMN residual_pressure_ok INTEGER DEFAULT NULL")
     conn.commit()
     conn.close()
 
@@ -277,6 +287,27 @@ def create_sol_charge(charge_nr, room_temp, sensor_names, operator_name):
     return charge_id
 
 
+def update_sol_charge_start_fields(charge_id, room_temp, operator_name, sensor_names):
+    """Traegt Referenztemperatur/Abfueller/Fuehler nachtraeglich in eine bereits offene Charge ein
+    (2026-07-09, User-Vorgabe: Chargen-Barcode-Scan oeffnet die Charge sofort ohne diese Felder,
+    sie werden danach ergaenzt). Nur uebergebene (nicht-None) Werte werden aktualisiert."""
+    fields = []
+    params = []
+    if room_temp is not None:
+        fields.append("room_temp=?"); params.append(room_temp)
+    if operator_name is not None:
+        fields.append("operator_name=?"); params.append(operator_name)
+    if sensor_names is not None:
+        fields.append("sensor_names=?"); params.append(sensor_names)
+    if not fields:
+        return
+    conn = get_db()
+    params.append(charge_id)
+    conn.execute(f"UPDATE sol_charges SET {', '.join(fields)} WHERE id=?", params)
+    conn.commit()
+    conn.close()
+
+
 def get_open_sol_charge():
     """Die aktuell offene Charge (es darf immer nur eine geben), oder None."""
     conn = get_db()
@@ -303,21 +334,39 @@ def get_sol_charge(charge_id):
     return charge
 
 
-def add_sol_bottle(charge_id, scan_code, ir_temp, is_nok):
+def add_sol_bottle(charge_id, scan_code, ir_temp, visual_check_ok, residual_pressure_bar, is_nok):
     """Fuegt eine Flaschen-Messung hinzu. seq_nr wird automatisch fortlaufend vergeben."""
     conn = get_db()
     next_seq = conn.execute(
         "SELECT COALESCE(MAX(seq_nr), 0) + 1 FROM sol_bottles WHERE charge_id=?", (charge_id,)
     ).fetchone()[0]
+    # visual_check_ok bleibt NULL (nicht 0!) solange es noch nicht gesetzt wurde - sonst wuerde
+    # eine noch gar nicht durchgefuehrte Sichtpruefung faelschlich als "n.i.O." angezeigt, bevor
+    # die Sammel-Sichtpruefung beim Chargen-Abschluss ueberhaupt erfasst wurde (2026-07-09-Bug).
+    visual_val = None if visual_check_ok is None else (1 if visual_check_ok else 0)
     cur = conn.execute(
-        "INSERT INTO sol_bottles (charge_id, seq_nr, scan_code, scanned_at, ir_temp, is_nok) "
-        "VALUES (?, ?, ?, ?, ?, ?)",
-        (charge_id, next_seq, scan_code, datetime.now().isoformat(), ir_temp, 1 if is_nok else 0)
+        "INSERT INTO sol_bottles (charge_id, seq_nr, scan_code, scanned_at, ir_temp, "
+        "visual_check_ok, residual_pressure_bar, is_nok) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (charge_id, next_seq, scan_code, datetime.now().isoformat(), ir_temp,
+         visual_val, residual_pressure_bar, 1 if is_nok else 0)
     )
     bottle_id = cur.lastrowid
     conn.commit()
     conn.close()
     return bottle_id, next_seq
+
+
+def update_bottle_final_checks(bottle_id, visual_check_ok, residual_pressure_ok, is_nok):
+    """Setzt die (Sammel-)Sichtpruefung + (Sammel-)Restdruck-Pruefung + neu berechneten NOK-Status
+    einer Flasche - wird beim Chargen-Abschluss fuer jede Flasche der Charge aufgerufen
+    (2026-07-09, User-Vorgabe: beide Pruefungen werden am Ende einmal fuer alle Flaschen erfasst,
+    nicht mehr einzeln beim Scannen - echte Einzelmesswerte je Flasche folgen erst, sobald die
+    jeweilige Datenquelle geklaert ist)."""
+    conn = get_db()
+    conn.execute("UPDATE sol_bottles SET visual_check_ok=?, residual_pressure_ok=?, is_nok=? WHERE id=?",
+                 (1 if visual_check_ok else 0, 1 if residual_pressure_ok else 0, 1 if is_nok else 0, bottle_id))
+    conn.commit()
+    conn.close()
 
 
 def bottle_code_exists_in_charge(charge_id, scan_code):

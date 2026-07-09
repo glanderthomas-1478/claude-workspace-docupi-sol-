@@ -31,6 +31,10 @@
 .sol-scan-bar .sb-count { margin-left: auto; text-align: right; }
 .sol-scan-bar .sb-count .val { font-size: 28px; font-weight: 700; color: var(--primary); }
 .sol-scan-bar .sb-count .val.warn { color: #d97706; }
+.sol-scan-bar input.sb-edit {
+    font-size: 15px; font-weight: 600; padding: 3px 8px; height: auto; width: 130px;
+}
+.sol-scan-bar input.sb-edit::placeholder { font-weight: 400; color: var(--danger); }
 
 .sol-scan-input-row { display: flex; gap: 12px; margin-bottom: 12px; }
 .sol-scan-input-row input.ctrl {
@@ -38,6 +42,18 @@
 }
 #solScanInput { flex: 2; }
 #solTempInput { flex: 1; }
+
+/* Sichtpruefung-Auswahl (Sammel-Antwort fuer alle Flaschen der Charge beim Abschluss,
+   siehe Abschluss-Overlay) - gleiches Muster wie .sol-proc-opt, eigener Klassenname noetig
+   (s.u. Kommentar bei .sol-proc-opt zur globalen .ab-result-opt-Kollision). */
+.sol-check-opts { display: flex; gap: 8px; margin-bottom: 16px; }
+.sol-check-opt {
+    flex: 1; border: 2px solid var(--border); border-radius: 10px; padding: 12px 16px;
+    display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 16px;
+    user-select: none; font-weight: 500;
+}
+.sol-check-opt.ok.selected { border-color: var(--success-strong); background: var(--success-soft); color: var(--success-strong); font-weight: 600; }
+.sol-check-opt.err.selected { border-color: var(--danger); background: var(--danger-soft); color: var(--danger); font-weight: 600; }
 
 .sol-nok-bar {
     display: none; align-items: center; gap: 12px;
@@ -145,7 +161,14 @@ body.kbd-open #solSigOverlay .modal-lg {
     <div class="sol-scan-bar">
         <div class="sb-item"><span class="lbl">Charge</span><span class="val" id="solInfoChargeNr">—</span></div>
         <div class="sb-item"><span class="lbl">Start</span><span class="val" id="solInfoStarted">—</span></div>
-        <div class="sb-item"><span class="lbl">Referenztemp.</span><span class="val" id="solInfoRoomTemp">—</span></div>
+        <div class="sb-item">
+            <span class="lbl">Referenztemp. °C *</span>
+            <input type="text" inputmode="decimal" pattern="[0-9]*\.?[0-9]*" class="ctrl sb-edit" id="solInfoRoomTempInput" placeholder="fehlt noch">
+        </div>
+        <div class="sb-item">
+            <span class="lbl">Abfüller *</span>
+            <input type="text" class="ctrl sb-edit" id="solInfoOperatorInput" placeholder="fehlt noch">
+        </div>
         <div class="sb-item"><span class="lbl">Fühler</span><span class="val" id="solInfoSensor">—</span></div>
         <div class="sb-count">
             <span class="lbl">Flaschen erfasst</span>
@@ -174,7 +197,7 @@ body.kbd-open #solSigOverlay .modal-lg {
             <table class="sol-bottle-table">
                 <thead>
                     <tr>
-                        <th>Protokoll Nr.</th><th>Zeit</th><th>Flaschen-Code</th><th>IR-Temp</th><th>Status</th><th></th>
+                        <th>Protokoll Nr.</th><th>Zeit</th><th>Flaschen-Code</th><th>Sicht.</th><th>Restdr.</th><th>IR-Temp</th><th>Status</th><th></th>
                     </tr>
                 </thead>
                 <tbody id="solBottleTbody"></tbody>
@@ -192,6 +215,24 @@ body.kbd-open #solSigOverlay .modal-lg {
         </div>
         <div class="modal-body">
             <p id="solConfirmSummary" style="margin:0 0 14px"></p>
+            <p style="margin:0 0 8px;font-size:14px">Sichtprüfung aller Flaschen dieser Charge (Flasche/Ventil):</p>
+            <div class="sol-check-opts" id="solBottlesVisualChoice">
+                <div class="sol-check-opt ok" data-val="1" onclick="solSelectBottlesVisualCheck(1)">
+                    <i class="bi bi-check-circle-fill"></i> i.O.
+                </div>
+                <div class="sol-check-opt err" data-val="0" onclick="solSelectBottlesVisualCheck(0)">
+                    <i class="bi bi-x-circle-fill"></i> n.i.O.
+                </div>
+            </div>
+            <p style="margin:0 0 8px;font-size:14px">Restdruck aller Flaschen dieser Charge (über 3 bar):</p>
+            <div class="sol-check-opts" id="solBottlesPressureChoice">
+                <div class="sol-check-opt ok" data-val="1" onclick="solSelectBottlesPressureCheck(1)">
+                    <i class="bi bi-check-circle-fill"></i> i.O.
+                </div>
+                <div class="sol-check-opt err" data-val="0" onclick="solSelectBottlesPressureCheck(0)">
+                    <i class="bi bi-x-circle-fill"></i> n.i.O.
+                </div>
+            </div>
             <p style="margin:0 0 12px;font-size:14px">Bitte bestätigen: ist die Charge nach Vorschrift gelaufen?</p>
             <div class="ab-result-row" id="solProcessChoice">
                 <div class="sol-proc-opt ok" data-status="ordnungsgemaess" onclick="solSelectProcessStatus('ordnungsgemaess')">
@@ -293,8 +334,18 @@ body.kbd-open #solSigOverlay .modal-lg {
         }
         document.getElementById('solInfoChargeNr').textContent = charge.charge_nr;
         document.getElementById('solInfoStarted').textContent = fmtTime(charge.started_at);
-        document.getElementById('solInfoRoomTemp').textContent = (charge.room_temp != null ? charge.room_temp.toFixed(1) + ' °C' : '—');
         document.getElementById('solInfoSensor').textContent = charge.sensor_names || '—';
+        // Referenztemp./Abfueller sind editierbare Felder (koennen nach dem Barcode-Scan noch
+        // fehlen und werden dann in der laufenden Charge nachgetragen, s.u.) - Wert nicht
+        // ueberschreiben, waehrend der Bediener gerade darin tippt.
+        var roomTempInput = document.getElementById('solInfoRoomTempInput');
+        if (document.activeElement !== roomTempInput) {
+            roomTempInput.value = (charge.room_temp != null ? charge.room_temp : '');
+        }
+        var operatorInput = document.getElementById('solInfoOperatorInput');
+        if (document.activeElement !== operatorInput) {
+            operatorInput.value = charge.operator_name || '';
+        }
 
         var bottles = charge.bottles || [];
         var countEl = document.getElementById('solBottleCount');
@@ -310,6 +361,10 @@ body.kbd-open #solSigOverlay .modal-lg {
                 '<td>' + b.seq_nr + '</td>' +
                 '<td>' + fmtTime(b.scanned_at) + '</td>' +
                 '<td>' + b.scan_code + '</td>' +
+                '<td>' + ((b.visual_check_ok === true || b.visual_check_ok === 1) ? 'i.O.' :
+                    ((b.visual_check_ok === false || b.visual_check_ok === 0) ? 'n.i.O.' : '—')) + '</td>' +
+                '<td>' + ((b.residual_pressure_ok === true || b.residual_pressure_ok === 1) ? 'i.O.' :
+                    ((b.residual_pressure_ok === false || b.residual_pressure_ok === 0) ? 'n.i.O.' : '—')) + '</td>' +
                 '<td>' + (b.ir_temp != null ? b.ir_temp.toFixed(1) + ' °C' : '—') + '</td>' +
                 '<td>' + (b.is_nok
                     ? '<span class="badge fail"><span class="bdot"></span> NOK</span>'
@@ -329,7 +384,14 @@ body.kbd-open #solSigOverlay .modal-lg {
         }).catch(function() {});
     }
 
+    var autoStartInFlight = false;
+
+    // Chargen-Barcode scannen oeffnet die Charge SOFORT (User-Vorgabe 2026-07-09: "wenn ein
+    // Chargenbarcode empfangen wird und keine Charge offen ist, automatisch oeffnen") -
+    // Referenztemperatur/Abfueller sind dafuer NICHT mehr Pflicht, sondern werden danach in der
+    // bereits laufenden Charge nachgetragen (editierbare Felder in der Scan-Leiste, s.u.).
     window.solStartCharge = function() {
+        if (autoStartInFlight) return;
         var chargeNr = document.getElementById('solChargeNrInput').value.trim().toUpperCase();
         var roomTemp = document.getElementById('solRoomTempInput').value;
         var operatorName = document.getElementById('solOperatorInput').value.trim();
@@ -338,23 +400,75 @@ body.kbd-open #solSigOverlay .modal-lg {
             showToast('Ungültige Charge-Nr. "' + chargeNr + '" (erwartet: 18-stellig, z. B. G750010726X000547D)', 'error');
             return;
         }
-        if (roomTemp === '') { showToast('Referenztemperatur fehlt', 'error'); return; }
-        if (!operatorName) { showToast('Name des Abfüllers fehlt', 'error'); return; }
+        autoStartInFlight = true;
         fetch('/api/sol/charges', {
             method: 'POST', headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
-                charge_nr: chargeNr, room_temp: parseFloat(roomTemp),
+                charge_nr: chargeNr,
+                room_temp: roomTemp !== '' ? parseFloat(roomTemp) : null,
                 operator_name: operatorName,
                 sensor_names: document.getElementById('solSensorInput').value.trim(),
             })
         }).then(function(r) { return r.json(); }).then(function(d) {
+            autoStartInFlight = false;
             if (d.ok) { showToast('Charge ' + chargeNr + ' gestartet'); renderCharge(d.charge); }
             else showToast(d.error || 'Fehler', 'error');
-        }).catch(function() { showToast('Netzwerkfehler', 'error'); });
+        }).catch(function() { autoStartInFlight = false; showToast('Netzwerkfehler', 'error'); });
     };
 
-    // Pro Flasche: Barcode scannen, dann IR-Temp eingeben. Der Chargen-Barcode
-    // wird nur EINMAL beim Charge-Start gescannt (nicht pro Flasche).
+    document.getElementById('solChargeNrInput').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); window.solStartCharge(); }
+    });
+
+    // Referenztemperatur/Abfueller in der laufenden Charge nachtragen (Blur oder Enter speichert).
+    // Nach dem Speichern springt der Fokus automatisch zurueck ins Flaschen-Scan-Feld, damit der
+    // Bediener direkt weiter scannen kann, ohne extra hineinklicken zu muessen (User-Vorgabe
+    // 2026-07-09 - vorher blieb der Fokus im gerade verlassenen Referenztemp./Abfueller-Feld
+    // haengen, wodurch ein Flaschen-Scan dort landete statt im Scan-Feld).
+    function focusScanInputIfVisible() {
+        var scanInput = document.getElementById('solScanInput');
+        if (scanInput.style.display !== 'none') scanInput.focus();
+    }
+    function solSaveChargeField(payload) {
+        if (!currentCharge) return;
+        fetch('/api/sol/charges/' + currentCharge.id + '/update', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        }).then(function(r) { return r.json(); }).then(function(d) {
+            if (d.ok) { currentCharge = d.charge; focusScanInputIfVisible(); }
+            else showToast(d.error || 'Fehler', 'error');
+        }).catch(function() { showToast('Netzwerkfehler', 'error'); });
+    }
+    function saveRoomTempFromBar() {
+        var v = document.getElementById('solInfoRoomTempInput').value;
+        if (v !== '' && currentCharge && currentCharge.room_temp !== parseFloat(v)) {
+            solSaveChargeField({room_temp: parseFloat(v)});
+        } else {
+            focusScanInputIfVisible();
+        }
+    }
+    function saveOperatorFromBar() {
+        var v = document.getElementById('solInfoOperatorInput').value.trim();
+        if (v && currentCharge && currentCharge.operator_name !== v) {
+            solSaveChargeField({operator_name: v});
+        } else {
+            focusScanInputIfVisible();
+        }
+    }
+    document.getElementById('solInfoRoomTempInput').addEventListener('blur', saveRoomTempFromBar);
+    document.getElementById('solInfoRoomTempInput').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); this.blur(); }
+    });
+    document.getElementById('solInfoOperatorInput').addEventListener('blur', saveOperatorFromBar);
+    document.getElementById('solInfoOperatorInput').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); this.blur(); }
+    });
+
+    // Pro Flasche: Barcode scannen, dann IR-Temp (Platzhalter, s.u.). Der Chargen-Barcode wird
+    // nur EINMAL beim Charge-Start gescannt (nicht pro Flasche). Sichtpruefung wird NICHT mehr
+    // pro Flasche abgefragt, sondern als Sammel-Antwort fuer die ganze Charge beim Abschluss
+    // erfasst (User-Vorgabe 2026-07-09); Restdruck ist vorerst komplett ausgeklammert (Datenquelle
+    // noch offen, DB-Spalte bleibt bestehen fuer spaeter).
     var pendingScanCode = null;
     var lastAddedBottleId = null;
     var lastAddedScanCode = null;
@@ -472,10 +586,32 @@ body.kbd-open #solSigOverlay .modal-lg {
     // ── Abschluss Schritt 1: Bestaetigung ───────────────────────────────────
 
     var solProcessStatus = null;
+    // Sammel-Sichtpruefung + Sammel-Restdruck-Pruefung fuer ALLE Flaschen dieser Charge
+    // (2026-07-09, User-Vorgabe: nicht mehr pro Flasche beim Scannen, sondern einmal am Ende -
+    // wird beim Abschluss auf jede Flasche der Charge angewendet).
+    var solBottlesVisualOk = null;
+    var solBottlesPressureOk = null;
 
     function updateConfirmNextBtn() {
-        document.getElementById('solConfirmNextBtn').disabled = !solProcessStatus;
+        document.getElementById('solConfirmNextBtn').disabled =
+            !solProcessStatus || solBottlesVisualOk === null || solBottlesPressureOk === null;
     }
+
+    window.solSelectBottlesVisualCheck = function(val) {
+        solBottlesVisualOk = !!val;
+        document.querySelectorAll('#solBottlesVisualChoice .sol-check-opt').forEach(function(el) {
+            el.classList.toggle('selected', parseInt(el.getAttribute('data-val'), 10) === (val ? 1 : 0));
+        });
+        updateConfirmNextBtn();
+    };
+
+    window.solSelectBottlesPressureCheck = function(val) {
+        solBottlesPressureOk = !!val;
+        document.querySelectorAll('#solBottlesPressureChoice .sol-check-opt').forEach(function(el) {
+            el.classList.toggle('selected', parseInt(el.getAttribute('data-val'), 10) === (val ? 1 : 0));
+        });
+        updateConfirmNextBtn();
+    };
 
     window.solSelectProcessStatus = function(status) {
         solProcessStatus = status;
@@ -492,7 +628,9 @@ body.kbd-open #solSigOverlay .modal-lg {
             bottles.length + ' Flasche' + (bottles.length !== 1 ? 'n' : '') + ' erfasst' +
             (nokCount > 0 ? ', davon ' + nokCount + ' NOK' : '') + '.';
         solProcessStatus = null;
-        document.querySelectorAll('#solProcessChoice .sol-proc-opt').forEach(function(el) {
+        solBottlesVisualOk = null;
+        solBottlesPressureOk = null;
+        document.querySelectorAll('#solProcessChoice .sol-proc-opt, #solBottlesVisualChoice .sol-check-opt, #solBottlesPressureChoice .sol-check-opt').forEach(function(el) {
             el.classList.remove('selected');
         });
         document.getElementById('solConfirmNextBtn').disabled = true;
@@ -567,7 +705,11 @@ body.kbd-open #solSigOverlay .modal-lg {
         var dataUrl = document.getElementById('solSigCanvas').toDataURL('image/png');
         fetch('/api/sol/charges/' + currentCharge.id + '/close', {
             method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({confirmed: true, signature: dataUrl, process_status: solProcessStatus})
+            body: JSON.stringify({
+                confirmed: true, signature: dataUrl, process_status: solProcessStatus,
+                bottles_visual_check_ok: solBottlesVisualOk,
+                bottles_pressure_check_ok: solBottlesPressureOk
+            })
         }).then(function(r) { return r.json(); }).then(function(d) {
             if (!d.ok) { showToast(d.error || 'Fehler', 'error'); return; }
             document.getElementById('solSigOverlay').classList.remove('show');

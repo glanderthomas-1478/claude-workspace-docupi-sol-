@@ -207,6 +207,56 @@
 })();
 </script>
 
+<script>
+(function() {
+    // Globaler Chargen-Barcode-Scan im "Grundmodus" (2026-07-09, User-Vorgabe: "wenn ein
+    // Chargenbarcode empfangen wird und keine Charge offen ist, automatisch oeffnen"): der Kiosk
+    // zeigt im Leerlauf das Dashboard, nicht die Scan-Seite - ein Scan dort lief bisher komplett
+    // ins Leere, da die feld-spezifische Start-Logik nur auf /sol/scan existiert. Dieser Listener
+    // ist app-weit (base.html) aktiv, puffert Tastendruecke NUR solange kein Eingabefeld fokussiert
+    // ist (sonst greift die dortige eigene Logik, z.B. das Charge-Nr.-Feld auf der Scan-Seite
+    // selbst), und eroeffnet bei einem gueltigen Chargen-Barcode + Enter sofort eine neue Charge.
+    var SOL_CHARGE_NR_RE = /^[A-Z0-9]{3}\d{7}[A-Z]\d{5}[A-Z0-9][A-Z]$/;
+    var buffer = '';
+    var bufferTimer = null;
+
+    function isTextInputFocused() {
+        var el = document.activeElement;
+        if (!el) return false;
+        var tag = (el.tagName || '').toLowerCase();
+        return tag === 'input' || tag === 'textarea' || el.isContentEditable;
+    }
+
+    function resetBuffer() {
+        buffer = '';
+        clearTimeout(bufferTimer);
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (isTextInputFocused()) { resetBuffer(); return; }
+        if (e.key === 'Enter') {
+            var code = buffer.trim().toUpperCase();
+            resetBuffer();
+            if (!SOL_CHARGE_NR_RE.test(code)) return;
+            fetch('/api/sol/charges', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({charge_nr: code})
+            }).then(function(r) { return r.json(); }).then(function(d) {
+                if (d.ok) window.location.href = '/sol/scan';
+            }).catch(function() {});
+            return;
+        }
+        if (e.key.length === 1) {
+            buffer += e.key;
+            clearTimeout(bufferTimer);
+            // Scanner tippt sehr schnell hintereinander - eine laengere Pause deutet auf
+            // zufaellige/normale Tastatureingabe hin, dann Puffer verwerfen.
+            bufferTimer = setTimeout(resetBuffer, 300);
+        }
+    });
+})();
+</script>
+
 {% block extra_js %}{% endblock %}
 
 <!-- SocketIO -->

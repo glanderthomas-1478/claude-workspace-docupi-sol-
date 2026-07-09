@@ -117,7 +117,8 @@ def main():
 
     signature = make_signature_png()
     r = requests.post(f"{BASE}/api/sol/charges/{charge_id}/close",
-                       json={"confirmed": True, "signature": signature})
+                       json={"confirmed": True, "signature": signature, "process_status": "ordnungsgemaess",
+                             "bottles_visual_check_ok": True, "bottles_pressure_check_ok": True})
     r.raise_for_status()
     cd = r.json()
     if not cd.get("ok"):

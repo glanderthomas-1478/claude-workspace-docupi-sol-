@@ -27,7 +27,13 @@ sind neu.
 
 - Noch offen — Kunde, Betreiber, Vertriebsweg fuer SOL sind noch nicht festgelegt (im Unterschied
   zu DocuControl, das ueber getmatic als Whitelabel an die Uniklinik Essen vertrieben wird)
-- Regulatorischer Kontext (z.B. Druckgasflaschen-Vorschriften, Pruefpflichten) noch zu klaeren
+- **Regulatorischer Kontext geklaert (2026-07-09):** SOL Krefeld fuellt an diesem Standort
+  **medizinischen Sauerstoff** (Arzneimittel, nicht nur technisches Gas) — es gelten AMG/AMWHV +
+  EU-GMP-Anhang 6 "Herstellung medizinischer Gase". Scope-Klaerung mit dem User: DocuControl-SOL
+  dokumentiert bewusst **nur den Abfuellprozess selbst** (Barcode-Scan, Temperatur, Sichtpruefung,
+  Restdruck); die eigentliche GMP-Chargenfreigabe (Pruefung durch QM, danach durch die Apotheke)
+  laeuft nachgelagert ausserhalb dieses Systems. Details/Vergleich mit den vollstaendigen
+  GMP-Anforderungen: siehe CLAUDE.md-Eintrag vom 2026-07-09
 
 ### Hardware-Plattform
 

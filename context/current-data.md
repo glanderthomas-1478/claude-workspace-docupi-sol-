@@ -40,13 +40,21 @@
 1. **BTMETER-Thermometer physisch verfuegbar machen** und `python3 /home/docucontrol/ble_scan_thermometer.py` (Scan) → MAC identifizieren → mit MAC erneut aufrufen (GATT-Inspect, dabei am Geraet eine Messung ausloesen) → Rohdatenformat analysieren → Anbindungsmodul `src/docucontrol/ble_thermometer.py` schreiben, `sol_charge_scan.html` von automatischem Platzhalter auf echte Sensor-Uebernahme umstellen. **Dabei unbedingt den TEMPORÄREN 36°C-Platzhalter-Workaround wieder entfernen** (`TEMP_SENSOR_PLACEHOLDER_C` in `sol_charge_scan.html`, seit 2026-07-08 aktiv, siehe CLAUDE.md) und die Temperatur-Sensor-Erreichbarkeits-Ueberwachung (schon vorbereitet, aktuell mangels Anbindung dauerhaft im Alarmzustand) an die echte Verbindung anschliessen
 1b. **Testo 835-T1 physisch verfuegbar machen** und `python3 /home/docucontrol/usb_scan_thermometer.py` (Scan) → Vendor:Product-ID identifizieren → mit VID:PID erneut aufrufen (USB-Deskriptor-Inspect) → je nach gefundener USB-Klasse (CDC=gut, HID/Vendor-spezifisch=schwierig) entscheiden, ob eine Linux-native Anbindung realistisch ist
 2. ~~Inateck BCST-70 koppeln~~ — **ERLEDIGT (2026-07-08):** gekoppelt, Ueberwachung aktiv, Flaschen-
-   Code-Scan bestaetigt. Chargen-Nr.-Feld-Scan noch nicht separat mit echtem Scanner getestet
-   (Test-Barcode-Blaetter dafuer generiert, liegen als Artifacts vor)
+   Code-Scan bestaetigt. Chargen-Nr.-Feld-Scan jetzt ebenfalls bestaetigt (2026-07-09, ueber den
+   neuen globalen Grundmodus-Listener, siehe CLAUDE.md)
 3. Backup-Kopie des Keyfiles sichern (z.B. in `secrets/`-Ablage), falls beide Dongles verloren gehen
-4. Reale Nutzung mit SOL-Mitarbeitern testen (Temperatursensor noch offen, Barcode-Scanner jetzt einsatzbereit), Feedback zur Scan-Seite einholen
+4. **Reale Nutzung durch SOL-Mitarbeiter laeuft bereits** (2026-07-09 mehrfach live am Kiosk
+   beobachtet, echte Chargen mit Bediener "tg") — Temperatursensor weiterhin offen (36°C-Platzhalter
+   aktiv), Sichtpruefung/Restdruck jetzt als Sammel-Ja/Nein-Abfrage beim Abschluss ergaenzt. Feedback
+   zur neuen Sichtpruefung/Restdruck-Abfrage und zum automatischen Chargen-Start per Scan einholen
 5. Echter physischer Boot-Failover-Test der SD-Notfall-Karte (SSD abklemmen, pruefen ob SD-Karte sauber bootet)
-6. Test-/Simulationschargen vor dem produktiven Einsatz final bereinigen (Stand 2026-07-08 abends:
-   mehrere echte User-Testchargen sowie 3 Simulator-Chargen in der DB, noch nicht aufgeraeumt)
+6. Test-/Simulationschargen vor dem produktiven Einsatz final bereinigen (in der 2026-07-09-Session
+   mehrfach eigene Testchargen angelegt+wieder geloescht, dabei bewusst mehrere echte, parallel am
+   Kiosk laufende User-Chargen unangetastet gelassen — Gesamt-DB vor Produktivstart trotzdem einmal
+   sichten)
 7. Die separate, seit Sessionbeginn bestehende `reference/`/`outputs`-Reorganisation (~105 geaenderte
    Pfade, unabhaengig von der heutigen Arbeit) ist weiterhin uncommitted — mit dem User klaeren, ob/
    wann das als eigener Commit rein soll
+8. **Restdruck-Schwellwert (aktuell fest 3 bar, EU-GMP-Anhang 6 Ziffer 5.3.5) evtl. konfigurierbar
+   machen** (analog zu `temp_tolerance_c`), falls SOL einen anderen Wert vorgibt — bisher nur im Code
+   hinterlegt, keine Settings-UI dafuer

@@ -285,6 +285,17 @@ body.kbd-open #solSigOverlay .modal-lg {
 (function() {
     var currentCharge = null;
 
+    function updateCloseBtnState(charge, bottleCount) {
+        var closeBtn = document.getElementById('solCloseBtn');
+        var missingRoomTemp = charge.room_temp == null;
+        var missingOperator = !charge.operator_name;
+        closeBtn.disabled = bottleCount === 0 || missingRoomTemp || missingOperator;
+        closeBtn.title = missingRoomTemp && missingOperator
+            ? 'Referenztemperatur und Abfüller fehlen noch'
+            : (missingRoomTemp ? 'Referenztemperatur fehlt noch'
+                : (missingOperator ? 'Abfüller fehlt noch' : ''));
+    }
+
     function showToast(text, kind) {
         var t = document.getElementById('solToast');
         t.className = 'sol-toast' + (kind ? ' ' + kind : '');
@@ -372,7 +383,7 @@ body.kbd-open #solSigOverlay .modal-lg {
                 '<td><i class="bi bi-trash del-btn" onclick="solDeleteBottle(' + b.id + ')"></i></td>';
             tbody.appendChild(tr);
         });
-        document.getElementById('solCloseBtn').disabled = bottles.length === 0;
+        updateCloseBtnState(charge, bottles.length);
         if (document.getElementById('solScanInput').style.display !== 'none') {
             document.getElementById('solScanInput').focus();
         }
@@ -435,8 +446,11 @@ body.kbd-open #solSigOverlay .modal-lg {
             method: 'POST', headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(payload)
         }).then(function(r) { return r.json(); }).then(function(d) {
-            if (d.ok) { currentCharge = d.charge; focusScanInputIfVisible(); }
-            else showToast(d.error || 'Fehler', 'error');
+            if (d.ok) {
+                currentCharge = d.charge;
+                updateCloseBtnState(currentCharge, (currentCharge.bottles || []).length);
+                focusScanInputIfVisible();
+            } else showToast(d.error || 'Fehler', 'error');
         }).catch(function() { showToast('Netzwerkfehler', 'error'); });
     }
     function saveRoomTempFromBar() {

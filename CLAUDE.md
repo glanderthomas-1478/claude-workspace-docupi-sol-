@@ -52,13 +52,14 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
   noetig. Per `bluetoothctl` gekoppelt (MAC `AC:2B:00:26:4A:10`), Erreichbarkeits-Ueberwachung in
   den Einstellungen aktiv, echter Flaschen-Code-Scan vom User bestaetigt. Details siehe
   "Wichtiger Kontext" unten
-- **Temperatursensor: zwei Kandidaten in Vorbereitung**, Geraete-Entscheidung noch offen:
-  (1) BTMETER Infrarot-Thermometer mit Bluetooth (30:1 Dual-Laser-Pyrometer, -50..1500°C) —
-  Linux-native BLE-Anbindung erwartet, `scripts/ble_scan_thermometer.py` bereit.
-  (2) Testo 835-T1 (aus den echten SOL-Referenzfotos, Default in `sensor_names`) — **kein
-  Bluetooth**, nur USB, Live-Werte-Abfrage offiziell nur per Windows-only .NET-SDK, Linux-native
-  Anbindung nicht garantiert, `scripts/usb_scan_thermometer.py` bereit. Beide physischen Geraete
-  fuer die eigentliche Protokoll-Erfassung noch nicht verfuegbar — siehe "Wichtiger Kontext" unten
+- **Temperatursensor: BTMETER-Anbindung in laufender Reverse-Engineering-Arbeit** (Stand 2026-07-09):
+  physisches Geraet erstmals verfuegbar, GATT-Profil (MAC `01:B6:EC:FC:DA:E1`, Notify-Characteristic
+  `0000ffe2`) und Rohdaten-Paketformat groesstenteils entschluesselt, vorlaeufige lineare
+  Temperatur-Formel aus 2 Kalibrierpunkten abgeleitet — Verbindungsstabilitaet (bricht nach ~3-5s
+  von selbst ab) und weitere Kalibrierung stehen noch aus, bevor ein echtes Anbindungsmodul gebaut
+  werden kann. Details/naechste Schritte siehe "Wichtiger Kontext" unten. Testo 835-T1 (USB, kein
+  Bluetooth, `scripts/usb_scan_thermometer.py` bereit) bleibt als zweiter Kandidat in Reserve, falls
+  BTMETER sich nicht zuverlaessig anbinden laesst — physisches Geraet dafuer noch nicht verfuegbar
 - **Dokumentationsfelder:** Chargen-Barcode, Referenztemperatur, Abfueller-Name, pro Flasche
   Flaschen-Code + IR-Temp, Bestaetigung + digitale Unterschrift — vollstaendig implementiert und
   end-to-end getestet (siehe "Chargenseite umgebaut" unten). Fuelldruck bisher nicht erfasst,
@@ -150,6 +151,7 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
     ├── setup_kiosk_display.sh # Kiosk-Display-Setup (Referenzskript, gilt auch fuer SOL)
     ├── setup_luks_nvme.sh     # LUKS-Verschluesselung — Referenz, muss fuer SOL auf 2 USB-Dongle-Slots erweitert werden (bisher 1 Dongle + Backup-Passphrase)
     ├── ble_scan_thermometer.py  # NEU (2026-07-08): BLE-Diagnosewerkzeug (Scan + GATT-Inspect) fuer die BTMETER-Thermometer-Anbindung, laeuft auf dem Pi-Host (python3-bleak)
+    ├── ble_quick_notify.py     # NEU (2026-07-09): schlankes BLE-Diagnosewerkzeug fuer den BTMETER — verbindet ohne Pairing, abonniert sofort alle bekannten notify-UUIDs statt erst alle Services der Reihe nach zu lesen, mit automatischem Retry (Verbindung des Geraets haelt nur ~3-5s), laeuft auf dem Pi-Host
     ├── usb_scan_thermometer.py  # NEU (2026-07-08): USB-Diagnosewerkzeug (lsusb-Scan + Deskriptor-Inspect) fuer die Testo-835-T1-Anbindung, laeuft auf dem Pi-Host (python3-serial/python3-usb)
     ├── simulate_sol_charge.py  # NEU (2026-07-08): simuliert eine komplette SOL-Charge (Start bis PDF-Abschluss) realistischer Groessenordnung inkl. NOK-Faellen gegen die laufende Pi-App, fuer End-to-End-Tests
     └── saia_test_toolkit/     # Referenz: SAIA-S-Bus-Testtools (Herkunftsprojekt, fuer SOL nicht relevant)
@@ -703,6 +705,59 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
   `docker-compose.yml`). **Vor jedem Neustart** `curl http://192.168.0.172:5000/api/sol/charges/open`
   prüfen — mehrfach echte, gerade laufende User-Chargen am Kiosk vorgefunden und bewusst nicht
   gestört (auf Abschluss gewartet statt einfach neu zu starten).
+- **Referenztemperatur + Abfüller vor Chargen-Abschluss jetzt UI-seitig erzwungen** (2026-07-09,
+  User-Vorgabe): Backend (`api_sol_charge_close`) lehnte fehlende `room_temp`/`operator_name` schon
+  vorher mit 400 ab — der Bediener konnte aber bis zum Unterschriften-Schritt vordringen, bevor der
+  Fehler kam. `sol_charge_scan.html`: `solCloseBtn` ("Charge abschließen") ist jetzt zusätzlich zur
+  bisherigen Flaschen-Bedingung deaktiviert, solange `charge.room_temp`/`charge.operator_name`
+  fehlen (Tooltip nennt das fehlende Feld). Neue Hilfsfunktion `updateCloseBtnState()`.
+  **Bug gefunden+gefixt (im selben Zug):** Referenztemp./Abfüller lassen sich auch nachträglich in
+  der Scan-Leiste eintragen (`solInfoRoomTempInput`/`solInfoOperatorInput`, Speichern per
+  `solSaveChargeField()`) — dieser Pfad aktualisierte `currentCharge` zwar lokal, rief aber nie
+  `updateCloseBtnState()` erneut auf. Der Button blieb dadurch dauerhaft deaktiviert, auch nachdem
+  beide Felder ausgefüllt waren (neu berechnet wurde er bisher nur nach Flaschen-Scans/-Löschungen
+  über `loadOpenCharge()` → `renderCharge()`). User meldete das live ("nun kann die Charge nicht
+  mehr abgeschlossen werden"). Fix: `solSaveChargeField()` ruft nach erfolgreichem Speichern jetzt
+  ebenfalls `updateCloseBtnState()` auf. Deployed und mit dem User verifiziert ("funktioniert").
+- **BTMETER-Thermometer: erste Live-Reverse-Engineering-Session, GATT-Profil + Rohformat teilweise
+  entschlüsselt** (2026-07-09, physisches Gerät erstmals verfügbar): Per `scripts/ble_scan_thermometer.py`
+  gefunden — Gerät gibt sich als `AiLink_DAE1` aus, MAC `01:B6:EC:FC:DA:E1` ("AiLink" = Hersteller
+  günstiger BLE-Serial-Module, oft in Consumer-Messgeräten verbaut). Zwei Vendor-Services mit
+  klassischem UART-Notify-Profil: `0000ffe0`/`0000fee0`, jeweils mit write-Characteristic (fee1/ffe1)
+  und notify-Characteristics (fee2/fee3/ffe2/ffe3) — Daten kommen ausschließlich über `0000ffe2`.
+  **Verbindungsproblem gefunden:** `bleak`s `BleakClient.connect()` scheitert reproduzierbar mit
+  `"failed to discover services, device disconnected"` — das Gerät trennt die Verbindung nach nur
+  ~3-5s von sich aus (vermutlich aggressives Power-Saving, passt zum "180 Tage Standby"-Feature).
+  Ein reiner `bluetoothctl connect` (ohne Pairing) funktioniert dagegen zuverlässig und erreicht
+  `ServicesResolved: yes` in ~1s — `bluetoothctl pair` schlägt dagegen explizit fehl
+  (`ConnectionAttemptFailed`, das Gerät akzeptiert offenbar keine Security-Verhandlung). Neues
+  Diagnose-Skript `scripts/ble_quick_notify.py` (auch auf dem Pi unter
+  `/home/docucontrol/ble_quick_notify.py`): verbindet ohne Pairing, abonniert sofort alle bekannten
+  notify-UUIDs (überspringt das ausführliche Service-Auflisten von `ble_scan_thermometer.py`, das im
+  ~3-5s-Zeitfenster oft nicht mehr fertig wird) und retried den Connect mehrfach automatisch, da jeder
+  einzelne Verbindungsversuch ein Race gegen den Idle-Timeout des Geräts ist.
+  **Paketformat:** Zwei Notify-Pakettypen auf `0000ffe2`, ca. alle 350ms gesendet (kontinuierlicher
+  Live-Stream, kein Trigger am Gerät nötig): 13-Byte-Pakete (`a7 00 20 07 ea .. 02 33 48 de 1f .. 7a`,
+  wirken wie ein weitgehend konstantes Heartbeat/Status-Paket) und 17-Byte-Pakete
+  (`a7 00 20 0b e2 .. .. .. [T_lo] [T_hi] .. .. .. .. .. 7a`) — Byte-Paar an Index 9/10 (little-endian
+  16-Bit) korreliert mit der angezeigten IR-Zieltemperatur.
+  **Wichtige Erkenntnis beim Kalibrieren:** das Display zeigt offenbar den zuletzt *getriggerten*
+  Messwert eingefroren an ("Hold"), waehrend der BLE-Stream continuous die aktuell *live* anvisierte
+  Temperatur sendet — zwei Kalibrierpunkte ohne durchgehend gehaltenen Trigger (26,9°C/27°C) ergaben
+  dadurch widersprüchliche Rohwerte und wurden verworfen. Mit durchgehend gehaltenem Trigger
+  (28,6°C) plus dem ersten Punkt (33,8°C, der im Nachhinein als selbstkonsistent genug eingestuft
+  wurde) ergibt sich eine vorläufige lineare Formel: **`Temperatur_C ≈ (Rohwert16 − 57353) / 10,77`**
+  — an einer dritten, unkalibrierten "kalt"-Messung (Fenster) plausibilisiert (Formel sagt ~0,2°C
+  voraus). **Nur 2 belastbare Kalibrierpunkte, weit auseinanderliegendere Referenzwerte fehlen noch.**
+  **Offen fuer den Produktiveinsatz:**
+  1. Weitere Kalibrierpunkte (v.a. Richtung kalt <0°C und Richtung sehr warm, fuer den realistischen
+     Druckgasflaschen-Temperaturbereich) — Trigger dabei zwingend durchgehend halten
+  2. Verbindungsstabilität: `bleak`-Connect-Retry-Schleife alleine reicht fuer Produktivbetrieb nicht
+     — braucht noch eine echte Keep-Alive-/Reconnect-Strategie (Charge-Scan-Seite kann nicht alle
+     3-5s einen Verbindungsabbruch tolerieren)
+  3. Danach erst `src/docucontrol/ble_thermometer.py` schreiben und `sol_charge_scan.html` vom
+     36°C-Platzhalter (`TEMP_SENSOR_PLACEHOLDER_C`) auf echte Sensordaten umstellen
+  Naechster Schritt: weitere Live-Kalibrier-Session mit dem User, sobald wieder Zeit ist.
 
 ## Wiederverwendete Architektur aus DocuControl (Herkunftsprojekt)
 

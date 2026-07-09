@@ -15,8 +15,12 @@ selbst, Freigabe laeuft nachgelagert ueber QM/Apotheke. Auf dieser Basis Sichtpr
 Pruefung als weitere Sammel-NOK-Kriterien beim Chargen-Abschluss ergaenzt, Chargen-Start per
 Barcode-Scan funktioniert jetzt app-weit auch aus dem Kiosk-Grundmodus (Dashboard) heraus. **Echter
 Praxisbetrieb mit SOL-Mitarbeitern laeuft bereits** (mehrfach live beobachtet). Fokus jetzt:
-Temperatursensor beschaffen und anbinden (36°C-Platzhalter entfernen), laufendes Nutzer-Feedback
-zur Scan-Seite einholen.
+Temperatursensor anbinden (36°C-Platzhalter entfernen), laufendes Nutzer-Feedback zur Scan-Seite
+einholen. **BTMETER-Reverse-Engineering gestartet (2026-07-09):** physisches Geraet erstmals
+verfuegbar, GATT-Profil + Rohdaten-Paketformat groesstenteils entschluesselt, vorlaeufige
+Temperatur-Formel aus 2 Kalibrierpunkten. Offen: Verbindungsstabilitaet (Geraet trennt nach ~3-5s
+von selbst) und weitere Kalibrierung, bevor das echte Anbindungsmodul gebaut werden kann — siehe
+CLAUDE.md fuer Details.
 
 ## Strategische Prioritaeten
 

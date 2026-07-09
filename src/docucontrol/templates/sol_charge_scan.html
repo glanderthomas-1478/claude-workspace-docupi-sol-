@@ -42,6 +42,10 @@
 }
 #solScanInput { flex: 2; }
 #solTempInput { flex: 1; }
+#solMeasuringIndicator {
+    flex: 2; display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 600;
+    padding: 14px 18px; border: 2px dashed var(--border); border-radius: 10px; color: var(--muted);
+}
 
 /* Sichtpruefung-Auswahl (Sammel-Antwort fuer alle Flaschen der Charge beim Abschluss,
    siehe Abschluss-Overlay) - gleiches Muster wie .sol-proc-opt, eigener Klassenname noetig
@@ -179,6 +183,7 @@ body.kbd-open #solSigOverlay .modal-lg {
     <div class="sol-scan-input-row">
         <input type="text" class="ctrl" id="solScanInput" placeholder="Flaschen-Code scannen …" autocomplete="off">
         <input type="number" step="0.1" class="ctrl" id="solTempInput" placeholder="IR-Temp °C" autocomplete="off" style="display:none">
+        <span id="solMeasuringIndicator" style="display:none"><i class="bi bi-hourglass-split"></i> Temperatur wird gemessen … (Trigger am Thermometer gedrückt halten)</span>
     </div>
 
     <div class="sol-nok-bar" id="solNokBar">
@@ -498,6 +503,7 @@ body.kbd-open #solSigOverlay .modal-lg {
         pendingScanCode = null;
         document.getElementById('solTempInput').style.display = 'none';
         document.getElementById('solTempInput').value = '';
+        document.getElementById('solMeasuringIndicator').style.display = 'none';
         var scanInput = document.getElementById('solScanInput');
         scanInput.style.display = '';
         scanInput.value = '';
@@ -507,12 +513,6 @@ body.kbd-open #solSigOverlay .modal-lg {
     function hideNokBar() {
         document.getElementById('solNokBar').style.display = 'none';
     }
-
-    // TEMPORAER (User-Vorgabe 2026-07-08, gilt bis der Temperatursensor angebunden ist -
-    // siehe CLAUDE.md "naechste Schritte"): ohne Sensor gibt es keine echte IR-Temp-Messung,
-    // daher wird nach jedem Flaschen-Code-Scan automatisch dieser Platzhalterwert uebernommen
-    // statt eine manuelle Eingabe zu verlangen. WIEDER ENTFERNEN, sobald ein Sensor da ist.
-    var TEMP_SENSOR_PLACEHOLDER_C = 36;
 
     function scanInputHandler(e) {
         if (e.key !== 'Enter') return;
@@ -526,7 +526,44 @@ body.kbd-open #solSigOverlay .modal-lg {
         }
         hideNokBar();
         document.getElementById('solScanInput').value = '';
-        submitMeasurement(code, TEMP_SENSOR_PLACEHOLDER_C);
+        measureAndSubmit(code);
+    }
+
+    // Nach dem Flaschen-Code-Scan wird die IR-Temp per BLE-Thermometer (BTMETER, siehe
+    // ble_thermometer.py / CLAUDE.md) automatisch gemessen - das Geraet braucht dafuer ein
+    // paar Sekunden (mehrere Verbindungsversuche, da es die Verbindung von selbst nach ~3-5s
+    // wieder trennt). Schlaegt die Messung fehl (Geraet ausser Reichweite/eingeschlafen), faellt
+    // die Seite auf manuelle Eingabe zurueck statt den Scan-Vorgang zu blockieren.
+    function measureAndSubmit(code) {
+        document.getElementById('solScanInput').style.display = 'none';
+        var indicator = document.getElementById('solMeasuringIndicator');
+        indicator.style.display = '';
+        fetch('/api/sol/temp-sensor/measure', {method: 'POST'})
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                indicator.style.display = 'none';
+                if (d.ok) {
+                    submitMeasurement(code, d.temp);
+                } else {
+                    playErrorTone();
+                    showToast('Temperaturmessung fehlgeschlagen (' + (d.error || 'unbekannter Fehler') +
+                        ') — bitte manuell eingeben', 'error');
+                    fallbackToManualTemp(code);
+                }
+            })
+            .catch(function() {
+                indicator.style.display = 'none';
+                showToast('Netzwerkfehler bei Temperaturmessung — bitte manuell eingeben', 'error');
+                fallbackToManualTemp(code);
+            });
+    }
+
+    function fallbackToManualTemp(code) {
+        pendingScanCode = code;
+        var tempInput = document.getElementById('solTempInput');
+        tempInput.style.display = '';
+        tempInput.value = '';
+        tempInput.focus();
     }
 
     function submitMeasurement(scanCode, tempVal) {

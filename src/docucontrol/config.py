@@ -53,7 +53,8 @@ DEFAULT_CONFIG = {
         "rows_per_page": 18,
         "scanner_bt_mac": "",
         "scanner_enabled": True,
-        "temp_sensor_enabled": True
+        "temp_sensor_enabled": True,
+        "temp_sensor_bt_mac": "01:B6:EC:FC:DA:E1"
     }
 }
 

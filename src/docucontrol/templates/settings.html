@@ -98,12 +98,22 @@
                 <div class="set-row">
                     <div class="info">
                         <div class="name">Temperatur-Sensor</div>
-                        <div class="desc">Erreichbarkeits-Überwachung — technisch noch nicht angebunden (aktuell manuelle IR-Temp-Eingabe), folgt mit der Sensor-Integration. Bei Bedarf hier abschalten, um ohne Service-Techniker weiterarbeiten zu können.</div>
+                        <div class="desc">BTMETER-Thermometer (Bluetooth). Bei Bedarf hier abschalten, um ohne Service-Techniker weiterarbeiten zu können (z.B. wenn das Gerät defekt/nicht verfügbar ist).</div>
                     </div>
                     <label class="switch" data-always-enabled="1">
                         <input type="checkbox" id="solTempSensorEnabledToggle" data-always-enabled="1" onchange="saveDeviceToggle()">
                         <span class="track"></span>
                     </label>
+                </div>
+                <div class="set-row">
+                    <div class="info">
+                        <div class="name">Temperatur-Sensor Bluetooth-MAC</div>
+                        <div class="desc">MAC-Adresse des gekoppelten BTMETER-Thermometers. Leer = Messung schlägt fehl, Bediener muss manuell eingeben.</div>
+                    </div>
+                    <div style="display:flex;gap:6px;align-items:center">
+                        <input type="text" class="ctrl" id="solTempSensorMacInput" style="width:180px" maxlength="17" placeholder="XX:XX:XX:XX:XX:XX">
+                        <button class="btn btn-outline" onclick="saveSolConfig()"><i class="bi bi-check-lg"></i> Setzen</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -599,6 +609,7 @@
                 document.getElementById('solScannerMacInput').value = d.scanner_bt_mac || '';
                 document.getElementById('solScannerEnabledToggle').checked = d.scanner_enabled !== false;
                 document.getElementById('solTempSensorEnabledToggle').checked = d.temp_sensor_enabled !== false;
+                document.getElementById('solTempSensorMacInput').value = d.temp_sensor_bt_mac || '';
             }).catch(function() {});
     }
 
@@ -614,6 +625,7 @@
                 scanner_bt_mac: document.getElementById('solScannerMacInput').value.trim(),
                 scanner_enabled: document.getElementById('solScannerEnabledToggle').checked,
                 temp_sensor_enabled: document.getElementById('solTempSensorEnabledToggle').checked,
+                temp_sensor_bt_mac: document.getElementById('solTempSensorMacInput').value.trim(),
             })
         }).then(function(r) { return r.json(); })
           .then(function(d) {

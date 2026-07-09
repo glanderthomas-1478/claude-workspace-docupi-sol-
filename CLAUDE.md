@@ -52,14 +52,16 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
   noetig. Per `bluetoothctl` gekoppelt (MAC `AC:2B:00:26:4A:10`), Erreichbarkeits-Ueberwachung in
   den Einstellungen aktiv, echter Flaschen-Code-Scan vom User bestaetigt. Details siehe
   "Wichtiger Kontext" unten
-- **Temperatursensor: BTMETER-Anbindung in laufender Reverse-Engineering-Arbeit** (Stand 2026-07-09):
-  physisches Geraet erstmals verfuegbar, GATT-Profil (MAC `01:B6:EC:FC:DA:E1`, Notify-Characteristic
-  `0000ffe2`) und Rohdaten-Paketformat groesstenteils entschluesselt, vorlaeufige lineare
-  Temperatur-Formel aus 2 Kalibrierpunkten abgeleitet — Verbindungsstabilitaet (bricht nach ~3-5s
-  von selbst ab) und weitere Kalibrierung stehen noch aus, bevor ein echtes Anbindungsmodul gebaut
-  werden kann. Details/naechste Schritte siehe "Wichtiger Kontext" unten. Testo 835-T1 (USB, kein
-  Bluetooth, `scripts/usb_scan_thermometer.py` bereit) bleibt als zweiter Kandidat in Reserve, falls
-  BTMETER sich nicht zuverlaessig anbinden laesst — physisches Geraet dafuer noch nicht verfuegbar
+- **Temperatursensor: BTMETER-Anbindung gebaut, End-to-End-Test mit echtem Geraet noch offen**
+  (Stand 2026-07-09): `src/docucontrol/ble_thermometer.py` liest per `bleak` echte Werte vom
+  BTMETER (MAC `01:B6:EC:FC:DA:E1`), `sol_charge_scan.html` ruft das nach jedem Flaschen-Scan auf
+  (36°C-Platzhalter komplett entfernt), faellt bei Fehlschlag auf manuelle Eingabe zurueck.
+  **Wichtige Einschraenkungen, die vor dem Praxiseinsatz noch geloest werden sollten:**
+  Verbindungsstabilitaet (Geraet trennt nach ~3-5s von selbst, Retry-Schleife kompensiert das nur
+  teilweise) und die Kalibrierformel (bislang nur 2 grobe Referenzpunkte). Ein echter Test mit dem
+  physischen Geraet in Reichweite stand am Ende der Session noch aus. Details siehe "Wichtiger
+  Kontext" unten. Testo 835-T1 (USB, kein Bluetooth, `scripts/usb_scan_thermometer.py` bereit)
+  bleibt als zweiter Kandidat in Reserve, falls BTMETER sich nicht zuverlaessig anbinden laesst
 - **Dokumentationsfelder:** Chargen-Barcode, Referenztemperatur, Abfueller-Name, pro Flasche
   Flaschen-Code + IR-Temp, Bestaetigung + digitale Unterschrift — vollstaendig implementiert und
   end-to-end getestet (siehe "Chargenseite umgebaut" unten). Fuelldruck bisher nicht erfasst,
@@ -101,6 +103,7 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
 │       ├── config.py              # load_config/save_config (config.json), inkl. neuer "sol"-Sektion (Sensor-Namen, Toleranz, Warnschwelle, Standort-Kuerzel)
 │       ├── database.py            # SQLite-Layer: protocols/charge_forms (Sterilisator-Referenz) + neue sol_charges/sol_bottles-Tabellen (Flaschen-Scan, 2026-07-07)
 │       ├── sol_pdf_generator.py   # NEU (2026-07-07): PDF-Generator Temperaturprotokoll (Struktur wie IF.103A), DejaVu-Sans-Unicode-Font
+│       ├── ble_thermometer.py     # NEU (2026-07-09): BLE-Anbindung BTMETER-Thermometer (bleak), liest echte IR-Temp fuer /api/sol/temp-sensor/measure — Verbindungsstabilitaet + Kalibrierformel noch nicht final, siehe "Wichtiger Kontext"
 │       ├── network_manager.py     # Hotspot/LAN/Multi-Interface/Hostname/NTP/RTC/nftables
 │       ├── network_storage_manager.py  # SMB/CIFS-Netzwerkfreigabe: Mount, Verbindungstest, Auto-Sync (PDFs + Captures)
 │       ├── print_manager.py       # Drucker-Management (CUPS, pycups)
@@ -758,6 +761,53 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
   3. Danach erst `src/docucontrol/ble_thermometer.py` schreiben und `sol_charge_scan.html` vom
      36°C-Platzhalter (`TEMP_SENSOR_PLACEHOLDER_C`) auf echte Sensordaten umstellen
   Naechster Schritt: weitere Live-Kalibrier-Session mit dem User, sobald wieder Zeit ist.
+- **BTMETER-Anbindung produktiv gebaut, End-to-End-Test mit echtem Geraet noch offen**
+  (2026-07-09, spaeter am selben Tag, User-Vorgabe "baue jetzt die Temperaturmessung nach dem Scan
+  jeder Flasche ein, reale Temperaturdaten" — trotz der oben dokumentierten offenen Punkte
+  bewusst direkt umgesetzt statt weiter nur zu kalibrieren):
+  - Neues Modul `src/docucontrol/ble_thermometer.py`: `read_temperature(mac)` verbindet per
+    `bleak` (synchroner Wrapper um `asyncio.run()`, damit es aus einer normalen Flask-Route
+    aufrufbar ist), abonniert `0000ffe2`, parst das erste gueltige 17-Byte-Paket
+    (Formaterkennung: `data[0]==0xA7, data[2]==0x20, data[3]==0x0B, data[-1]==0x7A`) und wendet
+    die vorlaeufige Kalibrierformel an. Retried bis zu 5x (`connect_timeout=2.5s`,
+    `notify_timeout=2.0s`, ca. 22s worst case), da jeder Verbindungsversuch ein Race gegen den
+    Idle-Timeout des Geraets ist (siehe oben).
+  - `bleak==0.22.3` zu `requirements.txt` ergaenzt (Image-Rebuild noetig, nicht nur Neustart -
+    `docker compose build` dauerte auf dem Pi ca. 7 Minuten, v.a. wegen matplotlib/numpy-Kompilierung
+    fuer aarch64). **Wichtige Erkenntnis:** der Docucontrol-Container hat bereits alles Noetige fuer
+    BLE (`network_mode: host`, `/var/run/dbus`-Mount, `privileged: true`, `bluez`-Paket im
+    Dockerfile — urspruenglich fuer die Scanner-Ueberwachung eingerichtet) — `bleak` funktioniert
+    darin unveraendert genauso wie vorher auf dem Pi-Host direkt, keine Docker-Anpassung noetig
+    ausser dem neuen pip-Paket. Per Live-Test bestaetigt: `POST /api/sol/temp-sensor/measure` ohne
+    Geraet in Reichweite liefert sauber `{"ok":false,"error":"Device with address ... was not
+    found."}` nach ~12s statt zu haengen/crashen.
+  - Neue Config-Werte `sol.temp_sensor_bt_mac` (Default direkt auf die bekannte Geraete-MAC
+    `01:B6:EC:FC:DA:E1` vorbelegt) und neues MAC-Eingabefeld in Einstellungen → Externe Geraete
+    (analog zum Scanner-MAC-Feld), per `/api/sol/config` speicherbar (hinter Service-Dongle, wie
+    die Scanner-MAC).
+  - Neue, NICHT gesperrte Route `POST /api/sol/temp-sensor/measure` (Kernaufgabe des Geraets,
+    gleiches Muster wie die uebrigen `/api/sol/charges*`-Routen) — liefert `{ok:true, temp:23.4}`
+    oder `{ok:false, error:"..."}`.
+  - `sol_charge_scan.html`: der `TEMP_SENSOR_PLACEHOLDER_C`-Workaround ist komplett entfernt. Nach
+    einem gueltigen Flaschen-Code-Scan ruft `measureAndSubmit()` jetzt die neue Route auf, zeigt
+    waehrenddessen einen "Temperatur wird gemessen … (Trigger am Thermometer gedrückt halten)"-
+    Hinweis (`#solMeasuringIndicator`, ersetzt das Scan-Eingabefeld temporaer). **Fallback bei
+    Fehlschlag:** die Seite blockiert den Scan-Vorgang nicht, sondern faellt automatisch auf das
+    bestehende manuelle IR-Temp-Eingabefeld zurueck (`fallbackToManualTemp()`, wiederverwendet den
+    schon vorhandenen `solTempInput`-Pfad von "Nochmal messen") — wichtig, da die Verbindungsstabilitaet
+    weiterhin ungeloest ist und ein Bediener nicht wegen eines schlafenden Sensors haengen bleiben
+    darf.
+  - Beim Testen entdeckt: `sol.temp_sensor_enabled` stand auf `false` (vermutlich vom User selbst
+    zuvor abgeschaltet, um den zuvor besprochenen Dauer-Alarm loszuwerden, s.o.) — ueber
+    `/api/sol/device-toggle` wieder aktiviert, da die Messung sonst mit
+    "Temperatursensor ist in den Einstellungen deaktiviert" abgelehnt wird.
+  - **Bislang NICHT verifiziert:** eine echte Messung mit dem physischen BTMETER in Reichweite
+    waehrend die App laeuft — Session endete, bevor das Geraet wieder eingeschaltet/in Reichweite
+    war. **Naechster Schritt (zwingend vor Praxiseinsatz):** mit echtem Geraet durchtesten (Trigger
+    gedrueckt halten, siehe Display-Hold-Hinweis oben), dabei besonders auf die
+    Verbindungsinstabilitaet und die noch grobe Kalibrierformel achten — ggf. muss die Formel nach
+    mehr Referenzmessungen im Betrieb nachjustiert werden (`_CAL_OFFSET`/`_CAL_SCALE` in
+    `ble_thermometer.py`)
 
 ## Wiederverwendete Architektur aus DocuControl (Herkunftsprojekt)
 

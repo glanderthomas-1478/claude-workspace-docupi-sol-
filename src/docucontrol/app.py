@@ -14,6 +14,7 @@ from database import (get_protocols, get_protocol_count, get_today_count, get_sy
     list_sol_charges, count_sol_charges, get_sol_charges_stats,
     get_sol_charge_pdf_path, delete_sol_charge)
 from sol_pdf_generator import generate_sol_pdf
+import ble_thermometer
 from serial_receiver import SerialReceiver
 from network_manager import (load_network_config, save_network_config,
     start_hotspot, stop_hotspot, update_hotspot_config, get_hotspot_status,
@@ -2528,11 +2529,28 @@ def api_sol_device_status():
     scanner = {'enabled': scanner_enabled, 'configured': bool(mac), 'connected': None}
     if scanner_enabled and mac:
         scanner['connected'] = _bluetooth_device_connected(mac)
-    # Temperatur-Sensor hat noch keine digitale Anbindung (manuelle IR-Temp-Eingabe) -
-    # kann daher noch nicht auf Erreichbarkeit ueberwacht werden, nur der Ein/Aus-Schalter
-    # existiert schon fuer die spaetere Sensor-Integration.
-    temp_sensor = {'enabled': cfg.get('temp_sensor_enabled', True), 'configured': False, 'connected': None}
+    # Temperatur-Sensor (BTMETER, BLE) wird nur waehrend einer aktiven Messung kurz
+    # verbunden (Geraet trennt sonst von selbst nach ein paar Sekunden) - ein passiver
+    # bluetoothctl-Status waere hier fast immer "nicht verbunden" und daher nicht
+    # aussagekraeftig. Nur der Ein/Aus-Schalter + ob eine MAC hinterlegt ist.
+    temp_mac = (cfg.get('temp_sensor_bt_mac') or '').strip()
+    temp_sensor = {'enabled': cfg.get('temp_sensor_enabled', True), 'configured': bool(temp_mac), 'connected': None}
     return jsonify({'scanner': scanner, 'temp_sensor': temp_sensor})
+
+
+@app.route('/api/sol/temp-sensor/measure', methods=['POST'])
+def api_sol_temp_sensor_measure():
+    # Bewusst NICHT hinter _require_service(): die Temperaturmessung ist Teil des
+    # taeglichen Scan-Ablaufs (analog zu den uebrigen /api/sol/charges*-Routen), kein
+    # Service-Vorgang.
+    cfg = load_config().get('sol', {})
+    if not cfg.get('temp_sensor_enabled', True):
+        return jsonify({'ok': False, 'error': 'Temperatursensor ist in den Einstellungen deaktiviert'}), 400
+    mac = (cfg.get('temp_sensor_bt_mac') or '').strip()
+    temp_c, error = ble_thermometer.read_temperature(mac)
+    if temp_c is None:
+        return jsonify({'ok': False, 'error': error or 'Messung fehlgeschlagen'}), 502
+    return jsonify({'ok': True, 'temp': temp_c})
 
 
 @app.route('/api/sol/charges/open')
@@ -2866,6 +2884,11 @@ def api_sol_config_save():
         if mac and not re.match(r'^([0-9A-F]{2}:){5}[0-9A-F]{2}$', mac):
             return jsonify({'ok': False, 'error': 'Ungültige Bluetooth-MAC-Adresse (Format XX:XX:XX:XX:XX:XX)'}), 400
         sol_cfg['scanner_bt_mac'] = mac
+    if 'temp_sensor_bt_mac' in data:
+        mac = str(data['temp_sensor_bt_mac']).strip().upper()
+        if mac and not re.match(r'^([0-9A-F]{2}:){5}[0-9A-F]{2}$', mac):
+            return jsonify({'ok': False, 'error': 'Ungültige Bluetooth-MAC-Adresse (Format XX:XX:XX:XX:XX:XX)'}), 400
+        sol_cfg['temp_sensor_bt_mac'] = mac
     if 'scanner_enabled' in data:
         sol_cfg['scanner_enabled'] = bool(data['scanner_enabled'])
     if 'temp_sensor_enabled' in data:

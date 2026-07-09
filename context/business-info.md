@@ -45,5 +45,5 @@ sind neu.
 - Barcode-Scanner: **Gekoppelt und einsatzbereit (2026-07-08)** — Inateck BCST-70 (Bluetooth-HID),
   per `bluetoothctl` gekoppelt (`AC:2B:00:26:4A:10`), Erreichbarkeits-Ueberwachung aktiv, echter
   Flaschen-Code-Scan vom User bestaetigt
-- Temperatursensor: **zwei Kandidaten in Vorbereitung** (BTMETER Bluetooth-IR-Thermometer,
-  Testo 835-T1 USB), finale Geraete-Entscheidung noch offen — siehe CLAUDE.md
+- Temperatursensor: **BTMETER Bluetooth-IR-Thermometer, Anbindung gebaut (2026-07-09)** — echter
+  Test mit physischem Geraet + Feinkalibrierung noch offen, siehe CLAUDE.md

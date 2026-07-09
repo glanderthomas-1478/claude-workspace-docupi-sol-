@@ -37,19 +37,17 @@
 
 ## Naechste konkrete Schritte
 
-1. **BTMETER-Thermometer: Reverse-Engineering laeuft (Stand 2026-07-09).** Erste Live-Session mit
-   physischem Geraet: MAC `01:B6:EC:FC:DA:E1`, GATT-Profil + Rohdaten-Paketformat (Notify auf
-   `0000ffe2`) groesstenteils entschluesselt, vorlaeufige Temperatur-Formel aus 2 Kalibrierpunkten
-   abgeleitet (`scripts/ble_quick_notify.py` als schlankes Diagnosewerkzeug). **Noch offen:**
-   (a) Verbindungsstabilitaet — Geraet trennt nach ~3-5s von selbst, braucht Keep-Alive-/Reconnect-
-   Strategie fuer Produktivbetrieb; (b) weitere, breiter gestreute Kalibrierpunkte fuer eine
-   verlaessliche Formel. Details siehe CLAUDE.md. Erst danach: Anbindungsmodul
-   `src/docucontrol/ble_thermometer.py` schreiben, `sol_charge_scan.html` von automatischem
-   Platzhalter auf echte Sensor-Uebernahme umstellen. **Dabei unbedingt den TEMPORÄREN 36°C-
-   Platzhalter-Workaround wieder entfernen** (`TEMP_SENSOR_PLACEHOLDER_C` in `sol_charge_scan.html`,
-   seit 2026-07-08 aktiv, siehe CLAUDE.md) und die Temperatur-Sensor-Erreichbarkeits-Ueberwachung
-   (schon vorbereitet, aktuell mangels Anbindung dauerhaft im Alarmzustand) an die echte Verbindung
-   anschliessen
+1. **BTMETER-Thermometer: Anbindung gebaut, echter Test mit Geraet noch offen (Stand 2026-07-09,
+   Abend).** `src/docucontrol/ble_thermometer.py` (bleak) + neue Route
+   `POST /api/sol/temp-sensor/measure` + `sol_charge_scan.html` ruft das nach jedem Flaschen-Scan
+   auf (36°C-Platzhalter `TEMP_SENSOR_PLACEHOLDER_C` ist entfernt), faellt bei Fehlschlag auf
+   manuelle Eingabe zurueck. Deployed + Docker-Image neu gebaut (bleak-Dependency). Ohne Geraet in
+   Reichweite liefert der Endpunkt sauber einen Fehler statt zu haengen — **aber eine echte Messung
+   mit dem physischen BTMETER wurde in dieser Session nicht mehr verifiziert** (Session endete,
+   bevor das Geraet wieder verfuegbar war). **Naechster Schritt: unbedingt zuerst mit echtem Geraet
+   durchtesten**, dabei auf die weiterhin ungeloeste Verbindungsinstabilitaet (~3-5s) und die nur
+   grob kalibrierte Formel achten (`_CAL_OFFSET`/`_CAL_SCALE` in `ble_thermometer.py`, ggf.
+   nachjustieren). Details siehe CLAUDE.md.
 1b. **Testo 835-T1 physisch verfuegbar machen** und `python3 /home/docucontrol/usb_scan_thermometer.py` (Scan) → Vendor:Product-ID identifizieren → mit VID:PID erneut aufrufen (USB-Deskriptor-Inspect) → je nach gefundener USB-Klasse (CDC=gut, HID/Vendor-spezifisch=schwierig) entscheiden, ob eine Linux-native Anbindung realistisch ist
 2. ~~Inateck BCST-70 koppeln~~ — **ERLEDIGT (2026-07-08):** gekoppelt, Ueberwachung aktiv, Flaschen-
    Code-Scan bestaetigt. Chargen-Nr.-Feld-Scan jetzt ebenfalls bestaetigt (2026-07-09, ueber den

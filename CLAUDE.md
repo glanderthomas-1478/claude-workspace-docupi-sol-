@@ -808,6 +808,39 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
     Verbindungsinstabilitaet und die noch grobe Kalibrierformel achten — ggf. muss die Formel nach
     mehr Referenzmessungen im Betrieb nachjustiert werden (`_CAL_OFFSET`/`_CAL_SCALE` in
     `ble_thermometer.py`)
+- **BTMETER: Kiosk-Tastatur-Fix, BLE-Hintergrundverbindung statt Pro-Messung-Connect, erster
+  erfolgreicher Live-Test mit echtem Geraet** (2026-07-10): drei Nutzer-Feedback-Runden am selben
+  Tag, jeweils per SSH+Dongle live auf dem Pi debuggt.
+  1. **Kiosk-Bildschirmtastatur ploppte nach jeder Messung auf** und verdeckte das Ergebnis: der
+     globale Fokus-Handler in `base.html` (`kbdShow`, zeigt bei JEDEM Input-Fokus die Kiosk-
+     Soft-Keyboard) reagierte auch auf das automatische Re-Fokussieren von `solScanInput` nach
+     jeder Messung — das Feld wird aber nur vom Bluetooth-HID-Scanner befuellt, nie manuell
+     getippt. Fix: neues Attribut `data-no-kbd="1"`, `focusin`-Listener in `base.html` ueberspringt
+     Felder damit.
+  2. **Messung dauerte zu lange** (Nutzer-Meldung): `read_temperature()` verband bei JEDER
+     Messung neu (Log zeigte bis zu 5 Verbindungsversuche a 4,5s = bis zu 22s). Neues Modell in
+     `ble_thermometer.py`: `start_background()`/`stop_background()` halten waehrend einer offenen
+     Charge dauerhaft eine Verbindung (reconnected sofort selbst, wenn das Geraet sich trennt),
+     `measure_with_background()` liest nur noch aus dem so gefuellten Cache. Gekoppelt an den
+     Chargen-Lebenszyklus (Start/Close/Config-Save/Device-Toggle/App-Neustart mit noch offener
+     Charge) ueber neue zentrale Funktion `_sol_sync_temp_sensor_background()` in `app.py`.
+  3. **Danach: Werte kamen ohne Trigger-Druck sofort rein** (Nutzer-Meldung) — der Cache lieferte
+     sofort einen ggf. schon VOR dem Scan vorhandenen Wert zurueck, der Techniker hatte keine Zeit
+     zum Anvisieren/Truggern. Fix: `measure_with_background()` verwirft jetzt explizit alles, was
+     schon vor dem Aufruf im Cache lag, und wartet mindestens `min_hold=2.0s` auf einen NEU
+     eingetroffenen Wert (bis zu `wait_max=6.0s` Sicherheitsmarge fuer eine gerade neu aufbauende
+     Verbindung).
+  4. **Erster erfolgreicher Live-Test mit echtem Geraet** (per Live-SSH-Log-Monitoring waehrend
+     der User scannte): Charge (id=133, `G750010726X000547D`) mit **22 Flaschen, 0 NOK, Ablauf
+     "ordnungsgemaess"** komplett durchgezogen und PDF erzeugt. 21 Messungen liefen direkt
+     hintereinander durch (~3-4s Takt), ein Verbindungsabbruch (~30s Ausfall, mehrere Reconnect-
+     Fehlversuche "Device ... was not found"/"failed to discover services, device disconnected")
+     hat sich von selbst wieder erholt, ohne die Charge zu blockieren. **Verbindungsinstabilitaet
+     des Geraets selbst besteht also weiterhin** (schlaeft zwischendurch ein), wird aber jetzt vom
+     automatischen Reconnect-Loop zuverlaessig abgefangen statt den Scan-Vorgang zum Stillstand zu
+     bringen. Kalibrierformel (`_CAL_OFFSET`/`_CAL_SCALE`) noch unveraendert aus der ersten
+     Kalibrier-Session (2026-07-09) — echte Genauigkeit der 22 Messwerte nicht separat
+     gegengeprueft, nur Ablauf/Stabilitaet
 
 ## Wiederverwendete Architektur aus DocuControl (Herkunftsprojekt)
 

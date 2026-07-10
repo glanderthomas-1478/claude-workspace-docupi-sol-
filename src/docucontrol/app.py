@@ -2538,6 +2538,20 @@ def api_sol_device_status():
     return jsonify({'scanner': scanner, 'temp_sensor': temp_sensor})
 
 
+def _sol_sync_temp_sensor_background():
+    """Startet/stoppt die BLE-Hintergrundverbindung zum Thermometer passend zum aktuellen
+    Zustand (offene Charge + Einstellungen) - zentrale Stelle, damit Charge-Start/-Abschluss,
+    Einstellungsaenderungen und ein App-Neustart (offene Charge nach docker-restart) sich nicht
+    widersprechen koennen. Haelt die Verbindung nur waehrend einer offenen Charge aufrecht
+    (Geraet ist batteriebetrieben, kein Dauerbetrieb noetig)."""
+    cfg = load_config().get('sol', {})
+    mac = (cfg.get('temp_sensor_bt_mac') or '').strip()
+    if cfg.get('temp_sensor_enabled', True) and mac and get_open_sol_charge():
+        ble_thermometer.start_background(mac)
+    else:
+        ble_thermometer.stop_background()
+
+
 @app.route('/api/sol/temp-sensor/measure', methods=['POST'])
 def api_sol_temp_sensor_measure():
     # Bewusst NICHT hinter _require_service(): die Temperaturmessung ist Teil des
@@ -2547,7 +2561,11 @@ def api_sol_temp_sensor_measure():
     if not cfg.get('temp_sensor_enabled', True):
         return jsonify({'ok': False, 'error': 'Temperatursensor ist in den Einstellungen deaktiviert'}), 400
     mac = (cfg.get('temp_sensor_bt_mac') or '').strip()
-    temp_c, error = ble_thermometer.read_temperature(mac)
+    if not mac:
+        return jsonify({'ok': False, 'error': 'Keine Bluetooth-MAC fuer den Temperatursensor konfiguriert'}), 400
+    # Liest aus der Hintergrundverbindung (siehe ble_thermometer.py) statt pro Messung neu zu
+    # verbinden - der alte Weg (read_temperature) brauchte mehrere Sekunden pro Flasche.
+    temp_c, error = ble_thermometer.measure_with_background(mac)
     if temp_c is None:
         return jsonify({'ok': False, 'error': error or 'Messung fehlgeschlagen'}), 502
     return jsonify({'ok': True, 'temp': temp_c})
@@ -2587,6 +2605,7 @@ def api_sol_charge_start():
     operator_name = (data.get('operator_name') or '').strip()
     charge_id = create_sol_charge(charge_nr, room_temp, sensor_names, operator_name)
     log_event("INFO", f"SOL-Charge gestartet: {charge_nr} (id={charge_id})")
+    _sol_sync_temp_sensor_background()
     return jsonify({'ok': True, 'charge': get_sol_charge(charge_id)})
 
 
@@ -2730,6 +2749,7 @@ def api_sol_charge_close(charge_id):
 
     log_event("INFO", f"SOL-Charge abgeschlossen: {charge['charge_nr']} ({len(charge['bottles'])} Flaschen, "
                        f"bestaetigt von {charge['operator_name']}), PDF {pdf_filename}")
+    _sol_sync_temp_sensor_background()
     return jsonify({'ok': True, 'pdf_filename': pdf_filename})
 
 
@@ -2895,6 +2915,7 @@ def api_sol_config_save():
         sol_cfg['temp_sensor_enabled'] = bool(data['temp_sensor_enabled'])
     save_config(cfg)
     log_event("INFO", "SOL-Einstellungen gespeichert")
+    _sol_sync_temp_sensor_background()
     return jsonify({'ok': True, 'sol': sol_cfg})
 
 
@@ -2915,6 +2936,7 @@ def api_sol_device_toggle():
     save_config(cfg)
     log_event("INFO", f"SOL-Geraet umgeschaltet: scanner_enabled={sol_cfg.get('scanner_enabled')}, "
                        f"temp_sensor_enabled={sol_cfg.get('temp_sensor_enabled')}")
+    _sol_sync_temp_sensor_background()
     return jsonify({'ok': True, 'sol': sol_cfg})
 
 
@@ -2937,6 +2959,12 @@ if __name__ == "__main__":
     # except Exception as e:
     #     logger.warning(f"TCP capture Init-Fehler: {e}")
     logger.info("TCP/9100-Empfang deaktiviert (SOL nutzt Barcode/QR-Scan statt Maschinenprotokoll)")
+    # BLE-Hintergrundverbindung Thermometer wieder aufnehmen, falls beim Neustart bereits
+    # eine Charge offen ist (z.B. nach docker compose restart waehrend des Scannens)
+    try:
+        _sol_sync_temp_sensor_background()
+    except Exception as e:
+        logger.warning(f"BLE-Hintergrundverbindung Thermometer Init-Fehler: {e}")
     # USB beim Boot mounten (nach Stromausfall/Reboot)
     try:
         try_mount_usb_on_boot()

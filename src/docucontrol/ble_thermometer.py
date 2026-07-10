@@ -17,9 +17,18 @@ WICHTIG: Das Display des Geraets zeigt den zuletzt GETRIGGERTEN Messwert eingefr
 waehrend der BLE-Stream die aktuell LIVE anvisierte Temperatur sendet. Fuer den Techniker
 bedeutet das: den Mess-Trigger am Geraet gedrueckt halten, waehrend die Pi-Messung laeuft,
 damit Display und uebertragener Wert uebereinstimmen.
+
+Hintergrundverbindung (2026-07-10): ein Verbindungsaufbau pro Messung (siehe read_temperature)
+dauert mehrere Sekunden und war fuer den Scan-Ablauf (eine Messung pro Flasche) zu langsam.
+start_background()/stop_background() halten stattdessen waehrend einer offenen Charge
+kontinuierlich eine Verbindung zum Geraet aufrecht (reconnected sofort wieder, sobald es sich
+von selbst trennt) und cachen die zuletzt empfangene Temperatur - eine einzelne Messanfrage
+(measure_with_background) liest dann nur noch aus diesem Cache statt selbst neu zu verbinden.
 """
 import asyncio
 import logging
+import threading
+import time
 
 from bleak import BleakClient
 
@@ -85,9 +94,131 @@ async def _read_with_retries(mac: str, attempts: int, connect_timeout: float, no
 
 
 def read_temperature(mac: str, attempts: int = 5, connect_timeout: float = 2.5, notify_timeout: float = 2.0):
-    """Synchroner Einstiegspunkt fuer Flask-Routen. Liefert (temp_c, error) - genau eines
-    von beiden ist None. Blockiert bis zu ca. attempts * (connect_timeout + notify_timeout)
-    Sekunden (Default: ~22s worst case, typischer Erfolgsfall deutlich schneller)."""
+    """Synchroner Einstiegspunkt fuer Flask-Routen (Einzelmessung ohne Hintergrundverbindung).
+    Liefert (temp_c, error) - genau eines von beiden ist None. Blockiert bis zu ca.
+    attempts * (connect_timeout + notify_timeout) Sekunden (Default: ~22s worst case). Wird nur
+    noch als Fallback genutzt, wenn keine Hintergrundverbindung laeuft - siehe
+    measure_with_background()."""
     if not mac:
         return None, "Keine Bluetooth-MAC fuer den Temperatursensor konfiguriert"
     return asyncio.run(_read_with_retries(mac, attempts, connect_timeout, notify_timeout))
+
+
+# ── Hintergrundverbindung (haelt waehrend einer offenen Charge dauerhaft Verbindung) ──────────
+
+_bg_lock = threading.RLock()
+_bg_thread = None
+_bg_stop_event = None
+_bg_mac = None
+_bg_cache_temp = None
+_bg_cache_ts = 0.0
+
+
+def _bg_set_cache(temp_c):
+    global _bg_cache_temp, _bg_cache_ts
+    _bg_cache_temp = temp_c
+    _bg_cache_ts = time.time()
+
+
+def get_cached_temperature(max_age: float = 1.5):
+    """Letzte per Hintergrundverbindung empfangene Temperatur, oder None wenn keine
+    vorhanden bzw. aelter als max_age Sekunden (Geraet sendet alle ~350ms, solange verbunden)."""
+    if _bg_cache_temp is None:
+        return None
+    if time.time() - _bg_cache_ts > max_age:
+        return None
+    return _bg_cache_temp
+
+
+async def _bg_loop(mac: str, stop_event: threading.Event):
+    while not stop_event.is_set():
+        try:
+            async with BleakClient(mac, timeout=3.0) as client:
+                def handler(_characteristic, data: bytes):
+                    parsed = _parse_packet(bytes(data))
+                    if parsed is not None:
+                        _bg_set_cache(parsed)
+
+                await client.start_notify(NOTIFY_UUID, handler)
+                # Verbunden bleiben, bis das Geraet sich von selbst trennt (~3-5s, Power-Saving)
+                # oder ein Stop angefordert wird - dann sofort neu verbinden.
+                while client.is_connected and not stop_event.is_set():
+                    await asyncio.sleep(0.2)
+        except Exception as e:
+            logger.info("BLE-Hintergrundverbindung (Thermometer) getrennt/fehlgeschlagen: %s: %s",
+                        type(e).__name__, e or "(keine Fehlermeldung)")
+        if not stop_event.is_set():
+            await asyncio.sleep(0.1)
+
+
+def _bg_run(mac: str, stop_event: threading.Event):
+    asyncio.run(_bg_loop(mac, stop_event))
+
+
+def start_background(mac: str):
+    """Startet (idempotent) eine dauerhafte Hintergrund-Verbindung zum Thermometer. Ohne
+    Wirkung, wenn fuer dieselbe MAC bereits eine laeuft. Gedacht fuer die Dauer einer offenen
+    SOL-Charge (siehe app.py: charge start/close, Config-/Toggle-Aenderungen)."""
+    global _bg_thread, _bg_stop_event, _bg_mac
+    if not mac:
+        return
+    with _bg_lock:
+        if _bg_thread is not None and _bg_thread.is_alive() and _bg_mac == mac:
+            return
+        stop_background()
+        _bg_mac = mac
+        _bg_stop_event = threading.Event()
+        _bg_cache_temp_reset()
+        _bg_thread = threading.Thread(target=_bg_run, args=(mac, _bg_stop_event), daemon=True)
+        _bg_thread.start()
+        logger.info("BLE-Hintergrundverbindung (Thermometer) gestartet fuer %s", mac)
+
+
+def _bg_cache_temp_reset():
+    global _bg_cache_temp, _bg_cache_ts
+    _bg_cache_temp = None
+    _bg_cache_ts = 0.0
+
+
+def stop_background():
+    """Stoppt eine laufende Hintergrundverbindung (falls vorhanden). Ohne Wirkung, wenn keine
+    laeuft."""
+    global _bg_thread, _bg_stop_event, _bg_mac
+    with _bg_lock:
+        if _bg_stop_event is not None:
+            _bg_stop_event.set()
+        if _bg_thread is not None:
+            _bg_thread.join(timeout=5.0)
+            logger.info("BLE-Hintergrundverbindung (Thermometer) gestoppt")
+        _bg_thread = None
+        _bg_stop_event = None
+        _bg_mac = None
+        _bg_cache_temp_reset()
+
+
+def measure_with_background(mac: str, min_hold: float = 2.0, wait_max: float = 6.0, poll_interval: float = 0.1):
+    """Liefert (temp_c, error) aus dem Hintergrund-Cache statt selbst neu zu verbinden.
+
+    WICHTIG: ignoriert absichtlich einen bereits VOR diesem Aufruf im Cache liegenden Wert (der
+    kann von vor dem Scan stammen, also bevor der Techniker das Thermometer ueberhaupt auf die
+    Flasche gerichtet/den Trigger gedrueckt hat) und wartet mindestens min_hold Sekunden auf
+    einen NEUEN, erst waehrend dieser Messzeit eingetroffenen Wert - das gibt dem Techniker Zeit
+    zum Anvisieren+Trigger-Druecken (siehe Hinweistext "Trigger gedrueckt halten" in der UI).
+    Danach bis zu wait_max Sekunden Sicherheitsmarge, falls die Hintergrundverbindung gerade neu
+    aufbaut. Deutlich schneller als das alte read_temperature() (kein Verbindungsaufbau mehr pro
+    Messung), aber nicht mehr sofort - der Mindest-Wartezeit ist bewusst so gewollt."""
+    start_background(mac)
+    call_start = time.time()
+    deadline = call_start + wait_max
+    hold_until = call_start + min_hold
+    fresh_temp = None
+    while time.time() < deadline:
+        temp, ts = _bg_cache_temp, _bg_cache_ts
+        if temp is not None and ts > call_start:
+            fresh_temp = temp
+        if time.time() >= hold_until and fresh_temp is not None:
+            return fresh_temp, None
+        time.sleep(poll_interval)
+    if fresh_temp is not None:
+        return fresh_temp, None
+    return None, "Keine Messung waehrend der Messzeit empfangen (Thermometer nicht in Reichweite oder Trigger nicht gedrueckt)"

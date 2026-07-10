@@ -935,6 +935,7 @@
     var el = e.target;
     if (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA') return;
     if (el.type === 'checkbox' || el.type === 'radio' || el.type === 'date') return;
+    if (el.dataset.noKbd === '1') return;
     kbdShow(el);
   });
 

@@ -13,13 +13,15 @@ selbst, Freigabe laeuft nachgelagert ueber QM/Apotheke. Auf dieser Basis Sichtpr
 Pruefung als weitere Sammel-NOK-Kriterien beim Chargen-Abschluss ergaenzt, Chargen-Start per
 Barcode-Scan funktioniert jetzt app-weit auch aus dem Kiosk-Grundmodus (Dashboard) heraus. **Echter
 Praxisbetrieb mit SOL-Mitarbeitern laeuft bereits** (mehrfach live beobachtet).
-**BTMETER-Temperatursensor (2026-07-09, ganzer Tag):** vom ersten Reverse-Engineering (GATT-Profil,
-Rohdaten-Paketformat, vorlaeufige Kalibrierformel aus 2 Punkten) bis zur produktiven Anbindung
-(`src/docucontrol/ble_thermometer.py`, `sol_charge_scan.html` misst jetzt automatisch nach jedem
-Flaschen-Scan, 36°C-Platzhalter komplett entfernt) an einem Tag durchgezogen. **Fokus fuer die
-naechste Session: mit dem echten Geraet durchtesten** (in dieser Session nicht mehr geschafft) —
-dabei die weiterhin ungeloeste Verbindungsinstabilitaet (Geraet trennt nach ~3-5s von selbst) und
-die nur grob kalibrierte Formel im Blick behalten, ggf. nachjustieren. Details siehe CLAUDE.md.
+**BTMETER-Temperatursensor (2026-07-09 Reverse-Engineering, 2026-07-10 Live-Test erfolgreich):**
+vom ersten Reverse-Engineering (GATT-Profil, Rohdaten-Paketformat, vorlaeufige Kalibrierformel aus
+2 Punkten) ueber die produktive Anbindung bis zum ersten erfolgreichen Live-Test mit echtem Geraet
+durchgezogen. Am 2026-07-10 per Live-Nutzer-Feedback drei Runden nachgebessert (Kiosk-Tastatur-Bug,
+zu langsame Pro-Messung-Verbindung durch dauerhafte Hintergrundverbindung ersetzt, Trigger-Timing
+korrigiert) — danach eine komplette Charge mit 22 Flaschen erfolgreich durchgezogen (0 NOK, PDF
+erzeugt), ein Verbindungsabbruch hat sich von selbst erholt. **Fokus fuer die naechste Session:**
+weitere Kalibrierpunkte sammeln (bisher nur 2), Geraet-Einschlaf-Verhalten in der Praxis
+beobachten (Reconnect faengt es ab, aber nicht ganz verschwunden). Details siehe CLAUDE.md.
 
 ## Strategische Prioritaeten
 
@@ -64,7 +66,7 @@ die nur grob kalibrierte Formel im Blick behalten, ggf. nachjustieren. Details s
 - Kern-Architekturentscheidungen (Scanner, Sensor, Dokumentationsfelder) getroffen — **erledigt**
 - Hardware beschafft und mit LUKS/USB-Dongle abgesichert aufgesetzt — **erledigt**
 - Barcode- und Temperatur-Ingestion implementiert und auf der DocuControl-Dashboard/PDF-Basis
-  lauffaehig — **erledigt, aber Temperatursensor noch nicht mit echtem Geraet verifiziert**
-  (Verbindungsstabilitaet + Kalibrierformel offen)
-- Naechster Meilenstein: BTMETER mit echtem Geraet durchtesten und feinkalibrieren, dann
-  echten Praxisbetrieb mit SOL-Mitarbeitern testen
+  lauffaehig — **erledigt, erster Live-Test mit echtem BTMETER erfolgreich (2026-07-10, 22 Flaschen,
+  0 NOK)**, Kalibrierformel weiterhin nur grob (2 Punkte), Geraet schlaeft gelegentlich noch ein
+- Naechster Meilenstein: weitere Kalibrierpunkte sammeln, Geraet-Einschlafverhalten im laufenden
+  Praxisbetrieb mit SOL-Mitarbeitern weiter beobachten

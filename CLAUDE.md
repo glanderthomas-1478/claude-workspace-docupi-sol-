@@ -52,16 +52,16 @@ DocuControl-SOL ist ein Raspberry-Pi-5-basiertes System, das:
   noetig. Per `bluetoothctl` gekoppelt (MAC `AC:2B:00:26:4A:10`), Erreichbarkeits-Ueberwachung in
   den Einstellungen aktiv, echter Flaschen-Code-Scan vom User bestaetigt. Details siehe
   "Wichtiger Kontext" unten
-- **Temperatursensor: BTMETER-Anbindung gebaut, End-to-End-Test mit echtem Geraet noch offen**
-  (Stand 2026-07-09): `src/docucontrol/ble_thermometer.py` liest per `bleak` echte Werte vom
-  BTMETER (MAC `01:B6:EC:FC:DA:E1`), `sol_charge_scan.html` ruft das nach jedem Flaschen-Scan auf
-  (36°C-Platzhalter komplett entfernt), faellt bei Fehlschlag auf manuelle Eingabe zurueck.
-  **Wichtige Einschraenkungen, die vor dem Praxiseinsatz noch geloest werden sollten:**
-  Verbindungsstabilitaet (Geraet trennt nach ~3-5s von selbst, Retry-Schleife kompensiert das nur
-  teilweise) und die Kalibrierformel (bislang nur 2 grobe Referenzpunkte). Ein echter Test mit dem
-  physischen Geraet in Reichweite stand am Ende der Session noch aus. Details siehe "Wichtiger
-  Kontext" unten. Testo 835-T1 (USB, kein Bluetooth, `scripts/usb_scan_thermometer.py` bereit)
-  bleibt als zweiter Kandidat in Reserve, falls BTMETER sich nicht zuverlaessig anbinden laesst
+- **Temperatursensor: BTMETER-Anbindung gebaut, erster Live-Test erfolgreich** (Stand 2026-07-10):
+  `src/docucontrol/ble_thermometer.py` liest per `bleak` echte Werte vom BTMETER (MAC
+  `01:B6:EC:FC:DA:E1`) ueber eine dauerhafte Hintergrundverbindung waehrend einer offenen Charge
+  (nicht mehr Pro-Messung-Connect, siehe "Wichtiger Kontext" 2026-07-10), `sol_charge_scan.html`
+  ruft das nach jedem Flaschen-Scan auf, faellt bei Fehlschlag auf manuelle Eingabe zurueck. Live
+  verifiziert: Charge mit 22 Flaschen, 0 NOK, PDF erzeugt. **Weiterhin offen:** Kalibrierformel
+  (bislang nur 2 grobe Referenzpunkte) und gelegentliches Einschlafen des Geraets (Reconnect faengt
+  das jetzt zuverlaessig ab, Ausfallzeit pro Vorfall aber weiterhin ~15-30s). Details siehe
+  "Wichtiger Kontext" unten. Testo 835-T1 (USB, kein Bluetooth, `scripts/usb_scan_thermometer.py`
+  bereit) bleibt als zweiter Kandidat in Reserve, falls BTMETER sich nicht zuverlaessig anbinden laesst
 - **Dokumentationsfelder:** Chargen-Barcode, Referenztemperatur, Abfueller-Name, pro Flasche
   Flaschen-Code + IR-Temp, Bestaetigung + digitale Unterschrift — vollstaendig implementiert und
   end-to-end getestet (siehe "Chargenseite umgebaut" unten). Fuelldruck bisher nicht erfasst,
